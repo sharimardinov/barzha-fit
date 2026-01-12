@@ -68,7 +68,7 @@ func (b *Bot) registerRoutes() {
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
 	undo := handlers.NewUndo(b.api, b.nutrition)
 	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.tz)
-	debugMeals := handlers.NewDebugMeals(b.api, b.db)
+	debug := handlers.NewDebugMeals(b.api, b.db)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
@@ -81,7 +81,7 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/meals", meals.Handle)
 	b.router.Handle("/undo", undo.Handle)
 	b.router.Handle("/stats", stats.Handle)
-	b.router.Handle("/debugmeals", debugMeals.Handle)
+	b.router.Handle("debugmeals", debug.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
