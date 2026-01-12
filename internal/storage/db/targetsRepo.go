@@ -3,6 +3,7 @@ package db
 import (
 	"barzhafit/internal/domain"
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -58,7 +59,7 @@ func (r *TargetsRepo) SetManualField(ctx context.Context, chatID int64, field st
 	case "carbs":
 		q = `update user_targets set carbs_g=$2, source='manual', updated_at=now() where chat_id=$1`
 	default:
-		return nil
+		return fmt.Errorf("unknown field: %s", field)
 	}
 	_, err := r.db.Exec(ctx, q, chatID, value)
 	return err

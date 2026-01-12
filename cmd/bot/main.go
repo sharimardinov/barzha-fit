@@ -40,13 +40,15 @@ func main() {
 	}
 	defer pool.Close()
 
+	userRepo := db.NewUserRepo(pool)
+
 	// plan
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
 	// workout
 	workoutRepo := db.NewWorkoutRepo(pool)
-	workoutSvc := service.NewWorkoutService(workoutRepo)
+	workoutSvc := service.NewWorkoutService(workoutRepo, userRepo)
 
 	// users for morning push
 	botUsersRepo := db.NewBotUsersRepo(pool)
@@ -90,11 +92,11 @@ func runMorning(
 ) error {
 	loc := util.MustLocation(tz)
 	now := util.NowIn(loc)
-	day := util.Weekday1to7(now)
+	dayDate := util.LocalDateStr(now, loc)
 
 	chatIDs, err := users.ListEnabled(ctx)
 	if err != nil {
-		return fmt.Errorf("list users: %w", err)
+		return err
 	}
 
 	sent := 0
@@ -104,17 +106,18 @@ func runMorning(
 			continue
 		}
 
-		block := strings.TrimSpace(service.SplitPlanByDays(planText)[day])
-		if block == "" {
-			block = "Пусто"
-		}
-
-		status, has, err := workout.GetStatusToday(ctx, chatID, now)
+		cycleDay, err := workout.GetCycleDay(ctx, chatID)
 		if err != nil {
-			log.Printf("morning: status read failed chat_id=%d err=%v", chatID, err)
 			continue
 		}
 
+		days := service.SplitPlanByDays(planText)
+		block := strings.TrimSpace(days[cycleDay])
+		if block == "" {
+			block = "План: день не найден"
+		}
+
+		status, has, _ := workout.GetStatusByDate(ctx, chatID, dayDate)
 		st := "—"
 		if has {
 			if status == "done" {
@@ -124,20 +127,16 @@ func runMorning(
 			}
 		}
 
-		text := fmt.Sprintf("Тренировка дня\nДень %d\n\n%s\n\nОтметка: %s", day, block, st)
-
+		text := fmt.Sprintf("Тренировка дня\nДень цикла %d\n\n%s\n\nОтметка: %s", cycleDay, block, st)
 		msg := tgbotapi.NewMessage(chatID, text)
+
 		if _, err := api.Send(msg); err != nil {
-			log.Printf("morning: send failed chat_id=%d err=%v", chatID, err)
 			continue
 		}
-
-		// чуть-чуть притормозим, чтобы не упереться в лимиты телеги
 		time.Sleep(60 * time.Millisecond)
-
 		sent++
 	}
 
-	log.Printf("morning: done. day=%d users=%d sent=%d", day, len(chatIDs), sent)
+	log.Printf("morning: sent=%d", sent)
 	return nil
 }

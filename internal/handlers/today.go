@@ -6,7 +6,6 @@ import (
 	"barzhafit/internal/util"
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -17,40 +16,55 @@ type Today struct {
 	plan    *service.PlanService
 	workout *service.WorkoutService
 	targets *service.TargetsService
+	nut     *service.NutritionService
 	tz      string
 }
 
-func NewToday(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService, targets *service.TargetsService, tz string) *Today {
-	return &Today{api: api, plan: plan, workout: workout, targets: targets, tz: tz}
+func NewToday(
+	api *tgbotapi.BotAPI,
+	plan *service.PlanService,
+	workout *service.WorkoutService,
+	targets *service.TargetsService,
+	nut *service.NutritionService,
+	tz string,
+) *Today {
+	return &Today{
+		api:     api,
+		plan:    plan,
+		workout: workout,
+		targets: targets,
+		nut:     nut,
+		tz:      tz,
+	}
 }
 
 func (h *Today) Handle(m *tgbotapi.Message) {
-	ctx := context.Background()
 	chatID := m.Chat.ID
+	ctx := context.Background()
 
 	loc := util.MustLocation(h.tz)
 	now := util.NowIn(loc)
-	day := util.Weekday1to7(now)
+	dayDate := util.LocalDateStr(now, loc)
+
+	cycleDay, err := h.workout.GetCycleDay(ctx, chatID)
+	if err != nil {
+		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка чтения cycle day"))
+		return
+	}
 
 	planText, err := h.plan.Get(ctx, chatID)
 	if err != nil {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Нет плана. Сначала /plan"))
+		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Нет плана. Сначала /plan"))
 		return
 	}
 
 	days := service.SplitPlanByDays(planText)
-	block := strings.TrimSpace(days[day])
+	block := strings.TrimSpace(days[cycleDay])
 	if block == "" {
-		block = "День не найден в плане. Проверь, что у тебя строка с числом дня (1..7) стоит отдельно."
+		block = "День не найден в плане. Проверь заголовки 1..7 отдельной строкой."
 	}
 
-	status, has, err := h.workout.GetStatusToday(ctx, chatID, now)
-	if err != nil {
-		log.Printf("today status failed: chat_id=%d err=%v", chatID, err)
-		h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка чтения статуса"))
-		return
-	}
-
+	status, has, _ := h.workout.GetStatusByDate(ctx, chatID, dayDate)
 	st := "—"
 	if has {
 		if status == "done" {
@@ -60,11 +74,16 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 		}
 	}
 
-	// цели (если нет — покажем дефолт + подсказку)
+	kcal, p, _, _, err := h.nut.SumToday(ctx, chatID, loc, now)
+	if err != nil {
+		kcal, p = 0, 0
+	}
+
 	kcalTarget := 2400
 	proteinTarget := 170
-	tg, ok, _ := h.targets.Get(ctx, chatID)
 	source := "default"
+
+	tg, ok, _ := h.targets.Get(ctx, chatID)
 	if ok {
 		kcalTarget = tg.Kcal
 		proteinTarget = tg.ProteinG
@@ -72,11 +91,11 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 	}
 
 	text := fmt.Sprintf(
-		"День %d\n\n%s\n\nТренировка: %s\n\nКалории: 0 / %d (%s)\nБелок: 0 / %d",
-		day, block, st, kcalTarget, source, proteinTarget,
+		"День цикла %d\n\n%s\n\nТренировка: %s\n\nКалории: %d / %d (%s)\nБелок: %d / %d",
+		cycleDay, block, st, kcal, kcalTarget, source, p, proteinTarget,
 	)
 
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ReplyMarkup = telegram.WorkoutButtons()
-	h.api.Send(msg)
+	_, _ = h.api.Send(msg)
 }

@@ -40,7 +40,8 @@ func (h *Stats) Handle(m *tgbotapi.Message) {
 		kcal, p, f, c, err := h.nut.SumByDay(ctx, chatID, dayStart, dayEnd)
 
 		// Тренировка за день
-		status, hasWorkout, _ := h.workout.GetStatusToday(ctx, chatID, dayStart)
+		dayDate := util.LocalDateStr(dayStart, util.MustLocation(h.tz))
+		status, hasWorkout, _ := h.workout.GetStatusByDate(ctx, chatID, dayDate)
 
 		dayName := dayStart.Format("02.01 Mon")
 

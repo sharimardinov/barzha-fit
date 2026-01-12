@@ -24,3 +24,12 @@ func Weekday1to7(t time.Time) int {
 	}
 	return wd
 }
+
+func DayStart(t time.Time, loc *time.Location) time.Time {
+	tt := t.In(loc)
+	return time.Date(tt.Year(), tt.Month(), tt.Day(), 0, 0, 0, 0, loc)
+}
+
+func LocalDateStr(t time.Time, loc *time.Location) string {
+	return t.In(loc).Format("2006-01-02")
+}

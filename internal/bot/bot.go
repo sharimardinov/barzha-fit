@@ -61,7 +61,7 @@ func (b *Bot) registerRoutes() {
 	meal := handlers.NewMeal(b.api, b.state)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
 	morning := handlers.NewMorning(b.api, b.users)
-	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.tz)
+	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
 	week := handlers.NewWeek(b.api, b.plan, b.tz)
 	profile := handlers.NewProfile(b.api, b.profile, b.targets)
 	targets := handlers.NewTargets(b.api, b.targets)
@@ -205,9 +205,10 @@ func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
 
 	loc := util.MustLocation(b.tz)
 	now := util.NowIn(loc)
-	day := util.Weekday1to7(now)
+	dayDate := util.LocalDateStr(now, loc)
 
-	if err := b.workout.MarkToday(context.Background(), chatID, now, day, status); err != nil {
+	_, err := b.workout.MarkAndAdvance(context.Background(), chatID, dayDate, status)
+	if err != nil {
 		log.Printf("workout mark failed: chat_id=%d err=%v", chatID, err)
 		b.reply(chatID, "Ошибка сохранения тренировки")
 		return
