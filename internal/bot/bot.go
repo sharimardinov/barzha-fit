@@ -145,11 +145,17 @@ func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
 		status = "done"
 	}
 
-	next, err := b.workout.MarkToday(context.Background(), chatID, time.Now(), status)
+	next, advanced, err := b.workout.MarkToday(context.Background(), chatID, time.Now(), status)
 	if err != nil {
 		log.Printf("workout mark failed: chat_id=%d err=%v", chatID, err)
 		b.reply(chatID, "Ошибка сохранения тренировки")
 		return
+	}
+
+	if advanced {
+		b.reply(chatID, fmt.Sprintf("Ок. Следующий день: %d", next))
+	} else {
+		b.reply(chatID, fmt.Sprintf("Ок. Обновил отметку за сегодня. Текущий день цикла: %d", next))
 	}
 
 	b.reply(chatID, fmt.Sprintf("Ок. Следующий день: %d", next))

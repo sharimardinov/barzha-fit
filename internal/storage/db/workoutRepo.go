@@ -28,9 +28,9 @@ func (r *WorkoutRepo) UpsertStatus(ctx context.Context, userID int64, date time.
 func (r *WorkoutRepo) GetStatus(ctx context.Context, userID int64, date time.Time) (string, bool, error) {
 	var status string
 	err := r.db.QueryRow(ctx, `
-        select status from workout_days
-        where user_id=$1 and day_date=$2::date
-    `, userID, date).Scan(&status)
+		select status from workout_days
+		where user_id=$1 and day_date=$2::date
+	`, userID, date).Scan(&status)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -39,4 +39,20 @@ func (r *WorkoutRepo) GetStatus(ctx context.Context, userID int64, date time.Tim
 		return "", false, err
 	}
 	return status, true, nil
+}
+
+func (r *WorkoutRepo) GetRecord(ctx context.Context, userID int64, date time.Time) (cycleDay int, status string, ok bool, err error) {
+	err = r.db.QueryRow(ctx, `
+		select cycle_day, status
+		from workout_days
+		where user_id=$1 and day_date=$2::date
+	`, userID, date).Scan(&cycleDay, &status)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, "", false, nil
+		}
+		return 0, "", false, err
+	}
+	return cycleDay, status, true, nil
 }

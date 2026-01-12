@@ -58,8 +58,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 	text := fmt.Sprintf("День %d\n\n%s\n\nТренировка: %s", day, block, st)
 
 	msg := tgbotapi.NewMessage(m.Chat.ID, text)
-	if !has { // если сегодня ещё не отмечал — показываем кнопки
-		msg.ReplyMarkup = telegram.WorkoutButtons()
-	}
+	msg.ReplyMarkup = telegram.WorkoutButtons()
+
 	h.api.Send(msg)
 }
