@@ -6,17 +6,23 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-type Meal struct {
-	api   *tgbotapi.BotAPI
-	state domain.StateSetter
+type StateSetter interface {
+	Set(chatID int64, st domain.State)
 }
 
-func NewMeal(api *tgbotapi.BotAPI, state domain.StateSetter) *Meal {
+type Meal struct {
+	api   *tgbotapi.BotAPI
+	state StateSetter
+}
+
+func NewMeal(api *tgbotapi.BotAPI, state StateSetter) *Meal {
 	return &Meal{api: api, state: state}
 }
 
 func (h *Meal) Handle(m *tgbotapi.Message) {
-	h.state.Set(m.Chat.ID, domain.StateWaitMealText)
-	msg := tgbotapi.NewMessage(m.Chat.ID, "Напиши одним сообщением что ел.")
-	h.api.Send(msg)
+	chatID := m.Chat.ID
+
+	h.state.Set(chatID, domain.StateWaitMealText)
+
+	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Напиши одним сообщением что ел."))
 }

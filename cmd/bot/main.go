@@ -59,6 +59,14 @@ func main() {
 	targetsRepo := db.NewTargetsRepo(pool)
 	targetsSvc := service.NewTargetsService(targetsRepo, profileRepo)
 
+	aiSvc, err := service.NewAIService()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mealRepo := db.NewMealRepo(pool)
+	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
+
 	if *morning {
 		if err := runMorning(ctx, api, planSvc, workoutSvc, botUsersSvc, cfg.TZ); err != nil {
 			log.Fatalf("morning failed: %v", err)
@@ -66,7 +74,7 @@ func main() {
 		return
 	}
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc)
 	if err := b.Run(ctx); err != nil {
 		log.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"barzhafit/internal/domain"
 	"context"
 	"fmt"
 
@@ -24,6 +25,11 @@ type closer interface {
 
 func New() (*App, error) {
 	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	aiSvc, err := service.NewAIService()
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +59,10 @@ func New() (*App, error) {
 	botUsersRepo := db.NewBotUsersRepo(pool)
 	botUsersSvc := service.NewBotUsersService(botUsersRepo)
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ)
+	mealRepo := db.NewMealRepo(pool)
+	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
+
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, nutSvc)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }

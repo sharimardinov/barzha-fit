@@ -14,15 +14,16 @@ import (
 )
 
 type Bot struct {
-	api     *tgbotapi.BotAPI
-	router  *Router
-	state   *StateStore
-	plan    *service.PlanService
-	workout *service.WorkoutService
-	users   *service.BotUsersService
-	tz      string
-	profile *service.ProfileService
-	targets *service.TargetsService
+	api       *tgbotapi.BotAPI
+	router    *Router
+	state     *StateStore
+	plan      *service.PlanService
+	workout   *service.WorkoutService
+	users     *service.BotUsersService
+	tz        string
+	profile   *service.ProfileService
+	targets   *service.TargetsService
+	nutrition *service.NutritionService
 }
 
 func New(
@@ -33,17 +34,19 @@ func New(
 	tz string,
 	profile *service.ProfileService,
 	targets *service.TargetsService,
+	nutrition *service.NutritionService,
 ) *Bot {
 	b := &Bot{
-		api:     api,
-		router:  NewRouter(),
-		state:   NewStateStore(),
-		plan:    plan,
-		workout: workout,
-		users:   users,
-		tz:      tz,
-		profile: profile,
-		targets: targets,
+		api:       api,
+		router:    NewRouter(),
+		state:     NewStateStore(),
+		plan:      plan,
+		workout:   workout,
+		users:     users,
+		tz:        tz,
+		profile:   profile,
+		targets:   targets,
+		nutrition: nutrition,
 	}
 	b.registerRoutes()
 	return b
@@ -58,6 +61,8 @@ func (b *Bot) registerRoutes() {
 	week := handlers.NewWeek(b.api, b.plan, b.tz)
 	profile := handlers.NewProfile(b.api, b.profile, b.targets)
 	targets := handlers.NewTargets(b.api, b.targets)
+	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
+	undo := handlers.NewUndo(b.api, b.nutrition)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
@@ -67,6 +72,8 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/morning", morning.Handle)
 	b.router.Handle("/profile", profile.Handle)
 	b.router.Handle("/targets", targets.Handle)
+	b.router.Handle("/meals", meals.Handle)
+	b.router.Handle("/undo", undo.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -131,7 +138,18 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 	case domain.StateWaitMealText:
 		text := m.Text
 		b.state.Clear(chatID)
-		b.reply(chatID, "Ок, записал приём пищи (пока без подсчёта):\n"+text)
+
+		loc := util.MustLocation(b.tz)
+		now := util.NowIn(loc)
+
+		meal, err := b.nutrition.AddMealFromText(context.Background(), chatID, now, text)
+		if err != nil {
+			b.reply(chatID, "Записал, но AI упал (сохранил как 0).")
+			return true
+		}
+
+		b.reply(chatID, fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
+			meal.Kcal, meal.ProteinG, meal.FatG, meal.CarbsG, meal.Text))
 		return true
 
 	case domain.StateWaitPlanText:

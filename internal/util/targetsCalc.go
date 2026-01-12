@@ -8,11 +8,11 @@ import (
 func ActivityMultiplier(a string) float64 {
 	switch a {
 	case "low":
-		return 1.4
+		return 1.2
 	case "high":
-		return 1.8
+		return 1.6
 	default:
-		return 1.6 // mid
+		return 1.4 // mid
 	}
 }
 
@@ -46,7 +46,7 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	kcal := int(math.Round(tdee))
 
 	// макросы: белок/жир от LBM
-	protein := int(math.Round(2.0 * lbm))
+	protein := int(math.Round(2.2 * lbm))
 	fat := int(math.Round(0.8 * lbm))
 
 	// carbs = остаток
