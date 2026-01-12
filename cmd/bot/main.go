@@ -74,7 +74,7 @@ func main() {
 		return
 	}
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, pool)
 	if err := b.Run(ctx); err != nil {
 		log.Fatal(err)
 	}
