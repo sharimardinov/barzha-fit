@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"barzhafit/internal/handlers"
 
@@ -13,18 +14,20 @@ import (
 )
 
 type Bot struct {
-	api    *tgbotapi.BotAPI
-	router *Router
-	state  *StateStore
-	plan   *service.PlanService
+	api     *tgbotapi.BotAPI
+	router  *Router
+	state   *StateStore
+	plan    *service.PlanService
+	workout *service.WorkoutService
 }
 
-func New(api *tgbotapi.BotAPI, plan *service.PlanService) *Bot {
+func New(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService) *Bot {
 	b := &Bot{
-		api:    api,
-		router: NewRouter(),
-		state:  NewStateStore(),
-		plan:   plan,
+		api:     api,
+		router:  NewRouter(),
+		state:   NewStateStore(),
+		plan:    plan,
+		workout: workout,
 	}
 	b.registerRoutes()
 	return b
@@ -32,7 +35,7 @@ func New(api *tgbotapi.BotAPI, plan *service.PlanService) *Bot {
 
 func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api)
-	today := handlers.NewToday(b.api)
+	today := handlers.NewToday(b.api, b.plan, b.workout)
 	meal := handlers.NewMeal(b.api, b.state)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
 
@@ -55,9 +58,16 @@ func (b *Bot) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case upd := <-updates:
+
+			if upd.CallbackQuery != nil {
+				b.handleCallback(upd.CallbackQuery)
+				continue
+			}
+
 			if upd.Message == nil {
 				continue
 			}
+
 			if b.handleState(upd.Message) {
 				continue
 			}
@@ -65,7 +75,6 @@ func (b *Bot) Run(ctx context.Context) error {
 				continue
 			}
 
-			// неизвестная команда — мягко отрежем
 			if upd.Message.IsCommand() {
 				b.reply(upd.Message.Chat.ID, "Не понял команду. /today")
 			}
@@ -84,6 +93,14 @@ func (b *Bot) reply(chatID int64, text string) {
 func (b *Bot) handleState(m *tgbotapi.Message) bool {
 	chatID := m.Chat.ID
 	st := b.state.Get(chatID)
+
+	if st == domain.StateNone {
+		return false
+	}
+	if m.IsCommand() {
+		return false
+	}
+
 	switch st {
 	case domain.StateWaitMealText:
 		// пока просто подтверждаем, позже тут будет AI + сохранение
@@ -108,4 +125,32 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		b.state.Clear(chatID)
 		return false
 	}
+}
+func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
+	cfg := tgbotapi.CallbackConfig{
+		CallbackQueryID: q.ID,
+	}
+	if _, err := b.api.Request(cfg); err != nil {
+		log.Printf("answer callback failed: %v", err)
+	}
+	chatID := q.Message.Chat.ID
+	data := q.Data
+
+	if data != "w:done" && data != "w:skip" {
+		return
+	}
+
+	status := "skip"
+	if data == "w:done" {
+		status = "done"
+	}
+
+	next, err := b.workout.MarkToday(context.Background(), chatID, time.Now(), status)
+	if err != nil {
+		log.Printf("workout mark failed: chat_id=%d err=%v", chatID, err)
+		b.reply(chatID, "Ошибка сохранения тренировки")
+		return
+	}
+
+	b.reply(chatID, fmt.Sprintf("Ок. Следующий день: %d", next))
 }

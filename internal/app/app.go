@@ -44,7 +44,11 @@ func New() (*App, error) {
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
-	b := bot.New(api, planSvc)
+	userRepo := db.NewUserRepo(pool)
+	workoutRepo := db.NewWorkoutRepo(pool)
+	workoutSvc := service.NewWorkoutService(userRepo, workoutRepo)
+
+	b := bot.New(api, planSvc, workoutSvc)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }
