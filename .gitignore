@@ -4,3 +4,4 @@
 *.log
 EOF
 /routine.txt
+.env
