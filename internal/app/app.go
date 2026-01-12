@@ -1,7 +1,6 @@
 package app
 
 import (
-	"barzhafit/internal/domain"
 	"context"
 	"fmt"
 
@@ -59,10 +58,19 @@ func New() (*App, error) {
 	botUsersRepo := db.NewBotUsersRepo(pool)
 	botUsersSvc := service.NewBotUsersService(botUsersRepo)
 
+	// profile + targets
+	profileRepo := db.NewProfileRepo(pool)
+	profileSvc := service.NewProfileService(profileRepo)
+
+	targetsRepo := db.NewTargetsRepo(pool)
+	targetsSvc := service.NewTargetsService(targetsRepo, profileRepo)
+
+	// nutrition
 	mealRepo := db.NewMealRepo(pool)
 	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, nutSvc)
+	// bot с ВСЕМИ параметрами + pool
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, pool)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }

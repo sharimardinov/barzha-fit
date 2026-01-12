@@ -29,7 +29,7 @@ func Load() (*Config, error) {
 
 	tz := os.Getenv("TZ")
 	if tz == "" {
-		tz = "UTC"
+		tz = "Asia/Yekaterinburg"
 	}
 
 	debug := os.Getenv("DEBUG") == "1"

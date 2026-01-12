@@ -26,26 +26,24 @@ func (h *Profile) Handle(m *tgbotapi.Message) {
 
 	args := strings.TrimSpace(m.CommandArguments())
 
-	// /profile set ...
-	if strings.HasPrefix(strings.ToLower(args), "set") {
-		text := strings.TrimSpace(strings.TrimPrefix(args, "set"))
+	// /profile set <данные>
+	if strings.HasPrefix(args, "set ") {
+		text := strings.TrimPrefix(args, "set ")
+		text = strings.TrimSpace(text)
 		if text == "" {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /profile set рост 180 вес 92 жир 20 возраст 28 активность mid"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /profile set пол:м возраст:30 рост:180 вес:85 жир:15 активность:mid"))
 			return
 		}
 
 		p, err := h.profile.SaveFromText(ctx, chatID, text)
 		if err != nil {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка сохранения профиля"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка сохранения"))
 			return
 		}
 
-		// сразу пересчитаем цели
-		_, _ = h.targets.Refresh(ctx, chatID)
-
 		h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(
-			"Профиль сохранён:\nрост %d, вес %.1f, жир %.1f%%, возраст %d, активность %s",
-			p.HeightCM, p.WeightKG, p.BodyFatPct, p.Age, p.Activity,
+			"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
+			emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, p.Activity,
 		)))
 		return
 	}
@@ -53,13 +51,13 @@ func (h *Profile) Handle(m *tgbotapi.Message) {
 	// /profile — показать
 	p, ok, err := h.profile.Get(ctx, chatID)
 	if err != nil || !ok {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Профиля нет. Введи: /profile set рост 180 вес 92 жир 20 возраст 28 активность mid"))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Профиль не найден. Используй /profile set ..."))
 		return
 	}
 
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(
-		"Профиль:\nпол %s, возраст %d\nрост %d\nвес %.1f\nжир %.1f%%\nактивность %s",
-		emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, emptyDash(p.Activity),
+		"Твой профиль:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
+		emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, p.Activity,
 	)))
 }
 

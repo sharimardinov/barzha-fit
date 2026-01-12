@@ -11,6 +11,7 @@ import (
 	"barzhafit/internal/util"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Bot struct {
@@ -24,6 +25,7 @@ type Bot struct {
 	profile   *service.ProfileService
 	targets   *service.TargetsService
 	nutrition *service.NutritionService
+	db        *pgxpool.Pool
 }
 
 func New(
@@ -35,6 +37,7 @@ func New(
 	profile *service.ProfileService,
 	targets *service.TargetsService,
 	nutrition *service.NutritionService,
+	db *pgxpool.Pool,
 ) *Bot {
 	b := &Bot{
 		api:       api,
@@ -47,6 +50,7 @@ func New(
 		profile:   profile,
 		targets:   targets,
 		nutrition: nutrition,
+		db:        db,
 	}
 	b.registerRoutes()
 	return b
@@ -63,7 +67,8 @@ func (b *Bot) registerRoutes() {
 	targets := handlers.NewTargets(b.api, b.targets)
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
 	undo := handlers.NewUndo(b.api, b.nutrition)
-	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.tz) // ← ДОБАВИТЬ
+	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.tz)
+	debugMeals := handlers.NewDebugMeals(b.api, b.db)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
@@ -75,7 +80,8 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/targets", targets.Handle)
 	b.router.Handle("/meals", meals.Handle)
 	b.router.Handle("/undo", undo.Handle)
-	b.router.Handle("/stats", stats.Handle) // ← ДОБАВИТЬ
+	b.router.Handle("/stats", stats.Handle)
+	b.router.Handle("/debug_meals", debugMeals.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
