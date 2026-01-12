@@ -41,13 +41,19 @@ func New() (*App, error) {
 		return nil, err
 	}
 
+	// plan
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
+	// workout (calendar mode)
 	workoutRepo := db.NewWorkoutRepo(pool)
 	workoutSvc := service.NewWorkoutService(workoutRepo)
 
-	b := bot.New(api, planSvc, workoutSvc, cfg.TZ)
+	// users for morning push
+	botUsersRepo := db.NewBotUsersRepo(pool)
+	botUsersSvc := service.NewBotUsersService(botUsersRepo)
+
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }

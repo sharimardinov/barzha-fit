@@ -1,13 +1,14 @@
 package bot
 
 import (
+	"context"
+	"fmt"
+	"log"
+
 	"barzhafit/internal/domain"
 	"barzhafit/internal/handlers"
 	"barzhafit/internal/service"
 	"barzhafit/internal/util"
-	"context"
-	"fmt"
-	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -18,19 +19,24 @@ type Bot struct {
 	state   *StateStore
 	plan    *service.PlanService
 	workout *service.WorkoutService
+	users   *service.BotUsersService
 	tz      string
 }
 
-func New(api *tgbotapi.BotAPI,
+func New(
+	api *tgbotapi.BotAPI,
 	plan *service.PlanService,
 	workout *service.WorkoutService,
-	tz string) *Bot {
+	users *service.BotUsersService,
+	tz string,
+) *Bot {
 	b := &Bot{
 		api:     api,
 		router:  NewRouter(),
 		state:   NewStateStore(),
 		plan:    plan,
 		workout: workout,
+		users:   users,
 		tz:      tz,
 	}
 	b.registerRoutes()
@@ -38,15 +44,17 @@ func New(api *tgbotapi.BotAPI,
 }
 
 func (b *Bot) registerRoutes() {
-	start := handlers.NewStart(b.api)
+	start := handlers.NewStart(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.tz)
 	meal := handlers.NewMeal(b.api, b.state)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
+	week := handlers.NewWeek(b.api, b.plan, b.tz)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
 	b.router.Handle("/meal", meal.Handle)
 	b.router.Handle("/plan", plan.Handle)
+	b.router.Handle("/week", week.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -63,6 +71,7 @@ func (b *Bot) Run(ctx context.Context) error {
 			return nil
 		case upd := <-updates:
 
+			// callback должен обрабатываться ДО проверки Message nil
 			if upd.CallbackQuery != nil {
 				b.handleCallback(upd.CallbackQuery)
 				continue
@@ -101,13 +110,13 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 	if st == domain.StateNone {
 		return false
 	}
+	// если пользователь в состоянии, но вводит команду — пусть команду обработает роутер
 	if m.IsCommand() {
 		return false
 	}
 
 	switch st {
 	case domain.StateWaitMealText:
-		// пока просто подтверждаем, позже тут будет AI + сохранение
 		text := m.Text
 		b.state.Clear(chatID)
 		b.reply(chatID, "Ок, записал приём пищи (пока без подсчёта):\n"+text)
@@ -118,6 +127,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		b.state.Clear(chatID)
 
 		if err := b.plan.Save(context.Background(), chatID, planText); err != nil {
+			log.Printf("plan save failed: chat_id=%d err=%v", chatID, err)
 			b.reply(chatID, "Ошибка сохранения плана")
 			return true
 		}
@@ -130,9 +140,14 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return false
 	}
 }
+
 func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
 	cfg := tgbotapi.CallbackConfig{CallbackQueryID: q.ID}
 	_, _ = b.api.Request(cfg)
+
+	if q.Message == nil || q.Message.Chat == nil {
+		return
+	}
 
 	chatID := q.Message.Chat.ID
 	data := q.Data

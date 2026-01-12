@@ -19,3 +19,8 @@ create table if not exists workout_days (
                                             created_at timestamptz not null default now(),
                                             primary key (user_id, day_date)
 );
+
+create table if not exists bot_users (
+                                         chat_id bigint primary key,
+                                         created_at timestamptz not null default now()
+);
