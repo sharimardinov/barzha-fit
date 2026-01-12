@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -135,7 +137,11 @@ func (a *AIService) EstimateNutrition(ctx context.Context, mealText string) (Nut
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return NutritionEstimate{}, nil, fmt.Errorf("openai status=%d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return NutritionEstimate{}, map[string]any{
+			"status": resp.StatusCode,
+			"body":   string(body),
+		}, fmt.Errorf("openai status=%d body=%s", resp.StatusCode, string(body))
 	}
 
 	var out respOut
@@ -150,19 +156,13 @@ func (a *AIService) EstimateNutrition(ctx context.Context, mealText string) (Nut
 	// В Responses API результат обычно лежит в output[].content[].text (type=output_text).  [oai_citation:1‡OpenAI Platform](https://platform.openai.com/docs/api-reference/responses)
 	rawText := ""
 	for _, item := range out.Output {
-		if item.Type != "message" {
-			continue
-		}
 		for _, c := range item.Content {
 			if c.Type == "output_text" && c.Text != "" {
-				rawText = c.Text
-				break
+				rawText += c.Text
 			}
 		}
-		if rawText != "" {
-			break
-		}
 	}
+	rawText = strings.TrimSpace(rawText)
 	if rawText == "" {
 		return NutritionEstimate{}, out, errors.New("openai: empty output_text")
 	}

@@ -36,8 +36,9 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 		FatG:     est.FatG,
 		CarbsG:   est.CarbsG,
 	}
-	if err := s.meals.Add(ctx, m, raw); err != nil {
-		return db.Meal{}, err
+	if err != nil {
+		_ = s.meals.Add(ctx, m, map[string]any{"error": err.Error(), "ai": raw})
+		return m, err
 	}
 	return m, nil
 }
