@@ -2,27 +2,50 @@ package handlers
 
 import (
 	"barzhafit/internal/domain"
+	"barzhafit/internal/service"
+	"barzhafit/internal/util"
+	"context"
+	"fmt"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-type StateSetter interface {
-	Set(chatID int64, st domain.State)
-}
-
 type Meal struct {
 	api   *tgbotapi.BotAPI
-	state StateSetter
+	state domain.StateSetter
+	nut   *service.NutritionService
+	tz    string
 }
 
-func NewMeal(api *tgbotapi.BotAPI, state StateSetter) *Meal {
-	return &Meal{api: api, state: state}
+func NewMeal(api *tgbotapi.BotAPI, state domain.StateSetter, nut *service.NutritionService, tz string) *Meal {
+	return &Meal{api: api, state: state, nut: nut, tz: tz}
 }
 
 func (h *Meal) Handle(m *tgbotapi.Message) {
 	chatID := m.Chat.ID
+	ctx := context.Background()
 
+	// поддерживаем /meal <текст>
+	args := strings.TrimSpace(m.CommandArguments())
+	if args != "" {
+		loc := util.MustLocation(h.tz)
+		now := util.NowIn(loc)
+
+		meal, err := h.nut.AddMealFromText(ctx, chatID, now, args)
+		if err != nil {
+			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Записал, но AI упал (сохранил как 0)."))
+			return
+		}
+
+		_, _ = h.api.Send(tgbotapi.NewMessage(chatID,
+			fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
+				meal.Kcal, meal.ProteinG, meal.FatG, meal.CarbsG, meal.Text),
+		))
+		return
+	}
+
+	// обычный режим: /meal -> ждём следующий текст
 	h.state.Set(chatID, domain.StateWaitMealText)
-
-	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Напиши одним сообщением что ел."))
+	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Напиши одним сообщением что ел. Пример: \"2 яйца, рис, курица\""))
 }

@@ -58,7 +58,7 @@ func New(
 
 func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api, b.users)
-	meal := handlers.NewMeal(b.api, b.state)
+	meal := handlers.NewMeal(b.api, b.state, b.nutrition, b.tz)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
 	morning := handlers.NewMorning(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
