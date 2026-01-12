@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,6 +25,8 @@ type MealRepo struct{ db *pgxpool.Pool }
 func NewMealRepo(db *pgxpool.Pool) *MealRepo { return &MealRepo{db: db} }
 
 func (r *MealRepo) Add(ctx context.Context, m Meal, aiRaw any) error {
+	log.Printf("MEAL ADD chat=%d kcal=%d p=%d f=%d c=%d text=%q",
+		m.ChatID, m.Kcal, m.ProteinG, m.FatG, m.CarbsG, m.Text)
 	var rawBytes []byte
 	if aiRaw != nil {
 		b, err := json.Marshal(aiRaw)
