@@ -23,7 +23,7 @@ type MealRepo struct{ db *pgxpool.Pool }
 
 func NewMealRepo(db *pgxpool.Pool) *MealRepo { return &MealRepo{db: db} }
 
-func (r *MealRepo) Add(ctx context.Context, m Meal, aiRaw any) error {
+func (r *MealRepo) Add(ctx context.Context, m *Meal, aiRaw any) error {
 	var rawBytes []byte
 	if aiRaw != nil {
 		b, err := json.Marshal(aiRaw)
@@ -33,10 +33,11 @@ func (r *MealRepo) Add(ctx context.Context, m Meal, aiRaw any) error {
 		rawBytes = b
 	}
 
-	_, err := r.db.Exec(ctx, `
+	err := r.db.QueryRow(ctx, `
 		insert into meals(chat_id, eaten_at, text, kcal, protein_g, fat_g, carbs_g, ai_raw)
 		values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
-	`, m.ChatID, m.EatenAt, m.Text, m.Kcal, m.ProteinG, m.FatG, m.CarbsG, rawJSON(rawBytes))
+		returning id
+	`, m.ChatID, m.EatenAt, m.Text, m.Kcal, m.ProteinG, m.FatG, m.CarbsG, rawJSON(rawBytes)).Scan(&m.ID)
 
 	return err
 }

@@ -63,6 +63,7 @@ func (b *Bot) registerRoutes() {
 	targets := handlers.NewTargets(b.api, b.targets)
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
 	undo := handlers.NewUndo(b.api, b.nutrition)
+	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.tz) // ← ДОБАВИТЬ
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
@@ -74,6 +75,7 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/targets", targets.Handle)
 	b.router.Handle("/meals", meals.Handle)
 	b.router.Handle("/undo", undo.Handle)
+	b.router.Handle("/stats", stats.Handle) // ← ДОБАВИТЬ
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -142,11 +144,20 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		loc := util.MustLocation(b.tz)
 		now := util.NowIn(loc)
 
+		// ДЕБАГ
+		log.Printf("DEBUG saving meal: chatID=%d now=%s text=%s",
+			chatID, now.Format("2006-01-02 15:04:05 MST"), text)
+
 		meal, err := b.nutrition.AddMealFromText(context.Background(), chatID, now, text)
 		if err != nil {
+			log.Printf("ERROR saving meal: chatID=%d err=%v", chatID, err)
 			b.reply(chatID, "Записал, но AI упал (сохранил как 0).")
 			return true
 		}
+
+		// ДЕБАГ
+		log.Printf("DEBUG meal saved: chatID=%d id=%d eatenAt=%s kcal=%d",
+			chatID, meal.ID, meal.EatenAt.Format("2006-01-02 15:04:05 MST"), meal.Kcal)
 
 		b.reply(chatID, fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
 			meal.Kcal, meal.ProteinG, meal.FatG, meal.CarbsG, meal.Text))

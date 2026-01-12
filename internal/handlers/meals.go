@@ -5,7 +5,9 @@ import (
 	"barzhafit/internal/util"
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -26,11 +28,23 @@ func (h *Meals) Handle(m *tgbotapi.Message) {
 	loc := util.MustLocation(h.tz)
 	now := util.NowIn(loc)
 
+	// ДЕБАГ: выведем временные рамки
+	from := util.DayStart(now, loc)
+	to := from.Add(24 * time.Hour)
+	log.Printf("DEBUG /meals: chatID=%d now=%s from=%s to=%s",
+		chatID, now.Format("2006-01-02 15:04:05 MST"),
+		from.Format("2006-01-02 15:04:05 MST"),
+		to.Format("2006-01-02 15:04:05 MST"))
+
 	items, err := h.nut.ListToday(ctx, chatID, loc, now)
 	if err != nil {
+		log.Printf("ERROR /meals: chatID=%d err=%v", chatID, err)
 		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка чтения meals"))
 		return
 	}
+
+	log.Printf("DEBUG /meals: chatID=%d found %d items", chatID, len(items))
+
 	if len(items) == 0 {
 		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "За сегодня пусто"))
 		return

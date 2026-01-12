@@ -30,7 +30,7 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 
 	// если AI упал — сохраняем хотя бы текст + ai_raw с ошибкой
 	if err != nil {
-		_ = s.meals.Add(ctx, m, map[string]any{"error": err.Error()})
+		_ = s.meals.Add(ctx, &m, map[string]any{"error": err.Error()})
 		return m, err
 	}
 
@@ -40,7 +40,7 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 	m.FatG = est.FatG
 	m.CarbsG = est.CarbsG
 
-	if err := s.meals.Add(ctx, m, raw); err != nil {
+	if err := s.meals.Add(ctx, &m, raw); err != nil {
 		return m, err
 	}
 
@@ -60,6 +60,14 @@ func (s *NutritionService) ListToday(ctx context.Context, chatID int64, loc *tim
 func (s *NutritionService) SumToday(ctx context.Context, chatID int64, loc *time.Location, now time.Time) (kcal, p, f, c int, err error) {
 	from := dayStart(now, loc)
 	to := from.Add(24 * time.Hour)
+	return s.meals.SumByDay(ctx, chatID, from, to)
+}
+
+func (s *NutritionService) SumByDay(ctx context.Context, chatID int64, from, to time.Time) (kcal, p, f, c int, err error) {
+	return s.meals.SumByDay(ctx, chatID, from, to)
+}
+
+func (s *NutritionService) SumByWeek(ctx context.Context, chatID int64, from, to time.Time) (kcal, p, f, c int, err error) {
 	return s.meals.SumByDay(ctx, chatID, from, to)
 }
 
