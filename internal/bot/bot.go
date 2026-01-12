@@ -81,7 +81,7 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/meals", meals.Handle)
 	b.router.Handle("/undo", undo.Handle)
 	b.router.Handle("/stats", stats.Handle)
-	b.router.Handle("/debug_meals", debugMeals.Handle)
+	b.router.Handle("/debugmeals", debugMeals.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -98,7 +98,6 @@ func (b *Bot) Run(ctx context.Context) error {
 			return nil
 		case upd := <-updates:
 
-			// callback должен обрабатываться ДО проверки Message nil
 			if upd.CallbackQuery != nil {
 				b.handleCallback(upd.CallbackQuery)
 				continue
@@ -137,7 +136,6 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 	if st == domain.StateNone {
 		return false
 	}
-	// если пользователь в состоянии, но вводит команду — пусть команду обработает роутер
 	if m.IsCommand() {
 		return false
 	}
@@ -150,7 +148,6 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		loc := util.MustLocation(b.tz)
 		now := util.NowIn(loc)
 
-		// ДЕБАГ
 		log.Printf("DEBUG saving meal: chatID=%d now=%s text=%s",
 			chatID, now.Format("2006-01-02 15:04:05 MST"), text)
 
@@ -161,7 +158,6 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			return true
 		}
 
-		// ДЕБАГ
 		log.Printf("DEBUG meal saved: chatID=%d id=%d eatenAt=%s kcal=%d",
 			chatID, meal.ID, meal.EatenAt.Format("2006-01-02 15:04:05 MST"), meal.Kcal)
 
