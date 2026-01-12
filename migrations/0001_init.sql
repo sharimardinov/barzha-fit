@@ -24,3 +24,6 @@ create table if not exists bot_users (
                                          chat_id bigint primary key,
                                          created_at timestamptz not null default now()
 );
+
+alter table bot_users
+    add column if not exists morning_enabled boolean not null default true;

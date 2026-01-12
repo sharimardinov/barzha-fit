@@ -76,7 +76,7 @@ func runMorning(
 	now := util.NowIn(loc)
 	day := util.Weekday1to7(now)
 
-	chatIDs, err := users.List(ctx)
+	chatIDs, err := users.ListEnabled(ctx)
 	if err != nil {
 		return fmt.Errorf("list users: %w", err)
 	}

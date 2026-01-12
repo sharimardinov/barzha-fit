@@ -49,12 +49,14 @@ func (b *Bot) registerRoutes() {
 	meal := handlers.NewMeal(b.api, b.state)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
 	week := handlers.NewWeek(b.api, b.plan, b.tz)
+	morning := handlers.NewMorning(b.api, b.users)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
 	b.router.Handle("/meal", meal.Handle)
 	b.router.Handle("/plan", plan.Handle)
 	b.router.Handle("/week", week.Handle)
+	b.router.Handle("/morning", morning.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {

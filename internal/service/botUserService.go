@@ -4,7 +4,8 @@ import "context"
 
 type BotUsersStorage interface {
 	Ensure(ctx context.Context, chatID int64) error
-	List(ctx context.Context) ([]int64, error)
+	ListEnabled(ctx context.Context) ([]int64, error)
+	SetMorning(ctx context.Context, chatID int64, enabled bool) error
 }
 
 type BotUsersService struct {
@@ -19,6 +20,10 @@ func (s *BotUsersService) Ensure(ctx context.Context, chatID int64) error {
 	return s.repo.Ensure(ctx, chatID)
 }
 
-func (s *BotUsersService) List(ctx context.Context) ([]int64, error) {
-	return s.repo.List(ctx)
+func (s *BotUsersService) ListEnabled(ctx context.Context) ([]int64, error) {
+	return s.repo.ListEnabled(ctx)
+}
+
+func (s *BotUsersService) SetMorning(ctx context.Context, chatID int64, enabled bool) error {
+	return s.repo.SetMorning(ctx, chatID, enabled)
 }

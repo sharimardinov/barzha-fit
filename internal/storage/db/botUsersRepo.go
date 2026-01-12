@@ -12,14 +12,20 @@ func NewBotUsersRepo(db *pgxpool.Pool) *BotUsersRepo { return &BotUsersRepo{db: 
 
 func (r *BotUsersRepo) Ensure(ctx context.Context, chatID int64) error {
 	_, err := r.db.Exec(ctx, `
-		insert into bot_users(chat_id) values ($1)
+		insert into bot_users(chat_id, morning_enabled)
+		values ($1, true)
 		on conflict (chat_id) do nothing
 	`, chatID)
 	return err
 }
 
-func (r *BotUsersRepo) List(ctx context.Context) ([]int64, error) {
-	rows, err := r.db.Query(ctx, `select chat_id from bot_users order by chat_id`)
+func (r *BotUsersRepo) ListEnabled(ctx context.Context) ([]int64, error) {
+	rows, err := r.db.Query(ctx, `
+		select chat_id
+		from bot_users
+		where morning_enabled = true
+		order by chat_id
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -34,4 +40,13 @@ func (r *BotUsersRepo) List(ctx context.Context) ([]int64, error) {
 		res = append(res, id)
 	}
 	return res, rows.Err()
+}
+
+func (r *BotUsersRepo) SetMorning(ctx context.Context, chatID int64, enabled bool) error {
+	_, err := r.db.Exec(ctx, `
+		update bot_users
+		set morning_enabled = $2
+		where chat_id = $1
+	`, chatID, enabled)
+	return err
 }
