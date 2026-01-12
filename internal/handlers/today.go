@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 
 	day, status, has, err := h.workout.GetToday(ctx, m.Chat.ID, now)
 	if err != nil {
+		log.Printf("today get failed: chat_id=%d err=%v", m.Chat.ID, err)
 		h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Ошибка чтения дня"))
 		return
 	}

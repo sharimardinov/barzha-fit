@@ -2,8 +2,10 @@ package db
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,12 +28,15 @@ func (r *WorkoutRepo) UpsertStatus(ctx context.Context, userID int64, date time.
 func (r *WorkoutRepo) GetStatus(ctx context.Context, userID int64, date time.Time) (string, bool, error) {
 	var status string
 	err := r.db.QueryRow(ctx, `
-		select status from workout_days
-		where user_id=$1 and day_date=$2::date
-	`, userID, date).Scan(&status)
+        select status from workout_days
+        where user_id=$1 and day_date=$2::date
+    `, userID, date).Scan(&status)
+
 	if err != nil {
-		// pgx возвращает ошибку, если нет строки
-		return "", false, nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", false, nil
+		}
+		return "", false, err
 	}
 	return status, true, nil
 }
