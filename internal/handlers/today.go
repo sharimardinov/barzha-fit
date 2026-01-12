@@ -1,14 +1,13 @@
 package handlers
 
 import (
+	"barzhafit/internal/service"
+	"barzhafit/internal/telegram"
+	"barzhafit/internal/util"
 	"context"
 	"fmt"
 	"log"
 	"strings"
-
-	"barzhafit/internal/service"
-	"barzhafit/internal/telegram"
-	"barzhafit/internal/util"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -17,11 +16,12 @@ type Today struct {
 	api     *tgbotapi.BotAPI
 	plan    *service.PlanService
 	workout *service.WorkoutService
+	targets *service.TargetsService
 	tz      string
 }
 
-func NewToday(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService, tz string) *Today {
-	return &Today{api: api, plan: plan, workout: workout, tz: tz}
+func NewToday(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService, targets *service.TargetsService, tz string) *Today {
+	return &Today{api: api, plan: plan, workout: workout, targets: targets, tz: tz}
 }
 
 func (h *Today) Handle(m *tgbotapi.Message) {
@@ -30,7 +30,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 
 	loc := util.MustLocation(h.tz)
 	now := util.NowIn(loc)
-	day := util.Weekday1to7(now) // Monday=1..Sunday=7
+	day := util.Weekday1to7(now)
 
 	planText, err := h.plan.Get(ctx, chatID)
 	if err != nil {
@@ -60,7 +60,21 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 		}
 	}
 
-	text := fmt.Sprintf("День %d\n\n%s\n\nТренировка: %s", day, block, st)
+	// цели (если нет — покажем дефолт + подсказку)
+	kcalTarget := 2400
+	proteinTarget := 170
+	tg, ok, _ := h.targets.Get(ctx, chatID)
+	source := "default"
+	if ok {
+		kcalTarget = tg.Kcal
+		proteinTarget = tg.ProteinG
+		source = tg.Source
+	}
+
+	text := fmt.Sprintf(
+		"День %d\n\n%s\n\nТренировка: %s\n\nКалории: 0 / %d (%s)\nБелок: 0 / %d",
+		day, block, st, kcalTarget, source, proteinTarget,
+	)
 
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ReplyMarkup = telegram.WorkoutButtons()

@@ -27,3 +27,34 @@ create table if not exists bot_users (
 
 alter table bot_users
     add column if not exists morning_enabled boolean not null default true;
+
+create table if not exists meals (
+                                     id bigserial primary key,
+                                     chat_id bigint not null,
+                                     eaten_at timestamptz not null default now(),
+                                     text text not null,
+                                     calories int not null default 0
+);
+
+create index if not exists idx_meals_chat_date on meals(chat_id, eaten_at);
+
+create table if not exists user_profiles (
+                                             chat_id bigint primary key,
+                                             sex text,              -- 'm'/'f'/null
+                                             age int,
+                                             height_cm int,
+                                             weight_kg numeric(5,2),
+                                             bodyfat_pct numeric(5,2),
+                                             activity text,         -- 'low'|'mid'|'high'
+                                             updated_at timestamptz not null default now()
+);
+
+create table if not exists user_targets (
+                                            chat_id bigint primary key,
+                                            kcal_target int not null,
+                                            protein_g int not null,
+                                            fat_g int not null,
+                                            carbs_g int not null,
+                                            source text not null,  -- 'manual'|'calc'|'gpt'
+                                            updated_at timestamptz not null default now()
+);

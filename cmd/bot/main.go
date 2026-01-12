@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	_ "time"
+	"time"
 
 	"barzhafit/internal/bot"
 	"barzhafit/internal/config"
@@ -40,15 +40,24 @@ func main() {
 	}
 	defer pool.Close()
 
-	// services
+	// plan
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
+	// workout
 	workoutRepo := db.NewWorkoutRepo(pool)
 	workoutSvc := service.NewWorkoutService(workoutRepo)
 
+	// users for morning push
 	botUsersRepo := db.NewBotUsersRepo(pool)
 	botUsersSvc := service.NewBotUsersService(botUsersRepo)
+
+	// profile + targets
+	profileRepo := db.NewProfileRepo(pool)
+	profileSvc := service.NewProfileService(profileRepo)
+
+	targetsRepo := db.NewTargetsRepo(pool)
+	targetsSvc := service.NewTargetsService(targetsRepo, profileRepo)
 
 	if *morning {
 		if err := runMorning(ctx, api, planSvc, workoutSvc, botUsersSvc, cfg.TZ); err != nil {
@@ -57,8 +66,7 @@ func main() {
 		return
 	}
 
-	// regular bot
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc)
 	if err := b.Run(ctx); err != nil {
 		log.Fatal(err)
 	}
@@ -85,7 +93,6 @@ func runMorning(
 	for _, chatID := range chatIDs {
 		planText, err := plan.Get(ctx, chatID)
 		if err != nil {
-			// у юзера нет плана — просто пропускаем, без спама
 			continue
 		}
 
@@ -116,6 +123,10 @@ func runMorning(
 			log.Printf("morning: send failed chat_id=%d err=%v", chatID, err)
 			continue
 		}
+
+		// чуть-чуть притормозим, чтобы не упереться в лимиты телеги
+		time.Sleep(60 * time.Millisecond)
+
 		sent++
 	}
 

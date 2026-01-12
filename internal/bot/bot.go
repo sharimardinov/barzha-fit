@@ -21,6 +21,8 @@ type Bot struct {
 	workout *service.WorkoutService
 	users   *service.BotUsersService
 	tz      string
+	profile *service.ProfileService
+	targets *service.TargetsService
 }
 
 func New(
@@ -29,6 +31,8 @@ func New(
 	workout *service.WorkoutService,
 	users *service.BotUsersService,
 	tz string,
+	profile *service.ProfileService,
+	targets *service.TargetsService,
 ) *Bot {
 	b := &Bot{
 		api:     api,
@@ -38,6 +42,8 @@ func New(
 		workout: workout,
 		users:   users,
 		tz:      tz,
+		profile: profile,
+		targets: targets,
 	}
 	b.registerRoutes()
 	return b
@@ -45,11 +51,13 @@ func New(
 
 func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api, b.users)
-	today := handlers.NewToday(b.api, b.plan, b.workout, b.tz)
 	meal := handlers.NewMeal(b.api, b.state)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
-	week := handlers.NewWeek(b.api, b.plan, b.tz)
 	morning := handlers.NewMorning(b.api, b.users)
+	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.tz)
+	week := handlers.NewWeek(b.api, b.plan, b.tz)
+	profile := handlers.NewProfile(b.api, b.profile, b.targets)
+	targets := handlers.NewTargets(b.api, b.targets)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/today", today.Handle)
@@ -57,6 +65,8 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/plan", plan.Handle)
 	b.router.Handle("/week", week.Handle)
 	b.router.Handle("/morning", morning.Handle)
+	b.router.Handle("/profile", profile.Handle)
+	b.router.Handle("/targets", targets.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
