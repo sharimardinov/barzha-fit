@@ -2,13 +2,12 @@ package bot
 
 import (
 	"barzhafit/internal/domain"
+	"barzhafit/internal/handlers"
 	"barzhafit/internal/service"
+	"barzhafit/internal/util"
 	"context"
 	"fmt"
 	"log"
-	"time"
-
-	"barzhafit/internal/handlers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -19,15 +18,20 @@ type Bot struct {
 	state   *StateStore
 	plan    *service.PlanService
 	workout *service.WorkoutService
+	tz      string
 }
 
-func New(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService) *Bot {
+func New(api *tgbotapi.BotAPI,
+	plan *service.PlanService,
+	workout *service.WorkoutService,
+	tz string) *Bot {
 	b := &Bot{
 		api:     api,
 		router:  NewRouter(),
 		state:   NewStateStore(),
 		plan:    plan,
 		workout: workout,
+		tz:      tz,
 	}
 	b.registerRoutes()
 	return b
@@ -35,7 +39,7 @@ func New(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.Worko
 
 func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api)
-	today := handlers.NewToday(b.api, b.plan, b.workout)
+	today := handlers.NewToday(b.api, b.plan, b.workout, b.tz)
 	meal := handlers.NewMeal(b.api, b.state)
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
 
@@ -127,15 +131,11 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 	}
 }
 func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
-	cfg := tgbotapi.CallbackConfig{
-		CallbackQueryID: q.ID,
-	}
-	if _, err := b.api.Request(cfg); err != nil {
-		log.Printf("answer callback failed: %v", err)
-	}
+	cfg := tgbotapi.CallbackConfig{CallbackQueryID: q.ID}
+	_, _ = b.api.Request(cfg)
+
 	chatID := q.Message.Chat.ID
 	data := q.Data
-
 	if data != "w:done" && data != "w:skip" {
 		return
 	}
@@ -145,18 +145,19 @@ func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
 		status = "done"
 	}
 
-	next, advanced, err := b.workout.MarkToday(context.Background(), chatID, time.Now(), status)
-	if err != nil {
+	loc := util.MustLocation(b.tz)
+	now := util.NowIn(loc)
+	day := util.Weekday1to7(now)
+
+	if err := b.workout.MarkToday(context.Background(), chatID, now, day, status); err != nil {
 		log.Printf("workout mark failed: chat_id=%d err=%v", chatID, err)
 		b.reply(chatID, "Ошибка сохранения тренировки")
 		return
 	}
 
-	if advanced {
-		b.reply(chatID, fmt.Sprintf("Ок. Следующий день: %d", next))
+	if status == "done" {
+		b.reply(chatID, "Ок, записал: ✅")
 	} else {
-		b.reply(chatID, fmt.Sprintf("Ок. Обновил отметку за сегодня. Текущий день цикла: %d", next))
+		b.reply(chatID, "Ок, записал: ❌")
 	}
-
-	b.reply(chatID, fmt.Sprintf("Ок. Следующий день: %d", next))
 }

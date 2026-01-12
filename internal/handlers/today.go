@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"barzhafit/internal/service"
 	"barzhafit/internal/telegram"
+	"barzhafit/internal/util"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -17,33 +17,38 @@ type Today struct {
 	api     *tgbotapi.BotAPI
 	plan    *service.PlanService
 	workout *service.WorkoutService
+	tz      string
 }
 
-func NewToday(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService) *Today {
-	return &Today{api: api, plan: plan, workout: workout}
+func NewToday(api *tgbotapi.BotAPI, plan *service.PlanService, workout *service.WorkoutService, tz string) *Today {
+	return &Today{api: api, plan: plan, workout: workout, tz: tz}
 }
 
 func (h *Today) Handle(m *tgbotapi.Message) {
 	ctx := context.Background()
-	now := time.Now()
+	chatID := m.Chat.ID
 
-	planText, err := h.plan.Get(ctx, m.Chat.ID)
-	if err != nil {
-		h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Нет плана. Сначала /plan"))
-		return
-	}
+	loc := util.MustLocation(h.tz)
+	now := util.NowIn(loc)
+	day := util.Weekday1to7(now) // Monday=1..Sunday=7
 
-	day, status, has, err := h.workout.GetToday(ctx, m.Chat.ID, now)
+	planText, err := h.plan.Get(ctx, chatID)
 	if err != nil {
-		log.Printf("today get failed: chat_id=%d err=%v", m.Chat.ID, err)
-		h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Ошибка чтения дня"))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Нет плана. Сначала /plan"))
 		return
 	}
 
 	days := service.SplitPlanByDays(planText)
 	block := strings.TrimSpace(days[day])
 	if block == "" {
-		block = "День не найден в плане. Проверь, что есть строка с числом дня (1..7) отдельно."
+		block = "День не найден в плане. Проверь, что у тебя строка с числом дня (1..7) стоит отдельно."
+	}
+
+	status, has, err := h.workout.GetStatusToday(ctx, chatID, now)
+	if err != nil {
+		log.Printf("today status failed: chat_id=%d err=%v", chatID, err)
+		h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка чтения статуса"))
+		return
 	}
 
 	st := "—"
@@ -57,8 +62,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 
 	text := fmt.Sprintf("День %d\n\n%s\n\nТренировка: %s", day, block, st)
 
-	msg := tgbotapi.NewMessage(m.Chat.ID, text)
+	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ReplyMarkup = telegram.WorkoutButtons()
-
 	h.api.Send(msg)
 }
