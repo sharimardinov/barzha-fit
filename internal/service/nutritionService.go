@@ -20,24 +20,26 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 	text = strings.TrimSpace(text)
 
 	est, raw, err := s.ai.EstimateNutrition(ctx, text)
+
+	// сформируем meal в любом случае
+	m := db.Meal{
+		ChatID:  chatID,
+		EatenAt: eatenAt,
+		Text:    text,
+	}
+
+	// если AI упал — сохраняем хотя бы текст + ai_raw с ошибкой
 	if err != nil {
-		// даже при ошибке AI можем сохранить “черновик” как есть
-		m := db.Meal{ChatID: chatID, EatenAt: eatenAt, Text: text}
 		_ = s.meals.Add(ctx, m, map[string]any{"error": err.Error()})
 		return m, err
 	}
 
-	m := db.Meal{
-		ChatID:   chatID,
-		EatenAt:  eatenAt,
-		Text:     text,
-		Kcal:     est.Kcal,
-		ProteinG: est.ProteinG,
-		FatG:     est.FatG,
-		CarbsG:   est.CarbsG,
-	}
+	// если AI ок — заполняем КБЖУ и сохраняем
+	m.Kcal = est.Kcal
+	m.ProteinG = est.ProteinG
+	m.FatG = est.FatG
+	m.CarbsG = est.CarbsG
 
-	// ВОТ ЭТОГО У ТЕБЯ НЕ БЫЛО: сохраняем в БД
 	if err := s.meals.Add(ctx, m, raw); err != nil {
 		return m, err
 	}
