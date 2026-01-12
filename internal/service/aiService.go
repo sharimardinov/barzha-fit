@@ -115,12 +115,10 @@ func (a *AIService) EstimateNutrition(ctx context.Context, mealText string) (Nut
 		MaxOutputTokens: 120,
 		Text: &respTextCfg{
 			Format: map[string]any{
-				"type": "json_schema",
-				// важно: strict=true и additionalProperties=false — иначе иногда ломает
+				"type":   "json_schema",
 				"strict": true,
 				"schema": schema,
-				// опционально: имя формата (полезно для дебага)
-				"name": "nutrition_estimate",
+				"name":   "nutrition_estimate",
 			},
 		},
 	}

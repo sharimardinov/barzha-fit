@@ -26,7 +26,11 @@ func NewMealRepo(db *pgxpool.Pool) *MealRepo { return &MealRepo{db: db} }
 func (r *MealRepo) Add(ctx context.Context, m Meal, aiRaw any) error {
 	var rawBytes []byte
 	if aiRaw != nil {
-		rawBytes, _ = json.Marshal(aiRaw)
+		b, err := json.Marshal(aiRaw)
+		if err != nil {
+			return err
+		}
+		rawBytes = b
 	}
 
 	_, err := r.db.Exec(ctx, `
@@ -34,6 +38,13 @@ func (r *MealRepo) Add(ctx context.Context, m Meal, aiRaw any) error {
 		values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
 	`, m.ChatID, m.EatenAt, m.Text, m.Kcal, m.ProteinG, m.FatG, m.CarbsG, rawJSON(rawBytes))
 	return err
+}
+
+func rawJSON(b []byte) any {
+	if len(b) == 0 {
+		return nil
+	}
+	return string(b) // pgx нормально кастит string в jsonb через ::jsonb
 }
 
 func (r *MealRepo) DeleteLast(ctx context.Context, chatID int64) (bool, error) {
@@ -86,11 +97,4 @@ func (r *MealRepo) SumByDay(ctx context.Context, chatID int64, from, to time.Tim
 		where chat_id=$1 and eaten_at >= $2 and eaten_at < $3
 	`, chatID, from, to).Scan(&kcal, &p, &f, &c)
 	return
-}
-
-func rawJSON(b []byte) any {
-	if len(b) == 0 {
-		return nil
-	}
-	return string(b)
 }
