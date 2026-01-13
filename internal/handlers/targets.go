@@ -23,27 +23,44 @@ func NewTargets(api *tgbotapi.BotAPI, targets *service.TargetsService) *Targets 
 func (h *Targets) Handle(m *tgbotapi.Message) {
 	ctx := context.Background()
 	chatID := m.Chat.ID
+	cmd := strings.ToLower(m.Command())
 
 	args := strings.Fields(strings.TrimSpace(m.CommandArguments()))
 	if len(args) == 0 {
-		h.show(ctx, chatID)
-		return
+		if cmd == "targetsrefresh" {
+			args = []string{"refresh"}
+		} else if cmd == "targetsset" {
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs 2600"))
+			return
+		} else {
+			h.show(ctx, chatID)
+			return
+		}
+	}
+
+	if cmd == "targetsset" {
+		if len(args) >= 2 {
+			args = append([]string{"set"}, args...)
+		} else {
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs 2600"))
+			return
+		}
 	}
 
 	switch strings.ToLower(args[0]) {
 	case "refresh":
 		t, err := h.targets.Refresh(ctx, chatID)
 		if err != nil || t.ChatID == 0 {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Не могу пересчитать. Сначала /profile set ..."))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Не могу пересчитать. Сначала /profileset ..."))
 			return
 		}
 		h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Цели обновлены (calc): %dkcal, Б %d, Ж %d, У %d", t.Kcal, t.ProteinG, t.FatG, t.CarbsG)))
 		return
 
 	case "set":
-		// /targets set kcal 2600
+		// /targetsset kcal 2600
 		if len(args) < 3 {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targets set kcal|protein|fat|carbs 2600"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs 2600"))
 			return
 		}
 		field := strings.ToLower(args[1])
@@ -60,7 +77,7 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 		return
 
 	default:
-		h.api.Send(tgbotapi.NewMessage(chatID, "Команды: /targets, /targets refresh, /targets set kcal 2600"))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Команды: /targets, /targetsrefresh, /targetsset kcal 2600"))
 		return
 	}
 }
@@ -68,7 +85,7 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 func (h *Targets) show(ctx context.Context, chatID int64) {
 	t, ok, err := h.targets.Get(ctx, chatID)
 	if err != nil || !ok {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Целей нет. Сначала /profile set ..., затем /targets refresh"))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Целей нет. Сначала /profileset ..., затем /targetsrefresh"))
 		return
 	}
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(

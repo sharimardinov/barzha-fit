@@ -1,8 +1,10 @@
 package service
 
 import (
+	"barzhafit/internal/util"
 	"context"
 	"fmt"
+	"time"
 )
 
 type WorkoutStorage interface {
@@ -10,34 +12,12 @@ type WorkoutStorage interface {
 	GetStatus(ctx context.Context, userID int64, dayDate string) (string, bool, error)
 }
 
-type CycleStorage interface {
-	Ensure(ctx context.Context, userID int64) error
-	GetCycleDay(ctx context.Context, userID int64) (int, error)
-	SetCycleDay(ctx context.Context, userID int64, day int) error
-}
-
 type WorkoutService struct {
 	workout WorkoutStorage
-	users   CycleStorage
 }
 
-func NewWorkoutService(workout WorkoutStorage, users CycleStorage) *WorkoutService {
-	return &WorkoutService{workout: workout, users: users}
-}
-
-func (s *WorkoutService) GetCycleDay(ctx context.Context, userID int64) (int, error) {
-	if err := s.users.Ensure(ctx, userID); err != nil {
-		return 0, err
-	}
-	day, err := s.users.GetCycleDay(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
-	if day < 1 || day > 7 {
-		day = 1
-		_ = s.users.SetCycleDay(ctx, userID, day)
-	}
-	return day, nil
+func NewWorkoutService(workout WorkoutStorage) *WorkoutService {
+	return &WorkoutService{workout: workout}
 }
 
 func (s *WorkoutService) GetStatusByDate(ctx context.Context, userID int64, dayDate string) (string, bool, error) {
@@ -49,7 +29,7 @@ func (s *WorkoutService) MarkAndAdvance(ctx context.Context, userID int64, dayDa
 		return 0, fmt.Errorf("bad status=%q", status)
 	}
 
-	cycleDay, err := s.GetCycleDay(ctx, userID)
+	cycleDay, err := cycleDayFromDate(dayDate)
 	if err != nil {
 		return 0, err
 	}
@@ -58,13 +38,13 @@ func (s *WorkoutService) MarkAndAdvance(ctx context.Context, userID int64, dayDa
 		return 0, err
 	}
 
-	next := cycleDay + 1
-	if next > 7 {
-		next = 1
-	}
-	if err := s.users.SetCycleDay(ctx, userID, next); err != nil {
+	return cycleDay, nil
+}
+
+func cycleDayFromDate(dayDate string) (int, error) {
+	t, err := time.Parse("2006-01-02", dayDate)
+	if err != nil {
 		return 0, err
 	}
-
-	return cycleDay, nil
+	return util.Weekday1to7(t), nil
 }

@@ -23,6 +23,6 @@ func (h *Start) Handle(m *tgbotapi.Message) {
 
 	_, _ = h.api.Send(tgbotapi.NewMessage(
 		m.Chat.ID,
-		"Ок. Команды: /today, /week, /meal, /plan",
+		"Команды:\n/start\n/help\n/today\n/week\n/meal\n/meals\n/plan\n/planset\n/planshow\n/planday 3\n/profile\n/profileset\n/targets\n/targetsrefresh\n/targetsset kcal 2600\n/undo\n/stats",
 	))
 }

@@ -5,7 +5,9 @@ import (
 	"barzhafit/internal/service"
 	"barzhafit/internal/util"
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -34,7 +36,12 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 
 		meal, err := h.nut.AddMealFromText(ctx, chatID, now, args)
 		if err != nil {
-			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Записал, но AI упал (сохранил как 0)."))
+			log.Printf("ERROR /meal: chatID=%d err=%v", chatID, err)
+			if errors.Is(err, service.ErrNutritionAI) {
+				_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Записал, но AI упал (сохранил как 0)."))
+				return
+			}
+			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Не удалось сохранить прием пищи."))
 			return
 		}
 

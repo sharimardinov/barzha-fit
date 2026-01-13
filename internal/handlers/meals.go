@@ -55,5 +55,13 @@ func (h *Meals) Handle(m *tgbotapi.Message) {
 		b.WriteString(fmt.Sprintf("- %s — %dkcal (Б%d Ж%d У%d)\n",
 			strings.TrimSpace(it.Text), it.Kcal, it.ProteinG, it.FatG, it.CarbsG))
 	}
+
+	kcal, p, f, c, err := h.nut.SumToday(ctx, chatID, loc, now)
+	if err != nil {
+		log.Printf("ERROR /meals sum: chatID=%d err=%v", chatID, err)
+	} else {
+		b.WriteString(fmt.Sprintf("\nИтого за сегодня: %dkcal (Б%d Ж%d У%d)",
+			kcal, p, f, c))
+	}
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, b.String()))
 }

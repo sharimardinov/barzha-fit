@@ -21,12 +21,16 @@ func NewPlan(api *tgbotapi.BotAPI, state domain.StateSetter, plan *service.PlanS
 }
 
 func (h *Plan) Handle(m *tgbotapi.Message) {
+	cmd := strings.ToLower(m.Command())
 	args := strings.TrimSpace(m.CommandArguments())
 
-	if strings.HasPrefix(args, "day") {
-		parts := strings.Fields(args) // ["day", "3"]
+	if cmd == "planday" || strings.HasPrefix(args, "day") {
+		parts := strings.Fields(args) // ["day", "3"] or ["3"]
+		if len(parts) == 1 && cmd == "planday" {
+			parts = []string{"day", parts[0]}
+		}
 		if len(parts) != 2 {
-			h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Используй: /plan day 3"))
+			h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Используй: /planday 3"))
 			return
 		}
 
@@ -54,8 +58,8 @@ func (h *Plan) Handle(m *tgbotapi.Message) {
 		return
 	}
 
-	// /plan show
-	if args == "show" {
+	// /planshow
+	if cmd == "planshow" || args == "show" {
 		text, err := h.plan.Get(context.Background(), m.Chat.ID)
 		if err != nil {
 			h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "План не найден. Сделай /plan и вставь текст."))
@@ -65,12 +69,12 @@ func (h *Plan) Handle(m *tgbotapi.Message) {
 		return
 	}
 
-	// /plan  или /plan set -> ждём текст плана
-	if args == "" || args == "set" {
+	// /plan или /planset -> ждём текст плана
+	if cmd == "planset" || args == "" || args == "set" {
 		h.state.Set(m.Chat.ID, domain.StateWaitPlanText)
 		h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Вставь план одним сообщением. Дни 1..7, формат свободный."))
 		return
 	}
 
-	h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Команды:\n/plan — вставить план\n/plan show — показать план\n/plan day 3 — показать день"))
+	h.api.Send(tgbotapi.NewMessage(m.Chat.ID, "Команды:\n/plan — вставить план\n/planset — вставить план\n/planshow — показать план\n/planday 3 — показать день"))
 }

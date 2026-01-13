@@ -177,3 +177,91 @@ func (a *AIService) EstimateNutrition(ctx context.Context, mealText string) (Nut
 
 	return est, raw, nil
 }
+
+type ActivityEstimate struct {
+	ActivityMultiplier float64 `json:"activity_multiplier"`
+}
+
+func (a *AIService) EstimateActivityMultiplier(ctx context.Context, planText string) (float64, any, error) {
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"activity_multiplier": map[string]any{"type": "number", "minimum": 1.1, "maximum": 2.2},
+		},
+		"required":             []string{"activity_multiplier"},
+		"additionalProperties": false,
+	}
+
+	instructions := `Ты тренер. По недельному плану тренировок оцени средний коэффициент активности (TDEE multiplier).
+Диапазон 1.2..1.9. Учитывай частоту и интенсивность тренировок.
+Верни только JSON по схеме.`
+
+	reqBody := respReq{
+		Model: a.model,
+		Input: []respMsg{
+			{Role: "user", Content: fmt.Sprintf("План на неделю:\n%s", planText)},
+		},
+		Instructions:    instructions,
+		Temperature:     0,
+		MaxOutputTokens: 120,
+		Text: &respTextCfg{
+			Format: map[string]any{
+				"type":   "json_schema",
+				"strict": true,
+				"schema": schema,
+				"name":   "activity_estimate",
+			},
+		},
+	}
+
+	b, _ := json.Marshal(reqBody)
+	httpReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/responses", bytes.NewReader(b))
+	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.http.Do(httpReq)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, map[string]any{
+			"status": resp.StatusCode,
+			"body":   string(body),
+		}, fmt.Errorf("openai status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	var out respOut
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return 0, nil, err
+	}
+
+	if out.Error != nil {
+		return 0, map[string]any{"error": out.Error}, fmt.Errorf("openai error: %s", out.Error.Message)
+	}
+
+	rawText := ""
+	for _, item := range out.Output {
+		for _, c := range item.Content {
+			if c.Type == "output_text" && c.Text != "" {
+				rawText += c.Text
+			}
+		}
+	}
+	rawText = strings.TrimSpace(rawText)
+	if rawText == "" {
+		return 0, out, errors.New("openai: empty output_text")
+	}
+
+	var est ActivityEstimate
+	if err := json.Unmarshal([]byte(rawText), &est); err != nil {
+		return 0, map[string]any{"raw": rawText, "response": out}, err
+	}
+
+	var raw any
+	_ = json.Unmarshal([]byte(rawText), &raw)
+
+	return est.ActivityMultiplier, raw, nil
+}

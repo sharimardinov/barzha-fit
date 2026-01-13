@@ -45,12 +45,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 	loc := util.MustLocation(h.tz)
 	now := util.NowIn(loc)
 	dayDate := util.LocalDateStr(now, loc)
-
-	cycleDay, err := h.workout.GetCycleDay(ctx, chatID)
-	if err != nil {
-		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка чтения cycle day"))
-		return
-	}
+	cycleDay := util.Weekday1to7(now)
 
 	planText, err := h.plan.Get(ctx, chatID)
 	if err != nil {

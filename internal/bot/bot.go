@@ -2,8 +2,12 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
+	"time"
 
 	"barzhafit/internal/domain"
 	"barzhafit/internal/handlers"
@@ -25,6 +29,8 @@ type Bot struct {
 	profile   *service.ProfileService
 	targets   *service.TargetsService
 	nutrition *service.NutritionService
+	ai        *service.AIService
+	drafts    *service.ProfileDraftStore
 	db        *pgxpool.Pool
 }
 
@@ -37,6 +43,7 @@ func New(
 	profile *service.ProfileService,
 	targets *service.TargetsService,
 	nutrition *service.NutritionService,
+	ai *service.AIService,
 	db *pgxpool.Pool,
 ) *Bot {
 	b := &Bot{
@@ -50,6 +57,8 @@ func New(
 		profile:   profile,
 		targets:   targets,
 		nutrition: nutrition,
+		ai:        ai,
+		drafts:    service.NewProfileDraftStore(),
 		db:        db,
 	}
 	b.registerRoutes()
@@ -63,7 +72,7 @@ func (b *Bot) registerRoutes() {
 	morning := handlers.NewMorning(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
 	week := handlers.NewWeek(b.api, b.plan, b.tz)
-	profile := handlers.NewProfile(b.api, b.profile, b.targets)
+	profile := handlers.NewProfile(b.api, b.state, b.drafts, b.profile, b.targets, b.plan, b.ai)
 	targets := handlers.NewTargets(b.api, b.targets)
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
 	undo := handlers.NewUndo(b.api, b.nutrition)
@@ -71,13 +80,20 @@ func (b *Bot) registerRoutes() {
 	debug := handlers.NewDebugMeals(b.api, b.db)
 
 	b.router.Handle("/start", start.Handle)
+	b.router.Handle("/help", start.Handle)
 	b.router.Handle("/today", today.Handle)
 	b.router.Handle("/meal", meal.Handle)
 	b.router.Handle("/plan", plan.Handle)
+	b.router.Handle("/planset", plan.Handle)
+	b.router.Handle("/planshow", plan.Handle)
+	b.router.Handle("/planday", plan.Handle)
 	b.router.Handle("/week", week.Handle)
 	b.router.Handle("/morning", morning.Handle)
 	b.router.Handle("/profile", profile.Handle)
+	b.router.Handle("/profileset", profile.Handle)
 	b.router.Handle("/targets", targets.Handle)
+	b.router.Handle("/targetsrefresh", targets.Handle)
+	b.router.Handle("/targetsset", targets.Handle)
 	b.router.Handle("/meals", meals.Handle)
 	b.router.Handle("/undo", undo.Handle)
 	b.router.Handle("/stats", stats.Handle)
@@ -115,7 +131,7 @@ func (b *Bot) Run(ctx context.Context) error {
 			}
 
 			if upd.Message.IsCommand() {
-				b.reply(upd.Message.Chat.ID, "Не понял команду. /today")
+				b.reply(upd.Message.Chat.ID, "Не понял команду. /help")
 			}
 		}
 	}
@@ -154,7 +170,11 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		meal, err := b.nutrition.AddMealFromText(context.Background(), chatID, now, text)
 		if err != nil {
 			log.Printf("ERROR saving meal: chatID=%d err=%v", chatID, err)
-			b.reply(chatID, "Записал, но AI упал (сохранил как 0).")
+			if errors.Is(err, service.ErrNutritionAI) {
+				b.reply(chatID, "Записал, но AI упал (сохранил как 0).")
+				return true
+			}
+			b.reply(chatID, "Не удалось сохранить прием пищи.")
 			return true
 		}
 
@@ -178,10 +198,146 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		b.reply(chatID, "План сохранён")
 		return true
 
+	case domain.StateWaitProfileHeight:
+		height, ok := parseIntInRange(strings.TrimSpace(m.Text), 50, 260)
+		if !ok {
+			b.reply(chatID, "Введи рост в см, например 180.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.HeightCM = height
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileWeight)
+		b.reply(chatID, "Теперь вес в кг, например 82.5.")
+		return true
+
+	case domain.StateWaitProfileWeight:
+		weight, ok := parseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
+		if !ok {
+			b.reply(chatID, "Введи вес в кг, например 82.5.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.WeightKG = weight
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileBodyFat)
+		b.reply(chatID, "Процент жира, например 15.")
+		return true
+
+	case domain.StateWaitProfileBodyFat:
+		bf, ok := parseFloatInRange(strings.TrimSpace(m.Text), 3, 80)
+		if !ok {
+			b.reply(chatID, "Введи процент жира, например 15.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.BodyFatPct = bf
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileAge)
+		b.reply(chatID, "Возраст, например 30.")
+		return true
+
+	case domain.StateWaitProfileAge:
+		age, ok := parseIntInRange(strings.TrimSpace(m.Text), 10, 100)
+		if !ok {
+			b.reply(chatID, "Введи возраст, например 30.")
+			return true
+		}
+
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.Age = age
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+
+		draft, ch, ok := b.drafts.Snapshot(chatID)
+		if !ok {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+
+		if ch != nil && !draft.ActivityReady {
+			select {
+			case <-ch:
+				draft, _, _ = b.drafts.Snapshot(chatID)
+			case <-time.After(2 * time.Second):
+			}
+		}
+
+		p := domain.Profile{
+			ChatID:     chatID,
+			HeightCM:   draft.HeightCM,
+			WeightKG:   draft.WeightKG,
+			BodyFatPct: draft.BodyFatPct,
+			Age:        draft.Age,
+			Activity:   draft.Activity,
+		}
+
+		if err := b.profile.Save(context.Background(), p); err != nil {
+			b.reply(chatID, "Ошибка сохранения профиля.")
+			return true
+		}
+
+		b.state.Clear(chatID)
+		b.drafts.Clear(chatID)
+
+		activityNote := draft.Activity
+		if strings.HasPrefix(strings.ToLower(draft.Activity), "ai:") {
+			activityNote = strings.TrimPrefix(draft.Activity, "ai:") + " (ai)"
+		}
+
+		if draft.ActivityErr != nil {
+			activityNote += " (AI не смог оценить)"
+		}
+
+		b.reply(chatID, fmt.Sprintf(
+			"Профиль сохранён:\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
+			p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, activityNote,
+		))
+		return true
+
 	default:
 		b.state.Clear(chatID)
 		return false
 	}
+}
+
+func parseIntInRange(s string, min, max int) (int, bool) {
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, false
+	}
+	if v < min || v > max {
+		return 0, false
+	}
+	return v, true
+}
+
+func parseFloatInRange(s string, min, max float64) (float64, bool) {
+	s = strings.ReplaceAll(s, ",", ".")
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+	if v < min || v > max {
+		return 0, false
+	}
+	return v, true
 }
 
 func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {

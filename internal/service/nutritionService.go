@@ -3,8 +3,15 @@ package service
 import (
 	"barzhafit/internal/storage/db"
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
+)
+
+var (
+	ErrNutritionAI   = errors.New("nutrition: ai_failed")
+	ErrNutritionSave = errors.New("nutrition: save_failed")
 )
 
 type NutritionService struct {
@@ -30,8 +37,10 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 
 	// если AI упал — сохраняем хотя бы текст + ai_raw с ошибкой
 	if err != nil {
-		_ = s.meals.Add(ctx, &m, map[string]any{"error": err.Error()})
-		return m, err
+		if addErr := s.meals.Add(ctx, &m, map[string]any{"error": err.Error()}); addErr != nil {
+			return m, fmt.Errorf("%w: %v", ErrNutritionSave, addErr)
+		}
+		return m, fmt.Errorf("%w: %v", ErrNutritionAI, err)
 	}
 
 	// если AI ок — заполняем КБЖУ и сохраняем
@@ -41,7 +50,7 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 	m.CarbsG = est.CarbsG
 
 	if err := s.meals.Add(ctx, &m, raw); err != nil {
-		return m, err
+		return m, fmt.Errorf("%w: %v", ErrNutritionSave, err)
 	}
 
 	return m, nil

@@ -33,7 +33,11 @@ create table if not exists meals (
                                      chat_id bigint not null,
                                      eaten_at timestamptz not null default now(),
                                      text text not null,
-                                     calories int not null default 0
+                                     kcal int not null default 0,
+                                     protein_g int not null default 0,
+                                     fat_g int not null default 0,
+                                     carbs_g int not null default 0,
+                                     ai_raw jsonb
 );
 
 create index if not exists idx_meals_chat_date on meals(chat_id, eaten_at);

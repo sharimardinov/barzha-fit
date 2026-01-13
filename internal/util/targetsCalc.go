@@ -3,9 +3,20 @@ package util
 import (
 	"barzhafit/internal/domain"
 	"math"
+	"strconv"
+	"strings"
 )
 
 func ActivityMultiplier(a string) float64 {
+	a = strings.TrimSpace(strings.ToLower(a))
+	if strings.HasPrefix(a, "ai:") {
+		if v, err := strconv.ParseFloat(strings.TrimPrefix(a, "ai:"), 64); err == nil && v > 0 {
+			return v
+		}
+	}
+	if v, err := strconv.ParseFloat(a, 64); err == nil && v > 0 {
+		return v
+	}
 	switch a {
 	case "low":
 		return 1.2

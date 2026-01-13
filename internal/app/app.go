@@ -46,15 +46,13 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	userRepo := db.NewUserRepo(pool)
-
 	// plan
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
 	// workout (calendar mode)
 	workoutRepo := db.NewWorkoutRepo(pool)
-	workoutSvc := service.NewWorkoutService(workoutRepo, userRepo)
+	workoutSvc := service.NewWorkoutService(workoutRepo)
 
 	// users for morning push
 	botUsersRepo := db.NewBotUsersRepo(pool)
@@ -72,7 +70,7 @@ func New() (*App, error) {
 	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
 
 	// ИСПРАВЛЕНО: добавлены profileSvc, targetsSvc, pool
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, pool)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, aiSvc, pool)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }

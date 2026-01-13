@@ -40,15 +40,13 @@ func main() {
 	}
 	defer pool.Close()
 
-	userRepo := db.NewUserRepo(pool)
-
 	// plan
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
 	// workout
 	workoutRepo := db.NewWorkoutRepo(pool)
-	workoutSvc := service.NewWorkoutService(workoutRepo, userRepo)
+	workoutSvc := service.NewWorkoutService(workoutRepo)
 
 	// users for morning push
 	botUsersRepo := db.NewBotUsersRepo(pool)
@@ -76,7 +74,7 @@ func main() {
 		return
 	}
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, pool)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, aiSvc, pool)
 	if err := b.Run(ctx); err != nil {
 		log.Fatal(err)
 	}
@@ -106,10 +104,7 @@ func runMorning(
 			continue
 		}
 
-		cycleDay, err := workout.GetCycleDay(ctx, chatID)
-		if err != nil {
-			continue
-		}
+		cycleDay := util.Weekday1to7(now)
 
 		days := service.SplitPlanByDays(planText)
 		block := strings.TrimSpace(days[cycleDay])
