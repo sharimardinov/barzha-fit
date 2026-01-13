@@ -65,6 +65,21 @@ func (s *CallbackService) Handle(ctx context.Context, chatID int64, data string)
 		}
 		return CallbackResult{Text: "Последний прием удален."}, false, nil
 
+	case strings.HasPrefix(data, "meal:del:"):
+		idStr := strings.TrimPrefix(data, "meal:del:")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			return CallbackResult{}, false, nil
+		}
+		ok, err := s.nut.DeleteByID(ctx, chatID, id)
+		if err != nil {
+			return CallbackResult{}, false, err
+		}
+		if !ok {
+			return CallbackResult{Text: "Не найдено."}, false, nil
+		}
+		return CallbackResult{Text: "Приём удалён."}, false, nil
+
 	case strings.HasPrefix(data, "plan:day:"):
 		dayStr := strings.TrimPrefix(data, "plan:day:")
 		day, err := strconv.Atoi(dayStr)

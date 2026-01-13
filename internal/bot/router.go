@@ -28,13 +28,13 @@ func (r *Router) Dispatch(m *tgbotapi.Message) bool {
 	text := strings.TrimSpace(m.Text)
 	if !strings.HasPrefix(text, "/") {
 		switch text {
-		case "📅 Сегодня":
+		case "📅 План на сегодня":
 			text = "/today"
-		case "🍽 Еда":
+		case "🍽 Добавить еду":
 			text = "/setmeal"
-		case "👟 Шаги":
+		case "👟 Добавить шаги":
 			text = "/setstep"
-		case "📊 Статистика":
+		case "📊 Статистика недели":
 			text = "/stats"
 		default:
 			return false

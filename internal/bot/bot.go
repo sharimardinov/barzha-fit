@@ -81,7 +81,7 @@ func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api, b.users)
 	help := handlers.NewHelp(b.api)
 	meal := handlers.NewMeal(b.api, b.state, b.nutrition, b.tz)
-	plan := handlers.NewPlan(b.api, b.state, b.planView, b.tz)
+	plan := handlers.NewPlan(b.api, b.state, b.plan, b.tz)
 	morning := handlers.NewMorning(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
 	profile := handlers.NewProfile(b.api, b.state, b.drafts, b.profile, b.targets, b.plan, b.ai)
@@ -93,6 +93,7 @@ func (b *Bot) registerRoutes() {
 	status := handlers.NewStatus(b.api, b.workout, b.targets, b.nutrition, b.steps, b.tz)
 	streak := handlers.NewStreak(b.api, b.workout, b.nutrition, b.tz)
 	hard := handlers.NewHard(b.api, b.users)
+	weight := handlers.NewWeight(b.api, b.state, b.profile)
 	debug := handlers.NewDebugMeals(b.api, b.db)
 
 	b.router.Handle("/start", start.Handle)
@@ -105,6 +106,7 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/hard", hard.Handle)
 	b.router.Handle("/profile", profile.Handle)
 	b.router.Handle("/profileset", profile.Handle)
+	b.router.Handle("/weight", weight.Handle)
 	b.router.Handle("/targets", targets.Handle)
 	b.router.Handle("/targetsrefresh", targets.Handle)
 	b.router.Handle("/targetsset", targets.Handle)
@@ -148,7 +150,7 @@ func (b *Bot) Run(ctx context.Context) error {
 			}
 
 			if upd.Message.IsCommand() {
-				b.reply(upd.Message.Chat.ID, "Не понял команду. /help")
+				b.reply(upd.Message.Chat.ID, "Не понял тебя родной /help")
 			}
 		}
 	}
@@ -191,7 +193,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 				b.reply(chatID, "Записал, но AI упал (сохранил как 0).")
 				return true
 			}
-			b.reply(chatID, "Не удалось сохранить прием пищи.")
+			b.reply(chatID, "Не в силах сохранить...")
 			return true
 		}
 
@@ -199,7 +201,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			chatID, meal.ID, meal.EatenAt.Format("2006-01-02 15:04:05 MST"), meal.Kcal)
 
 		if meal.Kcal == 0 && meal.ProteinG == 0 && meal.FatG == 0 && meal.CarbsG == 0 {
-			b.reply(chatID, "Не смог распознать КБЖУ. Попробуй ещё раз. Если нужно — /undo.")
+			b.reply(chatID, "Не в силах распознать КБЖУ, давай ка ещё разок (если нужно — /undo)")
 			return true
 		}
 		b.reply(chatID, fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
@@ -237,13 +239,13 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			return true
 		}
 		b.state.Set(chatID, domain.StateWaitProfileHeight)
-		b.reply(chatID, "Теперь рост в см, например 180.")
+		b.reply(chatID, "Теперь рост в см, например 180")
 		return true
 
 	case domain.StateWaitProfileHeight:
 		height, ok := parseIntInRange(strings.TrimSpace(m.Text), 50, 260)
 		if !ok {
-			b.reply(chatID, "Введи рост в см, например 180.")
+			b.reply(chatID, "Введи рост в см, например 180")
 			return true
 		}
 		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
@@ -254,7 +256,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			return true
 		}
 		b.state.Set(chatID, domain.StateWaitProfileWeight)
-		b.reply(chatID, "Теперь вес в кг, например 82.5.")
+		b.reply(chatID, "Теперь вес в кг, например 82.5")
 		return true
 
 	case domain.StateWaitProfileWeight:
@@ -271,7 +273,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			return true
 		}
 		b.state.Set(chatID, domain.StateWaitProfileBodyFat)
-		b.reply(chatID, "Процент жира, например 15.")
+		b.reply(chatID, "Процент жира, например 15")
 		return true
 
 	case domain.StateWaitProfileBodyFat:
@@ -288,13 +290,13 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			return true
 		}
 		b.state.Set(chatID, domain.StateWaitProfileAge)
-		b.reply(chatID, "Возраст, например 30.")
+		b.reply(chatID, "Возраст, например 30")
 		return true
 
 	case domain.StateWaitStepsCount:
 		steps, ok := parseIntInRange(strings.TrimSpace(m.Text), 0, 100000)
 		if !ok {
-			b.reply(chatID, "Напиши количество шагов числом, например 8500.")
+			b.reply(chatID, "Напиши количество шагов числом, например 8500")
 			return true
 		}
 		b.state.Clear(chatID)
@@ -302,16 +304,35 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		dayDate := util.LocalDateStr(util.NowIn(loc), loc)
 		if err := b.steps.SetSteps(context.Background(), chatID, dayDate, steps); err != nil {
 			log.Printf("steps save failed: chat_id=%d err=%v", chatID, err)
-			b.reply(chatID, "Не удалось сохранить шаги.")
+			b.reply(chatID, "Не удалось сохранить твои шаги за гиги.")
 			return true
 		}
 		b.reply(chatID, fmt.Sprintf("Ок, записал: %d шагов", steps))
 		return true
 
+	case domain.StateWaitWeightUpdate:
+		weight, ok := parseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
+		if !ok {
+			b.reply(chatID, "Введи вес в кг, например 82.5")
+			return true
+		}
+		b.state.Clear(chatID)
+		p, ok, err := b.profile.UpdateWeight(context.Background(), chatID, weight)
+		if err != nil {
+			b.reply(chatID, "Ошибка сохранения")
+			return true
+		}
+		if !ok {
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.reply(chatID, fmt.Sprintf("Вес обновлён: %.1f кг. Если нужно — /targetsrefresh", p.WeightKG))
+		return true
+
 	case domain.StateWaitProfileAge:
 		age, ok := parseIntInRange(strings.TrimSpace(m.Text), 10, 100)
 		if !ok {
-			b.reply(chatID, "Введи возраст, например 30.")
+			b.reply(chatID, "Введи возраст, например 30")
 			return true
 		}
 

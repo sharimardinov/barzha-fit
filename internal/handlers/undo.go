@@ -1,8 +1,11 @@
 package handlers
 
 import (
-	"barzhafit/internal/service"
 	"context"
+	"fmt"
+	"strings"
+
+	"barzhafit/internal/service"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -20,14 +23,29 @@ func (h *Undo) Handle(m *tgbotapi.Message) {
 	ctx := context.Background()
 	chatID := m.Chat.ID
 
-	ok, err := h.nut.UndoLast(ctx, chatID)
+	items, err := h.nut.ListRecent(ctx, chatID, 5)
 	if err != nil {
-		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка undo"))
+		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка чтения meals"))
 		return
 	}
-	if !ok {
+	if len(items) == 0 {
 		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Нечего удалять"))
 		return
 	}
-	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Удалил последний приём"))
+
+	var b strings.Builder
+	b.WriteString("Выбери приём для удаления:\n")
+
+	rows := make([][]tgbotapi.InlineKeyboardButton, 0, len(items))
+	for i, it := range items {
+		line := fmt.Sprintf("%d) %s", i+1, strings.TrimSpace(it.Text))
+		b.WriteString(line + "\n")
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("Удалить %d", i+1), fmt.Sprintf("meal:del:%d", it.ID)),
+		))
+	}
+
+	msg := tgbotapi.NewMessage(chatID, b.String())
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	_, _ = h.api.Send(msg)
 }

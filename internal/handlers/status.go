@@ -40,7 +40,7 @@ func (h *Status) Handle(m *tgbotapi.Message) {
 		}
 	}
 
-	kcal, p, _, _, _ := h.nut.SumToday(ctx, chatID, loc, now)
+	kcal, p, f, c, _ := h.nut.SumToday(ctx, chatID, loc, now)
 	steps, hasSteps, _ := h.steps.GetByDate(ctx, chatID, dayDate)
 	if !hasSteps {
 		steps = 0
@@ -48,10 +48,14 @@ func (h *Status) Handle(m *tgbotapi.Message) {
 
 	kcalTarget := 2400
 	proteinTarget := 170
+	fatTarget := 70
+	carbsTarget := 250
 	stepsTarget := 10000
 	if tg, ok, _ := h.targets.Get(ctx, chatID); ok {
 		kcalTarget = tg.Kcal
 		proteinTarget = tg.ProteinG
+		fatTarget = tg.FatG
+		carbsTarget = tg.CarbsG
 		if tg.Steps > 0 {
 			stepsTarget = tg.Steps
 		}
@@ -59,17 +63,19 @@ func (h *Status) Handle(m *tgbotapi.Message) {
 
 	kcalIcon := ratioIcon(float64(kcal), float64(kcalTarget))
 	proteinIcon := ratioIcon(float64(p), float64(proteinTarget))
+	fatIcon := ratioIcon(float64(f), float64(fatTarget))
+	carbsIcon := ratioIcon(float64(c), float64(carbsTarget))
 	stepsIcon := ratioIcon(float64(steps), float64(stepsTarget))
-
-	deficit := deficitText(kcal, kcalTarget)
 
 	var b strings.Builder
 	b.WriteString("Сегодня:\n")
 	b.WriteString(fmt.Sprintf("Тренировка: %s\n", workoutIcon))
 	b.WriteString(fmt.Sprintf("Калории: %d / %d %s\n", kcal, kcalTarget, kcalIcon))
 	b.WriteString(fmt.Sprintf("Белок: %d / %d %s\n", p, proteinTarget, proteinIcon))
+	b.WriteString(fmt.Sprintf("Жир: %d / %d %s\n", f, fatTarget, fatIcon))
+	b.WriteString(fmt.Sprintf("Углеводы: %d / %d %s\n", c, carbsTarget, carbsIcon))
 	b.WriteString(fmt.Sprintf("Шаги: %s / %s %s\n", formatInt(steps), formatInt(stepsTarget), stepsIcon))
-	b.WriteString(fmt.Sprintf("Дефицит: %s", deficit))
+	b.WriteString(fmt.Sprintf("Еда: %s", kcalIcon))
 
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, b.String()))
 }
@@ -89,19 +95,6 @@ func ratioIcon(val, target float64) string {
 	default:
 		return "🔴"
 	}
-}
-
-func deficitText(kcal, target int) string {
-	if target <= 0 {
-		return "—"
-	}
-	if kcal > target {
-		return "перебор"
-	}
-	if float64(kcal) >= 0.85*float64(target) {
-		return "норм"
-	}
-	return "дефицит"
 }
 
 func formatInt(v int) string {

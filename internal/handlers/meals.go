@@ -46,7 +46,7 @@ func (h *Meals) Handle(m *tgbotapi.Message) {
 	log.Printf("DEBUG /meals: chatID=%d found %d items", chatID, len(items))
 
 	if len(items) == 0 {
-		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "За сегодня пусто"))
+		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Сегодня ты голодаешь"))
 		return
 	}
 

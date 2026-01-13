@@ -12,6 +12,7 @@ const (
 	StateWaitProfileBodyFat State = "wait_profile_bodyfat"
 	StateWaitProfileAge     State = "wait_profile_age"
 	StateWaitProfileGoal    State = "wait_profile_goal"
+	StateWaitWeightUpdate   State = "wait_weight_update"
 	StateWaitStepsCount     State = "wait_steps_count"
 )
 

@@ -57,20 +57,25 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	kcal := int(math.Round(tdee))
 	switch p.Goal {
 	case "cut":
-		kcal = int(math.Round(float64(kcal) * 0.75))
+		kcal = int(math.Round(float64(kcal) * 0.8))
 	case "bulk":
-		kcal = int(math.Round(float64(kcal) * 1.2))
+		kcal = int(math.Round(float64(kcal) * 1.1))
 	default:
 		// balance: no change
 	}
 
-	// макросы: белок/жир от веса
-	baseWeight := p.WeightKG
-	if baseWeight <= 0 {
-		baseWeight = lbm
+	// макросы: белок от сухой массы, жир от общей массы
+	proteinWeight := lbm
+	if proteinWeight <= 0 {
+		proteinWeight = p.WeightKG
 	}
-	protein := int(math.Round(2.0 * baseWeight))
-	fat := int(math.Round(1.0 * baseWeight))
+	protein := int(math.Round(2.0 * proteinWeight))
+
+	fatWeight := p.WeightKG
+	if fatWeight <= 0 {
+		fatWeight = lbm
+	}
+	fat := int(math.Round(0.9 * fatWeight))
 
 	// carbs = остаток
 	carbs := int(math.Round((float64(kcal) - float64(protein*4) - float64(fat*9)) / 4.0))

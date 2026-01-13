@@ -60,10 +60,18 @@ func (s *NutritionService) UndoLast(ctx context.Context, chatID int64) (bool, er
 	return s.meals.DeleteLast(ctx, chatID)
 }
 
+func (s *NutritionService) DeleteByID(ctx context.Context, chatID int64, id int64) (bool, error) {
+	return s.meals.DeleteByID(ctx, chatID, id)
+}
+
 func (s *NutritionService) ListToday(ctx context.Context, chatID int64, loc *time.Location, now time.Time) ([]db.Meal, error) {
 	from := dayStart(now, loc)
 	to := from.Add(24 * time.Hour)
 	return s.meals.ListByDay(ctx, chatID, from, to)
+}
+
+func (s *NutritionService) ListRecent(ctx context.Context, chatID int64, limit int) ([]db.Meal, error) {
+	return s.meals.ListRecent(ctx, chatID, limit)
 }
 
 func (s *NutritionService) SumToday(ctx context.Context, chatID int64, loc *time.Location, now time.Time) (kcal, p, f, c int, err error) {

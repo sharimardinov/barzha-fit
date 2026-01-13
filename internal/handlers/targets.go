@@ -53,11 +53,11 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 		t, err := h.targets.Refresh(ctx, chatID)
 		if err != nil {
 			log.Printf("targets refresh failed: chat_id=%d err=%v", chatID, err)
-			h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка пересчёта. Проверь миграции и /profileset."))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка пересчёта. Напиши Владу чтобы он проверил миграции и /profileset"))
 			return
 		}
 		if t.ChatID == 0 {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Не могу пересчитать. Сначала /profileset ..."))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Не могу пересчитать. Сначала /profileset"))
 			return
 		}
 		h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Цели обновлены (calc): %dkcal, Б %d, Ж %d, У %d, Шаги %d", t.Kcal, t.ProteinG, t.FatG, t.CarbsG, t.Steps)))
@@ -72,14 +72,20 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 		field := strings.ToLower(args[1])
 		val, err := strconv.Atoi(args[2])
 		if err != nil || val <= 0 {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Число кривое"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Вайя число кривое"))
 			return
 		}
 		if err := h.targets.SetManual(ctx, chatID, field, val); err != nil {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка сохранения"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Целей нет. Сначала /profileset и /targetsrefresh"))
 			return
 		}
-		h.api.Send(tgbotapi.NewMessage(chatID, "Ок. Поставил вручную."))
+		t, ok, err := h.targets.Get(ctx, chatID)
+		if err != nil || !ok {
+			h.api.Send(tgbotapi.NewMessage(chatID, "Цели обновлены"))
+			return
+		}
+		h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Цели обновлены (%s): %dkcal, Б %d, Ж %d, У %d, Шаги %d",
+			t.Source, t.Kcal, t.ProteinG, t.FatG, t.CarbsG, t.Steps)))
 		return
 
 	default:
@@ -91,11 +97,11 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 func (h *Targets) show(ctx context.Context, chatID int64) {
 	t, ok, err := h.targets.Get(ctx, chatID)
 	if err != nil || !ok {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Целей нет. Сначала /profileset ..., затем /targetsrefresh"))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Целей нет. Сначала /profileset туда сюда, а затем /targetsrefresh"))
 		return
 	}
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(
-		"Цели (%s):\nКалории %d\nБелок %d г\nЖир %d г\nУгли %d г\nШаги %d",
+		"Цели (%s):\nКалории %d\nБелок %d г\nЖир %d г\nУглеводы %d г\nШаги %d",
 		t.Source, t.Kcal, t.ProteinG, t.FatG, t.CarbsG, t.Steps,
 	)))
 }

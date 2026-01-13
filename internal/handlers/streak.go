@@ -61,7 +61,27 @@ func (h *Streak) Handle(m *tgbotapi.Message) {
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Тренировки подряд: %d\n", workoutStreak))
-	b.WriteString(fmt.Sprintf("Дней без еды-логов: %d", noMealStreak))
+	b.WriteString(fmt.Sprintf("Еда подряд: %d %s", noMealStreak, streakBar(noMealStreak, 7)))
 
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, b.String()))
+}
+
+func streakBar(val, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	if val > max {
+		val = max
+	}
+	var b strings.Builder
+	b.WriteString("[")
+	for i := 0; i < max; i++ {
+		if i < val {
+			b.WriteString("■")
+		} else {
+			b.WriteString("—")
+		}
+	}
+	b.WriteString("]")
+	return b.String()
 }

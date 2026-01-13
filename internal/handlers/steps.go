@@ -28,13 +28,13 @@ func (h *Steps) Handle(m *tgbotapi.Message) {
 	args := strings.TrimSpace(m.CommandArguments())
 	if args == "" {
 		h.state.Set(chatID, domain.StateWaitStepsCount)
-		h.api.Send(tgbotapi.NewMessage(chatID, "Сколько шагов сегодня? Ответь числом или /setstep 12345."))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Сколько нашагал сегодня? Ответь числом например 8500"))
 		return
 	}
 
 	steps, ok := parseSteps(args)
 	if !ok {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Напиши количество шагов числом, например 8500."))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Напиши количество шагов числом, например 8500"))
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h *Steps) Handle(m *tgbotapi.Message) {
 	loc := util.MustLocation(h.tz)
 	dayDate := util.LocalDateStr(util.NowIn(loc), loc)
 	if err := h.steps.SetSteps(context.Background(), chatID, dayDate, steps); err != nil {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Не удалось сохранить шаги."))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Не удалось сохранить твои шаги за гиги."))
 		return
 	}
 

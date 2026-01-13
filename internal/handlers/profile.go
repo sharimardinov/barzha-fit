@@ -78,7 +78,7 @@ func (h *Profile) Handle(m *tgbotapi.Message) {
 	// /profile — показать
 	p, ok, err := h.profile.Get(ctx, chatID)
 	if err != nil || !ok {
-		h.api.Send(tgbotapi.NewMessage(chatID, "Профиль не найден. Используй /profileset ..."))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Профиль не найден. Используй /profileset если не лох"))
 		return
 	}
 

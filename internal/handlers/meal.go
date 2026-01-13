@@ -42,12 +42,12 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 				_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Записал, но AI упал (сохранил как 0)."))
 				return
 			}
-			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Не удалось сохранить прием пищи."))
+			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Не в силах сохранить..."))
 			return
 		}
 
 		if meal.Kcal == 0 && meal.ProteinG == 0 && meal.FatG == 0 && meal.CarbsG == 0 {
-			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Не смог распознать КБЖУ. Попробуй ещё раз. Если нужно — /undo."))
+			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Не в силах распознать КБЖУ, давай ка ещё разок (если нужно — /undo)"))
 			return
 		}
 		msg := tgbotapi.NewMessage(chatID,
@@ -61,5 +61,5 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 
 	// обычный режим: /setmeal -> ждём следующий текст
 	h.state.Set(chatID, domain.StateWaitMealText)
-	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Напиши одним сообщением что ел. Пример: \"2 яйца, рис, курица\""))
+	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Напиши одним сообщением что ел. Лучше по одному приёму для точности. Пример: \"2 яйца, рис в сухом виде 100г, одна грудка курицы\""))
 }

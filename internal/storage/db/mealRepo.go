@@ -65,6 +65,17 @@ func (r *MealRepo) DeleteLast(ctx context.Context, chatID int64) (bool, error) {
 	return ct.RowsAffected() > 0, nil
 }
 
+func (r *MealRepo) DeleteByID(ctx context.Context, chatID int64, id int64) (bool, error) {
+	ct, err := r.db.Exec(ctx, `
+		delete from meals
+		where chat_id=$1 and id=$2
+	`, chatID, id)
+	if err != nil {
+		return false, err
+	}
+	return ct.RowsAffected() > 0, nil
+}
+
 func (r *MealRepo) ListByDay(ctx context.Context, chatID int64, from, to time.Time) ([]Meal, error) {
 	rows, err := r.db.Query(ctx, `
 		select id, chat_id, eaten_at, text, kcal, protein_g, fat_g, carbs_g
@@ -72,6 +83,30 @@ func (r *MealRepo) ListByDay(ctx context.Context, chatID int64, from, to time.Ti
 		where chat_id=$1 and eaten_at >= $2 and eaten_at < $3
 		order by eaten_at asc, id asc
 	`, chatID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []Meal
+	for rows.Next() {
+		var m Meal
+		if err := rows.Scan(&m.ID, &m.ChatID, &m.EatenAt, &m.Text, &m.Kcal, &m.ProteinG, &m.FatG, &m.CarbsG); err != nil {
+			return nil, err
+		}
+		res = append(res, m)
+	}
+	return res, rows.Err()
+}
+
+func (r *MealRepo) ListRecent(ctx context.Context, chatID int64, limit int) ([]Meal, error) {
+	rows, err := r.db.Query(ctx, `
+		select id, chat_id, eaten_at, text, kcal, protein_g, fat_g, carbs_g
+		from meals
+		where chat_id=$1
+		order by eaten_at desc, id desc
+		limit $2
+	`, chatID, limit)
 	if err != nil {
 		return nil, err
 	}

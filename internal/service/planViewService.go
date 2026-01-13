@@ -40,7 +40,7 @@ func (s *PlanViewService) DayText(ctx context.Context, chatID int64, day int, no
 
 	kcal, p, f, c, err := s.nut.SumByDay(ctx, chatID, dayStart, dayEnd)
 	foodLine := "Еда: —"
-	if err == nil && kcal > 0 {
+	if err == nil && (kcal > 0 || p > 0 || f > 0 || c > 0) {
 		foodLine = fmt.Sprintf("Еда: %d ккал (Б%d Ж%d У%d)", kcal, p, f, c)
 	}
 

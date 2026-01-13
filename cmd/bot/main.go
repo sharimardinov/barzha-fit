@@ -22,6 +22,7 @@ func main() {
 	evening := flag.Bool("evening", false, "ask steps from all users and exit")
 	day := flag.Bool("day", false, "send day meal reminder to all users and exit")
 	weekly := flag.Bool("weekly", false, "send weekly reflection to all users and exit")
+	weight := flag.Bool("weight", false, "send monday weight reminder to all users and exit")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -97,6 +98,13 @@ func main() {
 	if *weekly {
 		if err := runWeekly(ctx, api, botUsersSvc, nutSvc, workoutSvc, targetsSvc, aiSvc, cfg.TZ); err != nil {
 			log.Fatalf("weekly failed: %v", err)
+		}
+		return
+	}
+
+	if *weight {
+		if err := runWeightReminder(ctx, api, botUsersSvc, profileSvc, cfg.TZ); err != nil {
+			log.Fatalf("weight reminder failed: %v", err)
 		}
 		return
 	}
@@ -337,5 +345,35 @@ func runWeekly(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUser
 	}
 
 	log.Printf("weekly: sent=%d", sent)
+	return nil
+}
+
+func runWeightReminder(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersService, profiles *service.ProfileService, tz string) error {
+	loc := util.MustLocation(tz)
+	now := util.NowIn(loc)
+	if util.Weekday1to7(now) != 1 {
+		log.Printf("weight: skipped (not monday)")
+		return nil
+	}
+
+	chatIDs, err := users.ListEnabled(ctx)
+	if err != nil {
+		return err
+	}
+
+	sent := 0
+	for _, chatID := range chatIDs {
+		if _, ok, err := profiles.Get(ctx, chatID); err != nil || !ok {
+			continue
+		}
+		msg := tgbotapi.NewMessage(chatID, "Понедельник — обнови вес. Напиши /weight 82.5")
+		if _, err := api.Send(msg); err != nil {
+			continue
+		}
+		time.Sleep(60 * time.Millisecond)
+		sent++
+	}
+
+	log.Printf("weight: sent=%d", sent)
 	return nil
 }
