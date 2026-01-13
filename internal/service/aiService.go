@@ -265,3 +265,61 @@ func (a *AIService) EstimateActivityMultiplier(ctx context.Context, planText str
 
 	return est.ActivityMultiplier, raw, nil
 }
+
+func (a *AIService) WeeklyReflection(ctx context.Context, done, total, avgKcal, avgProtein, proteinTarget int, mainIssue string) (string, error) {
+	instructions := `Сделай один короткий абзац на русском. Тон сухой, без мотивации и эмодзи.
+Отрази: тренировки done/total, средние калории, средний белок и главную проблему.`
+
+	userText := fmt.Sprintf("Данные недели: тренировки %d/%d, средние калории %d, средний белок %d, цель белка %d, главный косяк: %s.",
+		done, total, avgKcal, avgProtein, proteinTarget, mainIssue)
+
+	reqBody := respReq{
+		Model: a.model,
+		Input: []respMsg{
+			{Role: "user", Content: userText},
+		},
+		Instructions:    instructions,
+		Temperature:     0.2,
+		MaxOutputTokens: 140,
+	}
+
+	b, _ := json.Marshal(reqBody)
+	httpReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/responses", bytes.NewReader(b))
+	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.http.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("openai status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	var out respOut
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", err
+	}
+
+	if out.Error != nil {
+		return "", fmt.Errorf("openai error: %s", out.Error.Message)
+	}
+
+	rawText := ""
+	for _, item := range out.Output {
+		for _, c := range item.Content {
+			if c.Type == "output_text" && c.Text != "" {
+				rawText += c.Text
+			}
+		}
+	}
+	rawText = strings.TrimSpace(rawText)
+	if rawText == "" {
+		return "", errors.New("openai: empty output_text")
+	}
+
+	return rawText, nil
+}

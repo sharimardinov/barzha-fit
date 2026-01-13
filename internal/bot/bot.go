@@ -29,6 +29,7 @@ type Bot struct {
 	profile   *service.ProfileService
 	targets   *service.TargetsService
 	nutrition *service.NutritionService
+	steps     *service.StepsService
 	ai        *service.AIService
 	drafts    *service.ProfileDraftStore
 	db        *pgxpool.Pool
@@ -43,6 +44,7 @@ func New(
 	profile *service.ProfileService,
 	targets *service.TargetsService,
 	nutrition *service.NutritionService,
+	steps *service.StepsService,
 	ai *service.AIService,
 	db *pgxpool.Pool,
 ) *Bot {
@@ -57,6 +59,7 @@ func New(
 		profile:   profile,
 		targets:   targets,
 		nutrition: nutrition,
+		steps:     steps,
 		ai:        ai,
 		drafts:    service.NewProfileDraftStore(),
 		db:        db,
@@ -71,12 +74,16 @@ func (b *Bot) registerRoutes() {
 	plan := handlers.NewPlan(b.api, b.state, b.plan)
 	morning := handlers.NewMorning(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
-	week := handlers.NewWeek(b.api, b.plan, b.tz)
+	week := handlers.NewWeek(b.api, b.plan, b.nutrition, b.steps, b.tz)
 	profile := handlers.NewProfile(b.api, b.state, b.drafts, b.profile, b.targets, b.plan, b.ai)
 	targets := handlers.NewTargets(b.api, b.targets)
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
 	undo := handlers.NewUndo(b.api, b.nutrition)
-	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.tz)
+	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.steps, b.targets, b.tz)
+	steps := handlers.NewSteps(b.api, b.state, b.steps, b.tz)
+	status := handlers.NewStatus(b.api, b.workout, b.targets, b.nutrition, b.steps, b.tz)
+	streak := handlers.NewStreak(b.api, b.workout, b.nutrition, b.tz)
+	hard := handlers.NewHard(b.api, b.users)
 	debug := handlers.NewDebugMeals(b.api, b.db)
 
 	b.router.Handle("/start", start.Handle)
@@ -89,13 +96,17 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/planday", plan.Handle)
 	b.router.Handle("/week", week.Handle)
 	b.router.Handle("/morning", morning.Handle)
+	b.router.Handle("/hard", hard.Handle)
 	b.router.Handle("/profile", profile.Handle)
 	b.router.Handle("/profileset", profile.Handle)
 	b.router.Handle("/targets", targets.Handle)
 	b.router.Handle("/targetsrefresh", targets.Handle)
 	b.router.Handle("/targetsset", targets.Handle)
 	b.router.Handle("/meals", meals.Handle)
+	b.router.Handle("/steps", steps.Handle)
 	b.router.Handle("/undo", undo.Handle)
+	b.router.Handle("/status", status.Handle)
+	b.router.Handle("/streak", streak.Handle)
 	b.router.Handle("/stats", stats.Handle)
 	b.router.Handle("debugmeals", debug.Handle)
 }
@@ -247,6 +258,22 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		}
 		b.state.Set(chatID, domain.StateWaitProfileAge)
 		b.reply(chatID, "Возраст, например 30.")
+		return true
+
+	case domain.StateWaitStepsCount:
+		steps, ok := parseIntInRange(strings.TrimSpace(m.Text), 0, 100000)
+		if !ok {
+			b.reply(chatID, "Напиши количество шагов числом, например 8500.")
+			return true
+		}
+		loc := util.MustLocation(b.tz)
+		dayDate := util.LocalDateStr(util.NowIn(loc), loc)
+		if err := b.steps.SetSteps(context.Background(), chatID, dayDate, steps); err != nil {
+			log.Printf("steps save failed: chat_id=%d err=%v", chatID, err)
+			b.reply(chatID, "Не удалось сохранить шаги.")
+			return true
+		}
+		b.reply(chatID, fmt.Sprintf("Ок, записал: %d шагов", steps))
 		return true
 
 	case domain.StateWaitProfileAge:

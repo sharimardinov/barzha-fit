@@ -31,7 +31,14 @@ func (s *TargetsService) Refresh(ctx context.Context, chatID int64) (domain.Targ
 	if !ok {
 		return domain.Targets{}, nil
 	}
+	current, has, err := s.targets.Get(ctx, chatID)
+	if err != nil {
+		return domain.Targets{}, err
+	}
 	t := util.CalcTargets(p)
+	if has && current.Steps > 0 {
+		t.Steps = current.Steps
+	}
 	if err := s.targets.Upsert(ctx, t); err != nil {
 		return domain.Targets{}, err
 	}
@@ -65,6 +72,8 @@ func (s *TargetsService) SetManual(ctx context.Context, chatID int64, field stri
 	case "carbs":
 		t.CarbsG = value
 		t.Kcal = calcKcal(t.ProteinG, t.FatG, t.CarbsG)
+	case "steps":
+		t.Steps = value
 	default:
 		return fmt.Errorf("unknown field: %s", field)
 	}

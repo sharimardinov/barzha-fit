@@ -10,6 +10,7 @@ const (
 	StateWaitProfileWeight  State = "wait_profile_weight"
 	StateWaitProfileBodyFat State = "wait_profile_bodyfat"
 	StateWaitProfileAge     State = "wait_profile_age"
+	StateWaitStepsCount     State = "wait_steps_count"
 )
 
 type StateSetter interface {

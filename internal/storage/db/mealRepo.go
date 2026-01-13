@@ -100,3 +100,40 @@ func (r *MealRepo) SumByDay(ctx context.Context, chatID int64, from, to time.Tim
 	`, chatID, from, to).Scan(&kcal, &p, &f, &c)
 	return
 }
+
+type DayNutrition struct {
+	Kcal int
+	P    int
+	F    int
+	C    int
+}
+
+func (r *MealRepo) SumByRangeDaily(ctx context.Context, chatID int64, from, to time.Time, tz string) (map[string]DayNutrition, error) {
+	rows, err := r.db.Query(ctx, `
+		select
+			(eaten_at at time zone $4)::date as day_date,
+			coalesce(sum(kcal),0),
+			coalesce(sum(protein_g),0),
+			coalesce(sum(fat_g),0),
+			coalesce(sum(carbs_g),0)
+		from meals
+		where chat_id=$1 and eaten_at >= $2 and eaten_at < $3
+		group by day_date
+		order by day_date asc
+	`, chatID, from, to, tz)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make(map[string]DayNutrition)
+	for rows.Next() {
+		var day time.Time
+		var dn DayNutrition
+		if err := rows.Scan(&day, &dn.Kcal, &dn.P, &dn.F, &dn.C); err != nil {
+			return nil, err
+		}
+		res[day.Format("2006-01-02")] = dn
+	}
+	return res, rows.Err()
+}

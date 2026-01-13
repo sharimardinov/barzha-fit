@@ -69,8 +69,12 @@ func New() (*App, error) {
 	mealRepo := db.NewMealRepo(pool)
 	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
 
+	// steps
+	stepsRepo := db.NewStepsRepo(pool)
+	stepsSvc := service.NewStepsService(stepsRepo)
+
 	// ИСПРАВЛЕНО: добавлены profileSvc, targetsSvc, pool
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, aiSvc, pool)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, aiSvc, pool)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }

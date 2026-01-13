@@ -19,6 +19,9 @@ import (
 
 func main() {
 	morning := flag.Bool("morning", false, "send morning workout to all users and exit")
+	evening := flag.Bool("evening", false, "ask steps from all users and exit")
+	day := flag.Bool("day", false, "send day meal reminder to all users and exit")
+	weekly := flag.Bool("weekly", false, "send weekly reflection to all users and exit")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -67,6 +70,9 @@ func main() {
 	mealRepo := db.NewMealRepo(pool)
 	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
 
+	stepsRepo := db.NewStepsRepo(pool)
+	stepsSvc := service.NewStepsService(stepsRepo)
+
 	if *morning {
 		if err := runMorning(ctx, api, planSvc, workoutSvc, botUsersSvc, cfg.TZ); err != nil {
 			log.Fatalf("morning failed: %v", err)
@@ -74,7 +80,28 @@ func main() {
 		return
 	}
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, aiSvc, pool)
+	if *day {
+		if err := runDay(ctx, api, botUsersSvc, nutSvc, cfg.TZ); err != nil {
+			log.Fatalf("day failed: %v", err)
+		}
+		return
+	}
+
+	if *evening {
+		if err := runEvening(ctx, api, botUsersSvc, nutSvc, targetsSvc, workoutSvc, stepsSvc, cfg.TZ); err != nil {
+			log.Fatalf("evening failed: %v", err)
+		}
+		return
+	}
+
+	if *weekly {
+		if err := runWeekly(ctx, api, botUsersSvc, nutSvc, workoutSvc, targetsSvc, aiSvc, cfg.TZ); err != nil {
+			log.Fatalf("weekly failed: %v", err)
+		}
+		return
+	}
+
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, aiSvc, pool)
 	if err := b.Run(ctx); err != nil {
 		log.Fatal(err)
 	}
@@ -133,5 +160,182 @@ func runMorning(
 	}
 
 	log.Printf("morning: sent=%d", sent)
+	return nil
+}
+
+func runDay(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersService, nut *service.NutritionService, tz string) error {
+	loc := util.MustLocation(tz)
+	now := util.NowIn(loc)
+	dayStart := util.DayStart(now, loc)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	chatIDs, err := users.ListEnabled(ctx)
+	if err != nil {
+		return err
+	}
+
+	sent := 0
+	for _, chatID := range chatIDs {
+		kcal, _, _, _, err := nut.SumByDay(ctx, chatID, dayStart, dayEnd)
+		if err != nil || kcal > 0 {
+			continue
+		}
+		msg := tgbotapi.NewMessage(chatID, "Напоминание: добавь еду за сегодня (/meal)")
+		if _, err := api.Send(msg); err != nil {
+			continue
+		}
+		time.Sleep(60 * time.Millisecond)
+		sent++
+	}
+
+	log.Printf("day: sent=%d", sent)
+	return nil
+}
+
+func runEvening(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersService, nut *service.NutritionService, targets *service.TargetsService, workout *service.WorkoutService, steps *service.StepsService, tz string) error {
+	loc := util.MustLocation(tz)
+	now := util.NowIn(loc)
+	dayStart := util.DayStart(now, loc)
+	dayEnd := dayStart.Add(24 * time.Hour)
+	dayDate := util.LocalDateStr(now, loc)
+
+	chatIDs, err := users.ListEnabled(ctx)
+	if err != nil {
+		return err
+	}
+
+	sent := 0
+	for _, chatID := range chatIDs {
+		kcal, p, _, _, err := nut.SumByDay(ctx, chatID, dayStart, dayEnd)
+		if err != nil {
+			continue
+		}
+
+		proteinTarget := 170
+		if tg, ok, _ := targets.Get(ctx, chatID); ok {
+			proteinTarget = tg.ProteinG
+		}
+
+		if p < proteinTarget {
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Белок недобор: %d / %d. Добавь еду.", p, proteinTarget))
+			if _, err := api.Send(msg); err != nil {
+				continue
+			}
+			time.Sleep(60 * time.Millisecond)
+			sent++
+		}
+
+		if _, hasSteps, _ := steps.GetByDate(ctx, chatID, dayDate); !hasSteps {
+			msg := tgbotapi.NewMessage(chatID, "Сколько шагов сегодня? Ответь командой /steps 12345")
+			if _, err := api.Send(msg); err == nil {
+				time.Sleep(60 * time.Millisecond)
+				sent++
+			}
+		}
+
+		hard, err := users.GetHard(ctx, chatID)
+		if err != nil || !hard {
+			continue
+		}
+
+		status, hasWorkout, _ := workout.GetStatusByDate(ctx, chatID, dayDate)
+		if hasWorkout && status == "skip" {
+			msg := tgbotapi.NewMessage(chatID, "Тренировка пропущена. Решай.")
+			if _, err := api.Send(msg); err == nil {
+				time.Sleep(60 * time.Millisecond)
+			}
+		}
+
+		if kcal == 0 {
+			yesterday := dayStart.AddDate(0, 0, -1)
+			yKcal, _, _, _, _ := nut.SumByDay(ctx, chatID, yesterday, dayStart)
+			if yKcal == 0 {
+				msg := tgbotapi.NewMessage(chatID, "Сегодня пусто. Решай.")
+				if _, err := api.Send(msg); err == nil {
+					time.Sleep(60 * time.Millisecond)
+				}
+			}
+		}
+	}
+
+	log.Printf("evening: sent=%d", sent)
+	return nil
+}
+
+func runWeekly(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersService, nut *service.NutritionService, workout *service.WorkoutService, targets *service.TargetsService, ai *service.AIService, tz string) error {
+	loc := util.MustLocation(tz)
+	now := util.NowIn(loc)
+	weekday := util.Weekday1to7(now)
+	weekStart := util.DayStart(now.AddDate(0, 0, -(weekday-1)), loc)
+	weekEnd := weekStart.AddDate(0, 0, 6)
+
+	chatIDs, err := users.ListEnabled(ctx)
+	if err != nil {
+		return err
+	}
+
+	sent := 0
+	for _, chatID := range chatIDs {
+		foodMap, _ := nut.SumByRangeDaily(ctx, chatID, weekStart, weekEnd.Add(24*time.Hour), tz)
+		workoutMap, _ := workout.ListByRange(ctx, chatID, util.LocalDateStr(weekStart, loc), util.LocalDateStr(weekEnd, loc))
+
+		totalKcal := 0
+		totalProtein := 0
+		emptyDays := 0
+		for i := 0; i < 7; i++ {
+			d := weekStart.AddDate(0, 0, i)
+			key := util.LocalDateStr(d, loc)
+			if dn, ok := foodMap[key]; ok {
+				totalKcal += dn.Kcal
+				totalProtein += dn.P
+				if dn.Kcal == 0 {
+					emptyDays++
+				}
+			} else {
+				emptyDays++
+			}
+		}
+
+		done := 0
+		totalWorkouts := 0
+		for _, st := range workoutMap {
+			if st == "done" || st == "skip" {
+				totalWorkouts++
+				if st == "done" {
+					done++
+				}
+			}
+		}
+
+		avgKcal := totalKcal / 7
+		avgProtein := totalProtein / 7
+		proteinTarget := 170
+		if tg, ok, _ := targets.Get(ctx, chatID); ok {
+			proteinTarget = tg.ProteinG
+		}
+
+		mainIssue := "стабильно"
+		if totalWorkouts > 0 && done < totalWorkouts {
+			mainIssue = "пропуски тренировок"
+		} else if avgProtein < proteinTarget {
+			mainIssue = "низкий белок"
+		} else if emptyDays > 0 {
+			mainIssue = "пропуски еды"
+		}
+
+		text, err := ai.WeeklyReflection(ctx, done, totalWorkouts, avgKcal, avgProtein, proteinTarget, mainIssue)
+		if err != nil {
+			text = fmt.Sprintf("Неделя: Тренировок %d/%d. Средние калории %d. Белок %d. Главный косяк: %s.", done, totalWorkouts, avgKcal, avgProtein, mainIssue)
+		}
+
+		msg := tgbotapi.NewMessage(chatID, text)
+		if _, err := api.Send(msg); err != nil {
+			continue
+		}
+		time.Sleep(60 * time.Millisecond)
+		sent++
+	}
+
+	log.Printf("weekly: sent=%d", sent)
 	return nil
 }

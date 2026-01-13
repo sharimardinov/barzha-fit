@@ -6,5 +6,6 @@ type Targets struct {
 	ProteinG int
 	FatG     int
 	CarbsG   int
+	Steps    int
 	Source   string // "calc"|"manual"
 }

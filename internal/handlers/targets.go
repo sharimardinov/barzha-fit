@@ -30,7 +30,7 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 		if cmd == "targetsrefresh" {
 			args = []string{"refresh"}
 		} else if cmd == "targetsset" {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs 2600"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs|steps 2600"))
 			return
 		} else {
 			h.show(ctx, chatID)
@@ -42,7 +42,7 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 		if len(args) >= 2 {
 			args = append([]string{"set"}, args...)
 		} else {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs 2600"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs|steps 2600"))
 			return
 		}
 	}
@@ -54,13 +54,13 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 			h.api.Send(tgbotapi.NewMessage(chatID, "Не могу пересчитать. Сначала /profileset ..."))
 			return
 		}
-		h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Цели обновлены (calc): %dkcal, Б %d, Ж %d, У %d", t.Kcal, t.ProteinG, t.FatG, t.CarbsG)))
+		h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Цели обновлены (calc): %dkcal, Б %d, Ж %d, У %d, Шаги %d", t.Kcal, t.ProteinG, t.FatG, t.CarbsG, t.Steps)))
 		return
 
 	case "set":
 		// /targetsset kcal 2600
 		if len(args) < 3 {
-			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs 2600"))
+			h.api.Send(tgbotapi.NewMessage(chatID, "Формат: /targetsset kcal|protein|fat|carbs|steps 2600"))
 			return
 		}
 		field := strings.ToLower(args[1])
@@ -89,7 +89,7 @@ func (h *Targets) show(ctx context.Context, chatID int64) {
 		return
 	}
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(
-		"Цели (%s):\nКалории %d\nБелок %d г\nЖир %d г\nУгли %d г",
-		t.Source, t.Kcal, t.ProteinG, t.FatG, t.CarbsG,
+		"Цели (%s):\nКалории %d\nБелок %d г\nЖир %d г\nУгли %d г\nШаги %d",
+		t.Source, t.Kcal, t.ProteinG, t.FatG, t.CarbsG, t.Steps,
 	)))
 }

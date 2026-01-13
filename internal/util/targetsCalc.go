@@ -72,6 +72,7 @@ func CalcTargets(p domain.Profile) domain.Targets {
 		ProteinG: protein,
 		FatG:     fat,
 		CarbsG:   carbs,
+		Steps:    10000,
 		Source:   "calc",
 	}
 }

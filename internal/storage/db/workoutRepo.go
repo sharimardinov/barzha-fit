@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -58,4 +59,28 @@ func (r *WorkoutRepo) GetRecord(ctx context.Context, userID int64, dayDate strin
 		return 0, "", false, err
 	}
 	return cycleDay, status, true, nil
+}
+
+func (r *WorkoutRepo) ListByRange(ctx context.Context, userID int64, fromDate, toDate string) (map[string]string, error) {
+	rows, err := r.db.Query(ctx, `
+		select day_date, status
+		from workout_days
+		where user_id=$1 and day_date >= $2::date and day_date <= $3::date
+		order by day_date asc
+	`, userID, fromDate, toDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make(map[string]string)
+	for rows.Next() {
+		var day time.Time
+		var status string
+		if err := rows.Scan(&day, &status); err != nil {
+			return nil, err
+		}
+		res[day.Format("2006-01-02")] = status
+	}
+	return res, rows.Err()
 }

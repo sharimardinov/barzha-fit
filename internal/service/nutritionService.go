@@ -80,6 +80,10 @@ func (s *NutritionService) SumByWeek(ctx context.Context, chatID int64, from, to
 	return s.meals.SumByDay(ctx, chatID, from, to)
 }
 
+func (s *NutritionService) SumByRangeDaily(ctx context.Context, chatID int64, from, to time.Time, tz string) (map[string]db.DayNutrition, error) {
+	return s.meals.SumByRangeDaily(ctx, chatID, from, to, tz)
+}
+
 func dayStart(t time.Time, loc *time.Location) time.Time {
 	tt := t.In(loc)
 	return time.Date(tt.Year(), tt.Month(), tt.Day(), 0, 0, 0, 0, loc)

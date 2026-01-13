@@ -6,6 +6,8 @@ type BotUsersStorage interface {
 	Ensure(ctx context.Context, chatID int64) error
 	ListEnabled(ctx context.Context) ([]int64, error)
 	SetMorning(ctx context.Context, chatID int64, enabled bool) error
+	SetHard(ctx context.Context, chatID int64, enabled bool) error
+	GetHard(ctx context.Context, chatID int64) (bool, error)
 }
 
 type BotUsersService struct {
@@ -26,4 +28,12 @@ func (s *BotUsersService) ListEnabled(ctx context.Context) ([]int64, error) {
 
 func (s *BotUsersService) SetMorning(ctx context.Context, chatID int64, enabled bool) error {
 	return s.repo.SetMorning(ctx, chatID, enabled)
+}
+
+func (s *BotUsersService) SetHard(ctx context.Context, chatID int64, enabled bool) error {
+	return s.repo.SetHard(ctx, chatID, enabled)
+}
+
+func (s *BotUsersService) GetHard(ctx context.Context, chatID int64) (bool, error) {
+	return s.repo.GetHard(ctx, chatID)
 }

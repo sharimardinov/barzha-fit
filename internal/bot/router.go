@@ -31,6 +31,12 @@ func (r *Router) Dispatch(m *tgbotapi.Message) bool {
 	cmd := strings.Split(strings.TrimSpace(m.Text), " ")[0]
 	h, ok := r.handlers[cmd]
 	if !ok {
+		if strings.HasPrefix(cmd, "/stats") {
+			if h, ok := r.handlers["/stats"]; ok {
+				h(m)
+				return true
+			}
+		}
 		return false
 	}
 	h(m)

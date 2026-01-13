@@ -12,8 +12,8 @@ func NewBotUsersRepo(db *pgxpool.Pool) *BotUsersRepo { return &BotUsersRepo{db: 
 
 func (r *BotUsersRepo) Ensure(ctx context.Context, chatID int64) error {
 	_, err := r.db.Exec(ctx, `
-		insert into bot_users(chat_id, morning_enabled)
-		values ($1, true)
+		insert into bot_users(chat_id, morning_enabled, hard_enabled)
+		values ($1, true, false)
 		on conflict (chat_id) do nothing
 	`, chatID)
 	return err
@@ -49,4 +49,26 @@ func (r *BotUsersRepo) SetMorning(ctx context.Context, chatID int64, enabled boo
 		where chat_id = $1
 	`, chatID, enabled)
 	return err
+}
+
+func (r *BotUsersRepo) SetHard(ctx context.Context, chatID int64, enabled bool) error {
+	_, err := r.db.Exec(ctx, `
+		update bot_users
+		set hard_enabled = $2
+		where chat_id = $1
+	`, chatID, enabled)
+	return err
+}
+
+func (r *BotUsersRepo) GetHard(ctx context.Context, chatID int64) (bool, error) {
+	var v bool
+	err := r.db.QueryRow(ctx, `
+		select hard_enabled
+		from bot_users
+		where chat_id = $1
+	`, chatID).Scan(&v)
+	if err != nil {
+		return false, err
+	}
+	return v, nil
 }
