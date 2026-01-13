@@ -61,8 +61,8 @@ func (h *Profile) Handle(m *tgbotapi.Message) {
 			}
 
 			h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(
-				"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
-				emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, formatActivity(p.Activity),
+				"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s\nЦель: %s",
+				emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, formatActivity(p.Activity), emptyDash(p.Goal),
 			)))
 			return
 		}
@@ -83,8 +83,8 @@ func (h *Profile) Handle(m *tgbotapi.Message) {
 	}
 
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf(
-		"Твой профиль:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
-		emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, formatActivity(p.Activity),
+		"Твой профиль:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s\nЦель: %s",
+		emptyDash(p.Sex), p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, formatActivity(p.Activity), emptyDash(p.Goal),
 	)))
 }
 
@@ -115,7 +115,21 @@ func (h *Profile) prefetchActivity(chatID int64) {
 		return
 	}
 
-	mult, _, err := h.ai.EstimateActivityMultiplier(ctx, planText)
+	draft, _, ok := h.drafts.Snapshot(chatID)
+	if !ok {
+		_ = h.drafts.SetActivity(chatID, "mid", fmt.Errorf("draft missing"))
+		return
+	}
+	p := domain.Profile{
+		ChatID:     chatID,
+		Sex:        draft.Sex,
+		HeightCM:   draft.HeightCM,
+		WeightKG:   draft.WeightKG,
+		BodyFatPct: draft.BodyFatPct,
+		Age:        draft.Age,
+	}
+
+	mult, _, err := h.ai.EstimateActivityMultiplierWithProfile(ctx, planText, p)
 	if err != nil {
 		log.Printf("activity estimate failed: chatID=%d err=%v", chatID, err)
 		_ = h.drafts.SetActivity(chatID, "mid", err)

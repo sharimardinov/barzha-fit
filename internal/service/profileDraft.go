@@ -15,6 +15,7 @@ type ProfileDraft struct {
 	BodyFatPct    float64
 	Age           int
 	Activity      string
+	Goal          string
 	ActivityErr   error
 	ActivityReady bool
 	readyCh       chan struct{}
@@ -35,6 +36,7 @@ func (s *ProfileDraftStore) Start(chatID int64) *ProfileDraft {
 	d := &ProfileDraft{
 		ChatID:   chatID,
 		Activity: "mid",
+		Goal:     "balance",
 		readyCh:  make(chan struct{}),
 	}
 	s.m[chatID] = d

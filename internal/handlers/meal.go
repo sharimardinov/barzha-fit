@@ -3,6 +3,7 @@ package handlers
 import (
 	"barzhafit/internal/domain"
 	"barzhafit/internal/service"
+	"barzhafit/internal/telegram"
 	"barzhafit/internal/util"
 	"context"
 	"errors"
@@ -45,10 +46,16 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 			return
 		}
 
-		_, _ = h.api.Send(tgbotapi.NewMessage(chatID,
+		if meal.Kcal == 0 && meal.ProteinG == 0 && meal.FatG == 0 && meal.CarbsG == 0 {
+			_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Не смог распознать КБЖУ. Попробуй ещё раз. Если нужно — /undo."))
+			return
+		}
+		msg := tgbotapi.NewMessage(chatID,
 			fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
 				meal.Kcal, meal.ProteinG, meal.FatG, meal.CarbsG, meal.Text),
-		))
+		)
+		msg.ReplyMarkup = telegram.MealButtons()
+		_, _ = h.api.Send(msg)
 		return
 	}
 

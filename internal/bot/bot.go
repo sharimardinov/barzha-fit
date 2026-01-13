@@ -31,6 +31,9 @@ type Bot struct {
 	nutrition *service.NutritionService
 	steps     *service.StepsService
 	ai        *service.AIService
+	callbacks *service.CallbackService
+	planView  *service.PlanViewService
+	statsView *service.StatsViewService
 	drafts    *service.ProfileDraftStore
 	db        *pgxpool.Pool
 }
@@ -48,6 +51,9 @@ func New(
 	ai *service.AIService,
 	db *pgxpool.Pool,
 ) *Bot {
+	planView := service.NewPlanViewService(plan, nutrition, steps, tz)
+	statsView := service.NewStatsViewService(nutrition, workout, steps, targets, tz)
+	callbacks := service.NewCallbackService(workout, nutrition, planView, statsView, tz)
 	b := &Bot{
 		api:       api,
 		router:    NewRouter(),
@@ -61,6 +67,9 @@ func New(
 		nutrition: nutrition,
 		steps:     steps,
 		ai:        ai,
+		callbacks: callbacks,
+		planView:  planView,
+		statsView: statsView,
 		drafts:    service.NewProfileDraftStore(),
 		db:        db,
 	}
@@ -72,14 +81,14 @@ func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api, b.users)
 	help := handlers.NewHelp(b.api)
 	meal := handlers.NewMeal(b.api, b.state, b.nutrition, b.tz)
-	plan := handlers.NewPlan(b.api, b.state, b.plan, b.nutrition, b.steps, b.tz)
+	plan := handlers.NewPlan(b.api, b.state, b.planView, b.tz)
 	morning := handlers.NewMorning(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
 	profile := handlers.NewProfile(b.api, b.state, b.drafts, b.profile, b.targets, b.plan, b.ai)
 	targets := handlers.NewTargets(b.api, b.targets)
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
 	undo := handlers.NewUndo(b.api, b.nutrition)
-	stats := handlers.NewStats(b.api, b.nutrition, b.workout, b.steps, b.targets, b.tz)
+	stats := handlers.NewStats(b.api, b.statsView, b.tz)
 	steps := handlers.NewSteps(b.api, b.state, b.steps, b.tz)
 	status := handlers.NewStatus(b.api, b.workout, b.targets, b.nutrition, b.steps, b.tz)
 	streak := handlers.NewStreak(b.api, b.workout, b.nutrition, b.tz)
@@ -189,6 +198,10 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		log.Printf("DEBUG meal saved: chatID=%d id=%d eatenAt=%s kcal=%d",
 			chatID, meal.ID, meal.EatenAt.Format("2006-01-02 15:04:05 MST"), meal.Kcal)
 
+		if meal.Kcal == 0 && meal.ProteinG == 0 && meal.FatG == 0 && meal.CarbsG == 0 {
+			b.reply(chatID, "Не смог распознать КБЖУ. Попробуй ещё раз. Если нужно — /undo.")
+			return true
+		}
 		b.reply(chatID, fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
 			meal.Kcal, meal.ProteinG, meal.FatG, meal.CarbsG, meal.Text))
 		return true
@@ -284,6 +297,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			b.reply(chatID, "Напиши количество шагов числом, например 8500.")
 			return true
 		}
+		b.state.Clear(chatID)
 		loc := util.MustLocation(b.tz)
 		dayDate := util.LocalDateStr(util.NowIn(loc), loc)
 		if err := b.steps.SetSteps(context.Background(), chatID, dayDate, steps); err != nil {
@@ -303,6 +317,28 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 
 		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
 			d.Age = age
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+
+		b.state.Set(chatID, domain.StateWaitProfileGoal)
+		b.reply(chatID, "Цель: похудение / баланс / набор?")
+		return true
+
+	case domain.StateWaitProfileGoal:
+		goal := strings.ToLower(strings.TrimSpace(m.Text))
+		switch {
+		case strings.HasPrefix(goal, "похуд") || strings.HasPrefix(goal, "суш") || strings.HasPrefix(goal, "cut"):
+			goal = "cut"
+		case strings.HasPrefix(goal, "набор") || strings.HasPrefix(goal, "bulk") || strings.HasPrefix(goal, "мас"):
+			goal = "bulk"
+		default:
+			goal = "balance"
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.Goal = goal
 		}) {
 			b.state.Clear(chatID)
 			b.reply(chatID, "Сначала /profileset")
@@ -332,6 +368,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			BodyFatPct: draft.BodyFatPct,
 			Age:        draft.Age,
 			Activity:   draft.Activity,
+			Goal:       draft.Goal,
 		}
 
 		if err := b.profile.Save(context.Background(), p); err != nil {
@@ -355,9 +392,13 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		if sex == "" {
 			sex = "—"
 		}
+		goalLabel := p.Goal
+		if goalLabel == "" {
+			goalLabel = "balance"
+		}
 		b.reply(chatID, fmt.Sprintf(
-			"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
-			sex, p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, activityNote,
+			"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s\nЦель: %s",
+			sex, p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, activityNote, goalLabel,
 		))
 		return true
 
@@ -400,29 +441,24 @@ func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
 
 	chatID := q.Message.Chat.ID
 	data := q.Data
-	if data != "w:done" && data != "w:skip" {
+	res, noop, err := b.callbacks.Handle(context.Background(), chatID, data)
+	if noop {
 		return
 	}
-
-	status := "skip"
-	if data == "w:done" {
-		status = "done"
-	}
-
-	loc := util.MustLocation(b.tz)
-	now := util.NowIn(loc)
-	dayDate := util.LocalDateStr(now, loc)
-
-	_, err := b.workout.MarkAndAdvance(context.Background(), chatID, dayDate, status)
 	if err != nil {
-		log.Printf("workout mark failed: chat_id=%d err=%v", chatID, err)
-		b.reply(chatID, "Ошибка сохранения тренировки")
+		log.Printf("callback failed: chat_id=%d data=%s err=%v", chatID, data, err)
+		b.reply(chatID, "Ошибка обработки")
 		return
 	}
-
-	if status == "done" {
-		b.reply(chatID, "Ок, записал: ✅")
-	} else {
-		b.reply(chatID, "Ок, записал: ❌")
+	if res.Text == "" {
+		return
 	}
+	msg := tgbotapi.NewMessage(chatID, res.Text)
+	if res.Markup != nil {
+		msg.ReplyMarkup = *res.Markup
+	}
+	if res.Mode != "" {
+		msg.ParseMode = res.Mode
+	}
+	_, _ = b.api.Send(msg)
 }

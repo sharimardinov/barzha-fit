@@ -14,12 +14,13 @@ var (
 	reAge    = regexp.MustCompile(`(?i)(возраст|age)\s*[:=]?\s*(\d{1,2})`)
 	reSex    = regexp.MustCompile(`(?i)(пол|sex)\s*[:=]?\s*(m|f|м|ж|male|female)`)
 	reAct    = regexp.MustCompile(`(?i)(активность|activity)\s*[:=]?\s*(low|mid|high|низк|сред|высок)`)
+	reGoal   = regexp.MustCompile(`(?i)(цель|goal)\s*[:=]?\s*(похуд|сушк|cut|баланс|maint|maintenance|набор|bulk|масса)`)
 )
 
 func ParseProfileText(chatID int64, text string) domain.Profile {
 	t := strings.TrimSpace(text)
 
-	p := domain.Profile{ChatID: chatID, Activity: "mid"}
+	p := domain.Profile{ChatID: chatID, Activity: "mid", Goal: "balance"}
 
 	if m := reHeight.FindStringSubmatch(t); len(m) >= 3 {
 		p.HeightCM, _ = strconv.Atoi(m[2])
@@ -51,6 +52,17 @@ func ParseProfileText(chatID int64, text string) domain.Profile {
 			p.Activity = "high"
 		default:
 			p.Activity = "mid"
+		}
+	}
+	if m := reGoal.FindStringSubmatch(t); len(m) >= 3 {
+		v := strings.ToLower(m[2])
+		switch {
+		case strings.HasPrefix(v, "похуд") || strings.HasPrefix(v, "суш") || strings.HasPrefix(v, "cut"):
+			p.Goal = "cut"
+		case strings.HasPrefix(v, "набор") || strings.HasPrefix(v, "bulk") || strings.HasPrefix(v, "мас"):
+			p.Goal = "bulk"
+		default:
+			p.Goal = "balance"
 		}
 	}
 	return p

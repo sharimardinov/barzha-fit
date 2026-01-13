@@ -8,4 +8,5 @@ type Profile struct {
 	WeightKG   float64
 	BodyFatPct float64
 	Activity   string // "low"|"mid"|"high"
+	Goal       string // "cut"|"balance"|"bulk"
 }

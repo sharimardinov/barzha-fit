@@ -38,6 +38,7 @@ func (h *Steps) Handle(m *tgbotapi.Message) {
 		return
 	}
 
+	h.state.Clear(chatID)
 	loc := util.MustLocation(h.tz)
 	dayDate := util.LocalDateStr(util.NowIn(loc), loc)
 	if err := h.steps.SetSteps(context.Background(), chatID, dayDate, steps); err != nil {
