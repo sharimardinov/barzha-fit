@@ -56,9 +56,13 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	tdee := bmr * mult
 	kcal := int(math.Round(tdee))
 
-	// макросы: белок/жир от LBM
-	protein := int(math.Round(2.2 * lbm))
-	fat := int(math.Round(0.8 * lbm))
+	// макросы: белок/жир от веса
+	baseWeight := p.WeightKG
+	if baseWeight <= 0 {
+		baseWeight = lbm
+	}
+	protein := int(math.Round(2.0 * baseWeight))
+	fat := int(math.Round(1.0 * baseWeight))
 
 	// carbs = остаток
 	carbs := int(math.Round((float64(kcal) - float64(protein*4) - float64(fat*9)) / 4.0))

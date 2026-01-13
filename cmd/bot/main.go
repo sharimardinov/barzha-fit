@@ -180,7 +180,7 @@ func runDay(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersSe
 		if err != nil || kcal > 0 {
 			continue
 		}
-		msg := tgbotapi.NewMessage(chatID, "Напоминание: добавь еду за сегодня (/meal)")
+		msg := tgbotapi.NewMessage(chatID, "Напоминание: добавь еду за сегодня (/setmeal)")
 		if _, err := api.Send(msg); err != nil {
 			continue
 		}
@@ -217,7 +217,7 @@ func runEvening(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUse
 		}
 
 		if p < proteinTarget {
-			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Белок недобор: %d / %d. Добавь еду.", p, proteinTarget))
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Белок недобор: %d / %d. Добавь еду (/setmeal).", p, proteinTarget))
 			if _, err := api.Send(msg); err != nil {
 				continue
 			}
@@ -226,7 +226,7 @@ func runEvening(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUse
 		}
 
 		if _, hasSteps, _ := steps.GetByDate(ctx, chatID, dayDate); !hasSteps {
-			msg := tgbotapi.NewMessage(chatID, "Сколько шагов сегодня? Ответь командой /steps 12345")
+			msg := tgbotapi.NewMessage(chatID, "Сколько шагов сегодня? Ответь командой /setstep 12345")
 			if _, err := api.Send(msg); err == nil {
 				time.Sleep(60 * time.Millisecond)
 				sent++

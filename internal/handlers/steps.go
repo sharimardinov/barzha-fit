@@ -28,7 +28,7 @@ func (h *Steps) Handle(m *tgbotapi.Message) {
 	args := strings.TrimSpace(m.CommandArguments())
 	if args == "" {
 		h.state.Set(chatID, domain.StateWaitStepsCount)
-		h.api.Send(tgbotapi.NewMessage(chatID, "Сколько шагов сегодня? Ответь числом."))
+		h.api.Send(tgbotapi.NewMessage(chatID, "Сколько шагов сегодня? Ответь числом или /setstep 12345."))
 		return
 	}
 

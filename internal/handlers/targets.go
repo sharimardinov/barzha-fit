@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -50,7 +51,12 @@ func (h *Targets) Handle(m *tgbotapi.Message) {
 	switch strings.ToLower(args[0]) {
 	case "refresh":
 		t, err := h.targets.Refresh(ctx, chatID)
-		if err != nil || t.ChatID == 0 {
+		if err != nil {
+			log.Printf("targets refresh failed: chat_id=%d err=%v", chatID, err)
+			h.api.Send(tgbotapi.NewMessage(chatID, "Ошибка пересчёта. Проверь миграции и /profileset."))
+			return
+		}
+		if t.ChatID == 0 {
 			h.api.Send(tgbotapi.NewMessage(chatID, "Не могу пересчитать. Сначала /profileset ..."))
 			return
 		}

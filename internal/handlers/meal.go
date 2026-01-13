@@ -28,7 +28,7 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 	chatID := m.Chat.ID
 	ctx := context.Background()
 
-	// поддерживаем /meal <текст>
+	// поддерживаем /setmeal <текст>
 	args := strings.TrimSpace(m.CommandArguments())
 	if args != "" {
 		loc := util.MustLocation(h.tz)
@@ -36,7 +36,7 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 
 		meal, err := h.nut.AddMealFromText(ctx, chatID, now, args)
 		if err != nil {
-			log.Printf("ERROR /meal: chatID=%d err=%v", chatID, err)
+			log.Printf("ERROR /setmeal: chatID=%d err=%v", chatID, err)
 			if errors.Is(err, service.ErrNutritionAI) {
 				_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Записал, но AI упал (сохранил как 0)."))
 				return
@@ -52,7 +52,7 @@ func (h *Meal) Handle(m *tgbotapi.Message) {
 		return
 	}
 
-	// обычный режим: /meal -> ждём следующий текст
+	// обычный режим: /setmeal -> ждём следующий текст
 	h.state.Set(chatID, domain.StateWaitMealText)
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Напиши одним сообщением что ел. Пример: \"2 яйца, рис, курица\""))
 }

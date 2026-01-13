@@ -68,8 +68,8 @@ func (h *Profile) Handle(m *tgbotapi.Message) {
 		}
 
 		h.drafts.Start(chatID)
-		h.state.Set(chatID, domain.StateWaitProfileHeight)
-		h.api.Send(tgbotapi.NewMessage(chatID, "Давай настроим профиль. Сколько рост (см)?"))
+		h.state.Set(chatID, domain.StateWaitProfileSex)
+		h.api.Send(tgbotapi.NewMessage(chatID, "Давай настроим профиль. Пол (м/ж)?"))
 
 		go h.prefetchActivity(chatID)
 		return

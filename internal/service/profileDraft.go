@@ -9,6 +9,7 @@ var ErrDraftNotFound = errors.New("profile draft not found")
 
 type ProfileDraft struct {
 	ChatID        int64
+	Sex           string
 	HeightCM      int
 	WeightKG      float64
 	BodyFatPct    float64

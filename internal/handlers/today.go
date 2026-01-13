@@ -49,7 +49,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 
 	planText, err := h.plan.Get(ctx, chatID)
 	if err != nil {
-		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Нет плана. Сначала /plan"))
+		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, "Нет плана. Сначала /setplan"))
 		return
 	}
 

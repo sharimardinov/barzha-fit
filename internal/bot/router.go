@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"log"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -29,6 +30,7 @@ func (r *Router) Dispatch(m *tgbotapi.Message) bool {
 	}
 
 	cmd := strings.Split(strings.TrimSpace(m.Text), " ")[0]
+	log.Printf("CMD chatID=%d cmd=%s args=%q", m.Chat.ID, cmd, strings.TrimSpace(m.CommandArguments()))
 	h, ok := r.handlers[cmd]
 	if !ok {
 		if strings.HasPrefix(cmd, "/stats") {

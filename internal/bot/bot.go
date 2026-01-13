@@ -70,11 +70,11 @@ func New(
 
 func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api, b.users)
+	help := handlers.NewHelp(b.api)
 	meal := handlers.NewMeal(b.api, b.state, b.nutrition, b.tz)
-	plan := handlers.NewPlan(b.api, b.state, b.plan)
+	plan := handlers.NewPlan(b.api, b.state, b.plan, b.nutrition, b.steps, b.tz)
 	morning := handlers.NewMorning(b.api, b.users)
 	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.tz)
-	week := handlers.NewWeek(b.api, b.plan, b.nutrition, b.steps, b.tz)
 	profile := handlers.NewProfile(b.api, b.state, b.drafts, b.profile, b.targets, b.plan, b.ai)
 	targets := handlers.NewTargets(b.api, b.targets)
 	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
@@ -87,14 +87,11 @@ func (b *Bot) registerRoutes() {
 	debug := handlers.NewDebugMeals(b.api, b.db)
 
 	b.router.Handle("/start", start.Handle)
-	b.router.Handle("/help", start.Handle)
+	b.router.Handle("/help", help.Handle)
 	b.router.Handle("/today", today.Handle)
-	b.router.Handle("/meal", meal.Handle)
+	b.router.Handle("/setmeal", meal.Handle)
 	b.router.Handle("/plan", plan.Handle)
-	b.router.Handle("/planset", plan.Handle)
-	b.router.Handle("/planshow", plan.Handle)
-	b.router.Handle("/planday", plan.Handle)
-	b.router.Handle("/week", week.Handle)
+	b.router.Handle("/setplan", plan.Handle)
 	b.router.Handle("/morning", morning.Handle)
 	b.router.Handle("/hard", hard.Handle)
 	b.router.Handle("/profile", profile.Handle)
@@ -103,7 +100,7 @@ func (b *Bot) registerRoutes() {
 	b.router.Handle("/targetsrefresh", targets.Handle)
 	b.router.Handle("/targetsset", targets.Handle)
 	b.router.Handle("/meals", meals.Handle)
-	b.router.Handle("/steps", steps.Handle)
+	b.router.Handle("/setstep", steps.Handle)
 	b.router.Handle("/undo", undo.Handle)
 	b.router.Handle("/status", status.Handle)
 	b.router.Handle("/streak", streak.Handle)
@@ -209,6 +206,27 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		b.reply(chatID, "План сохранён")
 		return true
 
+	case domain.StateWaitProfileSex:
+		sex := strings.ToLower(strings.TrimSpace(m.Text))
+		if sex == "м" || sex == "m" || sex == "male" {
+			sex = "m"
+		} else if sex == "ж" || sex == "f" || sex == "female" {
+			sex = "f"
+		} else {
+			b.reply(chatID, "Введи пол: м или ж.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.Sex = sex
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileHeight)
+		b.reply(chatID, "Теперь рост в см, например 180.")
+		return true
+
 	case domain.StateWaitProfileHeight:
 		height, ok := parseIntInRange(strings.TrimSpace(m.Text), 50, 260)
 		if !ok {
@@ -308,6 +326,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 
 		p := domain.Profile{
 			ChatID:     chatID,
+			Sex:        draft.Sex,
 			HeightCM:   draft.HeightCM,
 			WeightKG:   draft.WeightKG,
 			BodyFatPct: draft.BodyFatPct,
@@ -332,9 +351,13 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 			activityNote += " (AI не смог оценить)"
 		}
 
+		sex := p.Sex
+		if sex == "" {
+			sex = "—"
+		}
 		b.reply(chatID, fmt.Sprintf(
-			"Профиль сохранён:\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
-			p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, activityNote,
+			"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s",
+			sex, p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, activityNote,
 		))
 		return true
 
