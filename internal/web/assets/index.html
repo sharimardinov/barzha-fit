@@ -207,8 +207,18 @@
             <button class="btn btn-accent" id="stats-week">Неделя</button>
             <button class="btn btn-outline" id="stats-month">Месяц</button>
           </div>
-          <div class="mono stats-block" id="stats-week-text">—</div>
-          <div class="mono stats-block" id="stats-month-text">—</div>
+          <div class="stats-section active" id="stats-week-section">
+            <div class="stats-subtitle">Еда</div>
+            <div class="calendar-grid week-grid" id="week-food-calendar"></div>
+            <div class="stats-subtitle">Шаги</div>
+            <div class="calendar-grid week-grid" id="week-steps-calendar"></div>
+          </div>
+          <div class="stats-section" id="stats-month-section">
+            <div class="stats-subtitle">Еда</div>
+            <div class="calendar-grid month-grid" id="month-food-calendar"></div>
+            <div class="stats-subtitle">Шаги</div>
+            <div class="calendar-grid month-grid" id="month-steps-calendar"></div>
+          </div>
         </div>
       </section>
 
