@@ -51,13 +51,12 @@ function setActiveTab(name) {
   $("screen-title").textContent = titles[name] || "Сегодня";
 }
 
-function setProgress(id, current, target, color) {
+function setProgress(id, current, target) {
   const el = $(id);
   if (!el) return;
   const ratio = target > 0 ? current / target : 0;
   const pct = Math.min(Math.max(ratio * 100, 0), 100);
   el.style.width = `${pct}%`;
-  if (color) el.style.background = color;
 }
 
 async function loadToday() {
@@ -70,22 +69,24 @@ async function loadToday() {
   $("today-fat").textContent = `${data.fat} / ${data.targets.fat} ${data.icons.fat}`;
   $("today-carbs").textContent = `${data.carbs} / ${data.targets.carbs} ${data.icons.carbs}`;
   $("today-steps").textContent = `${data.steps} / ${data.targets.steps} ${data.icons.steps}`;
-  $("today-food").textContent = data.icons.food || "—";
 
-  setProgress("progress-kcal", data.kcal, data.targets.kcal, "var(--accent-1)");
-  setProgress("progress-protein", data.protein, data.targets.protein, "var(--accent-2)");
-  setProgress("progress-fat", data.fat, data.targets.fat, "var(--accent-3)");
-  setProgress("progress-carbs", data.carbs, data.targets.carbs, "var(--accent-4)");
-  setProgress("progress-steps", data.steps, data.targets.steps, "var(--success)");
+  setProgress("progress-kcal", data.kcal, data.targets.kcal);
+  setProgress("progress-protein", data.protein, data.targets.protein);
+  setProgress("progress-fat", data.fat, data.targets.fat);
+  setProgress("progress-carbs", data.carbs, data.targets.carbs);
+  setProgress("progress-steps", data.steps, data.targets.steps);
 
   $("steps-summary").textContent = `${data.steps} / ${data.targets.steps}`;
-  setProgress("progress-steps-screen", data.steps, data.targets.steps, "var(--success)");
+  setProgress("progress-steps-screen", data.steps, data.targets.steps);
 }
 
 async function loadMeals() {
   const items = await api("/api/meals/today");
   const list = $("meal-list");
+  const listToday = $("meal-list-today");
   list.innerHTML = "";
+  if (listToday) listToday.innerHTML = "";
+
   let totalKcal = 0;
   let totalP = 0;
   let totalF = 0;
@@ -93,19 +94,21 @@ async function loadMeals() {
 
   if (!items.length) {
     list.innerHTML = '<div class="hint">Пока пусто.</div>';
+    if (listToday) listToday.innerHTML = '<div class="hint">Пока пусто.</div>';
   } else {
     items.forEach((item) => {
       totalKcal += item.kcal;
       totalP += item.protein_g;
       totalF += item.fat_g;
       totalC += item.carbs_g;
+
       const card = document.createElement("div");
       card.className = "list-item";
       card.innerHTML = `
         <div>${item.text}</div>
         <div class="meta">${item.kcal} ккал • Б${item.protein_g} Ж${item.fat_g} У${item.carbs_g}</div>
         <div class="actions">
-          <button class="btn btn-ghost" data-id="${item.id}">Удалить</button>
+          <button class="btn btn-ghost" data-id="${item.id}">🗑️</button>
         </div>
       `;
       card.querySelector("button").addEventListener("click", async () => {
@@ -115,11 +118,26 @@ async function loadMeals() {
         await loadToday();
       });
       list.appendChild(card);
+
+      if (listToday) {
+        const clone = card.cloneNode(true);
+        clone.querySelector("button").addEventListener("click", async () => {
+          await api("/api/meal/delete", { id: item.id });
+          toast("Удалено");
+          await loadMeals();
+          await loadToday();
+        });
+        listToday.appendChild(clone);
+      }
     });
   }
 
   $("meal-total-kcal").textContent = `${totalKcal} ккал`;
   $("meal-total-macros").textContent = `Б ${totalP} • Ж ${totalF} • У ${totalC}`;
+  const totalTodayKcal = $("meal-total-kcal-today");
+  const totalTodayMacros = $("meal-total-macros-today");
+  if (totalTodayKcal) totalTodayKcal.textContent = `${totalKcal} ккал`;
+  if (totalTodayMacros) totalTodayMacros.textContent = `Б ${totalP} • Ж ${totalF} • У ${totalC}`;
 }
 
 async function loadTargets() {
@@ -179,7 +197,10 @@ function initNav() {
     btn.addEventListener("click", async () => {
       const tab = btn.dataset.tab;
       setActiveTab(tab);
-      if (tab === "today") await loadToday();
+      if (tab === "today") {
+        await loadToday();
+        await loadMeals();
+      }
       if (tab === "meals") await loadMeals();
       if (tab === "plan") await loadPlan();
       if (tab === "targets") await loadTargets();
@@ -201,17 +222,8 @@ async function bootstrap() {
   }
   tg?.ready();
   tg?.expand();
-  if (tg?.initDataUnsafe?.user) {
-    const u = tg.initDataUnsafe.user;
-    $("user-line").textContent = `Привет, ${u.first_name || u.username || "спортсмен"}!`;
-  }
 
   initNav();
-
-  $("refresh-today").addEventListener("click", async () => {
-    await loadToday();
-    toast("Обновлено");
-  });
 
   $("workout-done").addEventListener("click", async () => {
     await api("/api/workout/set", { status: "done" });
@@ -313,6 +325,7 @@ async function bootstrap() {
   });
 
   await loadToday();
+  await loadMeals();
   lucide?.createIcons();
 }
 

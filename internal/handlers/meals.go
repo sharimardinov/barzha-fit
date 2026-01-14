@@ -52,8 +52,9 @@ func (h *Meals) Handle(m *tgbotapi.Message) {
 
 	var b strings.Builder
 	for _, it := range items {
+		kcal := calcKcal(it.ProteinG, it.FatG, it.CarbsG)
 		b.WriteString(fmt.Sprintf("- %s — %dkcal (Б%d Ж%d У%d)\n",
-			strings.TrimSpace(it.Text), it.Kcal, it.ProteinG, it.FatG, it.CarbsG))
+			strings.TrimSpace(it.Text), kcal, it.ProteinG, it.FatG, it.CarbsG))
 	}
 
 	kcal, p, f, c, err := h.nut.SumToday(ctx, chatID, loc, now)
@@ -64,4 +65,8 @@ func (h *Meals) Handle(m *tgbotapi.Message) {
 			kcal, p, f, c))
 	}
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, b.String()))
+}
+
+func calcKcal(p, f, c int) int {
+	return p*4 + f*9 + c*4
 }

@@ -126,7 +126,7 @@ func (r *MealRepo) ListRecent(ctx context.Context, chatID int64, limit int) ([]M
 func (r *MealRepo) SumByDay(ctx context.Context, chatID int64, from, to time.Time) (kcal, p, f, c int, err error) {
 	err = r.db.QueryRow(ctx, `
 		select
-			coalesce(sum(kcal),0),
+			coalesce(sum(protein_g*4 + fat_g*9 + carbs_g*4),0),
 			coalesce(sum(protein_g),0),
 			coalesce(sum(fat_g),0),
 			coalesce(sum(carbs_g),0)
@@ -147,7 +147,7 @@ func (r *MealRepo) SumByRangeDaily(ctx context.Context, chatID int64, from, to t
 	rows, err := r.db.Query(ctx, `
 		select
 			(eaten_at at time zone $4)::date as day_date,
-			coalesce(sum(kcal),0),
+			coalesce(sum(protein_g*4 + fat_g*9 + carbs_g*4),0),
 			coalesce(sum(protein_g),0),
 			coalesce(sum(fat_g),0),
 			coalesce(sum(carbs_g),0)

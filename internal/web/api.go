@@ -578,7 +578,7 @@ func mealToDTO(m db.Meal) mealDTO {
 		ID:       m.ID,
 		EatenAt:  m.EatenAt.Format(time.RFC3339),
 		Text:     m.Text,
-		Kcal:     m.Kcal,
+		Kcal:     m.ProteinG*4 + m.FatG*9 + m.CarbsG*4,
 		ProteinG: m.ProteinG,
 		FatG:     m.FatG,
 		CarbsG:   m.CarbsG,

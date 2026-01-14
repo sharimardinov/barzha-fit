@@ -62,11 +62,16 @@ func (h *DebugMeals) Handle(m *tgbotapi.Message) {
 	b.WriteString(fmt.Sprintf("Сейчас: %s\n\n", time.Now().Format("2006-01-02 15:04:05 MST")))
 
 	for i, it := range items {
+		kcal := calcKcal(it.ProteinG, it.FatG, it.CarbsG)
 		b.WriteString(fmt.Sprintf("#%d [ID=%d]\n", i+1, it.ID))
 		b.WriteString(fmt.Sprintf("%s\n", timestamps[i]))
-		b.WriteString(fmt.Sprintf("%dkcal (Б%d Ж%d У%d)\n", it.Kcal, it.ProteinG, it.FatG, it.CarbsG))
+		b.WriteString(fmt.Sprintf("%dkcal (Б%d Ж%d У%d)\n", kcal, it.ProteinG, it.FatG, it.CarbsG))
 		b.WriteString(fmt.Sprintf("Текст: %s\n\n", it.Text))
 	}
 
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, b.String()))
+}
+
+func calcKcal(p, f, c int) int {
+	return p*4 + f*9 + c*4
 }
