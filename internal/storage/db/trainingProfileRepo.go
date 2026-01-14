@@ -110,17 +110,3 @@ func nullFloat(v float64) any {
 	}
 	return v
 }
-
-func nullStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-func nullInt(v int) any {
-	if v == 0 {
-		return nil
-	}
-	return v
-}
