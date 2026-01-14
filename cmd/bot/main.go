@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"barzhafit/internal/service"
 	"barzhafit/internal/storage/db"
 	"barzhafit/internal/util"
+	"barzhafit/internal/web"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -74,6 +77,9 @@ func main() {
 	stepsRepo := db.NewStepsRepo(pool)
 	stepsSvc := service.NewStepsService(stepsRepo)
 
+	planView := service.NewPlanViewService(planSvc, nutSvc, stepsSvc, cfg.TZ)
+	statsView := service.NewStatsViewService(nutSvc, workoutSvc, stepsSvc, targetsSvc, cfg.TZ)
+
 	if *morning {
 		if err := runMorning(ctx, api, planSvc, workoutSvc, botUsersSvc, cfg.TZ); err != nil {
 			log.Fatalf("morning failed: %v", err)
@@ -110,6 +116,25 @@ func main() {
 	}
 
 	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, aiSvc, pool)
+	webServer := web.NewServer(web.Deps{
+		Addr:      cfg.WebAddr,
+		BotToken:  cfg.BotToken,
+		TZ:        cfg.TZ,
+		Plan:      planSvc,
+		Workout:   workoutSvc,
+		Targets:   targetsSvc,
+		Nutrition: nutSvc,
+		Steps:     stepsSvc,
+		Profile:   profileSvc,
+		PlanView:  planView,
+		StatsView: statsView,
+	})
+	go func() {
+		if err := webServer.ListenAndServe(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("miniapp server error: %v", err)
+		}
+	}()
+
 	if err := b.Run(ctx); err != nil {
 		log.Fatal(err)
 	}

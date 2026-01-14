@@ -12,6 +12,7 @@ type Config struct {
 	TZ          string
 	Debug       bool
 	DatabaseURL string
+	WebAddr     string
 }
 
 func Load() (*Config, error) {
@@ -34,10 +35,16 @@ func Load() (*Config, error) {
 
 	debug := os.Getenv("DEBUG") == "1"
 
+	webAddr := os.Getenv("WEB_ADDR")
+	if webAddr == "" {
+		webAddr = ":8080"
+	}
+
 	return &Config{
 		BotToken:    token,
 		TZ:          tz,
 		Debug:       debug,
 		DatabaseURL: dbURL,
+		WebAddr:     webAddr,
 	}, nil
 }
