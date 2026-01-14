@@ -4,9 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BarzhaFit Mini App</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/miniapp/app.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -14,29 +11,29 @@
   <body>
     <main class="app">
       <header class="app-header">
-        <div class="brand">💪 BarzhaFit</div>
+        <div class="brand">BarzhaFit</div>
         <div class="screen-label" id="screen-title">Сегодня</div>
       </header>
 
       <section class="screen active" id="screen-today">
         <div class="card">
-          <div class="card-title">📋 План дня</div>
+          <div class="card-title">План дня</div>
           <pre class="plan" id="today-plan">—</pre>
         </div>
 
         <div class="card">
           <div class="card-title row">
-            <span>💪 Тренировка</span>
+            <span>Тренировка</span>
             <span class="status-pill" id="today-workout">—</span>
           </div>
           <div class="row">
-            <button class="btn btn-accent" id="workout-done">✅ Сделал</button>
-            <button class="btn btn-outline" id="workout-skip">❌ Пропустил</button>
+            <button class="btn btn-accent" id="workout-done">Сделал</button>
+            <button class="btn btn-outline" id="workout-skip">Пропустил</button>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-title">📊 Прогресс</div>
+          <div class="card-title">Прогресс</div>
           <div class="progress-item">
             <div class="progress-head">
               <span>Калории</span>
@@ -76,8 +73,8 @@
 
         <div class="card">
           <div class="card-title row">
-            <span>🍽️ Еда сегодня</span>
-            <button class="btn btn-ghost" id="meal-undo">🗑️</button>
+            <span>Еда сегодня</span>
+            <button class="btn btn-ghost" id="meal-undo">Удалить</button>
           </div>
           <div class="totals" id="meal-today-total">
             <span id="meal-total-kcal-today">0 ккал</span>
@@ -89,13 +86,13 @@
 
       <section class="screen" id="screen-meals">
         <div class="card">
-          <div class="card-title">🍽️ Еда</div>
+          <div class="card-title">Еда</div>
           <textarea id="meal-text" placeholder="Напиши одним сообщением, что ел"></textarea>
-          <button class="btn btn-accent" id="meal-add">✅ Добавить</button>
+          <button class="btn btn-accent" id="meal-add">Добавить</button>
           <div class="hint">AI посчитает КБЖУ. Если упадет — сохранится только текст.</div>
         </div>
         <div class="card">
-          <div class="card-title">🧾 Приёмы пищи сегодня</div>
+          <div class="card-title">Приёмы пищи сегодня</div>
           <div class="totals">
             <span id="meal-total-kcal">0 ккал</span>
             <span id="meal-total-macros">Б 0 • Ж 0 • У 0</span>
@@ -106,18 +103,18 @@
 
       <section class="screen" id="screen-plan">
         <div class="card">
-          <div class="card-title">📅 План на неделю</div>
+          <div class="card-title">План на неделю</div>
           <textarea id="plan-text" placeholder="Формат: 1..7, каждый день с новой строки"></textarea>
           <div class="row">
-            <button class="btn btn-accent" id="plan-save">💾 Сохранить</button>
-            <button class="btn btn-outline" id="plan-reset">🔄 Сбросить</button>
+            <button class="btn btn-accent" id="plan-save">Сохранить</button>
+            <button class="btn btn-outline" id="plan-reset">Сбросить</button>
           </div>
         </div>
       </section>
 
       <section class="screen" id="screen-targets">
         <div class="card">
-          <div class="card-title">🎯 Дневные цели</div>
+          <div class="card-title">Дневные цели</div>
           <div class="form-grid">
             <label>Калории (ккал)
               <input type="number" id="target-kcal">
@@ -136,30 +133,32 @@
             </label>
           </div>
           <div class="row">
-            <button class="btn btn-accent" id="targets-save">💾 Сохранить</button>
-            <button class="btn btn-outline" id="targets-refresh">🔄 Из профиля</button>
+            <button class="btn btn-accent" id="targets-save">Сохранить</button>
+            <button class="btn btn-outline" id="targets-refresh">Из профиля</button>
           </div>
         </div>
       </section>
 
       <section class="screen" id="screen-steps">
         <div class="card">
-          <div class="card-title">👟 Шаги за сегодня</div>
-          <input type="number" id="steps-value" placeholder="Например: 8500">
-          <button class="btn btn-accent" id="steps-save">✅ Сохранить</button>
-          <div class="progress-item">
-            <div class="progress-head">
-              <span>Сегодня</span>
-              <span class="value" id="steps-summary">—</span>
+          <div class="card-title">Шаги за сегодня</div>
+          <div class="stack">
+            <input type="number" id="steps-value" placeholder="Например: 8500">
+            <button class="btn btn-accent" id="steps-save">Сохранить</button>
+            <div class="progress-item">
+              <div class="progress-head">
+                <span>Сегодня</span>
+                <span class="value" id="steps-summary">—</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" id="progress-steps-screen"></div></div>
             </div>
-            <div class="progress-bar"><div class="progress-fill" id="progress-steps-screen"></div></div>
           </div>
         </div>
       </section>
 
       <section class="screen" id="screen-profile">
         <div class="card">
-          <div class="card-title">👤 Профиль</div>
+          <div class="card-title">Профиль</div>
           <div class="form-grid">
             <label>Пол
               <select id="profile-sex">
@@ -197,25 +196,25 @@
               </select>
             </label>
           </div>
-          <button class="btn btn-accent" id="profile-save">💾 Сохранить профиль</button>
+          <button class="btn btn-accent" id="profile-save">Сохранить профиль</button>
         </div>
       </section>
 
       <section class="screen" id="screen-stats">
         <div class="card">
-          <div class="card-title">📈 Статистика</div>
-          <div class="row">
-            <button class="btn btn-accent" id="stats-week">📅 Неделя</button>
-            <button class="btn btn-outline" id="stats-month">📆 Месяц</button>
+          <div class="card-title">Статистика</div>
+          <div class="row stats-controls">
+            <button class="btn btn-accent" id="stats-week">Неделя</button>
+            <button class="btn btn-outline" id="stats-month">Месяц</button>
           </div>
-          <div class="mono" id="stats-week-text">—</div>
-          <div class="mono" id="stats-month-text">—</div>
+          <div class="mono stats-block" id="stats-week-text">—</div>
+          <div class="mono stats-block" id="stats-month-text">—</div>
         </div>
       </section>
 
       <section class="screen" id="screen-streak">
         <div class="card">
-          <div class="card-title">🔥 Серии</div>
+          <div class="card-title">Серии</div>
           <div class="streak-grid">
             <div class="streak-item">
               <span>Тренировки подряд</span>
@@ -225,12 +224,15 @@
               <span>Еда подряд</span>
               <strong id="streak-meal">—</strong>
             </div>
-            <div class="streak-item full">
-              <span>Шкала</span>
-              <strong class="mono" id="streak-bar">—</strong>
+            <div class="progress-item">
+              <div class="progress-head">
+                <span>Прогресс серии питания</span>
+                <span class="value" id="streak-meal-progress">—</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" id="streak-meal-bar"></div></div>
             </div>
           </div>
-          <button class="btn btn-ghost" id="streak-refresh">Обновить</button>
+          <button class="btn btn-accent" id="streak-refresh">Обновить</button>
         </div>
       </section>
     </main>

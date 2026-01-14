@@ -15,7 +15,7 @@
 
 body {
   margin: 0;
-  font-family: "Manrope", sans-serif;
+  font-family: "Aptos", sans-serif;
   color: var(--black);
   background: var(--white);
   min-height: 100vh;
@@ -89,6 +89,11 @@ body {
   flex-wrap: wrap;
 }
 
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
 .progress-item {
   margin-bottom: 12px;
 }
@@ -141,7 +146,7 @@ button {
 .btn {
   padding: 12px 16px;
   border-radius: 999px;
-  font-weight: 600;
+  font-weight: 700;
   min-height: 44px;
 }
 
@@ -208,13 +213,22 @@ button {
 }
 
 .mono {
-  font-family: "Manrope", sans-serif;
+  font-family: "Aptos", sans-serif;
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   white-space: pre-wrap;
   font-size: 12px;
+  margin-top: 12px;
+}
+
+.stats-controls {
+  margin-bottom: 12px;
+}
+
+.stats-block {
+  margin-top: 12px;
 }
 
 .streak-grid {

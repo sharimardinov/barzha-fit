@@ -108,7 +108,7 @@ async function loadMeals() {
         <div>${item.text}</div>
         <div class="meta">${item.kcal} ккал • Б${item.protein_g} Ж${item.fat_g} У${item.carbs_g}</div>
         <div class="actions">
-          <button class="btn btn-ghost" data-id="${item.id}">🗑️</button>
+          <button class="btn btn-ghost" data-id="${item.id}">Удалить</button>
         </div>
       `;
       card.querySelector("button").addEventListener("click", async () => {
@@ -189,7 +189,11 @@ async function loadStreak() {
   const data = await api("/api/streak");
   $("streak-workout").textContent = data.workoutStreak;
   $("streak-meal").textContent = data.mealStreak;
-  $("streak-bar").textContent = data.mealBar;
+  const max = 7;
+  const pct = Math.min((data.mealStreak / max) * 100, 100);
+  $("streak-meal-progress").textContent = `${data.mealStreak} / ${max} дней`;
+  const bar = $("streak-meal-bar");
+  if (bar) bar.style.width = `${pct}%`;
 }
 
 function initNav() {
