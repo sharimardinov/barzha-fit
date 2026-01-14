@@ -83,7 +83,6 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		})))
 	}
 	serveMiniapp("/miniapp")
-	serveMiniapp("/miniapp-v3")
 
 	s.registerAPI(mux)
 

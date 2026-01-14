@@ -267,6 +267,10 @@ button {
   color: var(--muted);
 }
 
+.calendar-cell.future {
+  opacity: 0.5;
+}
+
 .calendar-dot {
   width: 10px;
   height: 10px;
@@ -275,6 +279,8 @@ button {
 }
 
 .calendar-dot.active {
+  width: 12px;
+  height: 12px;
   background: var(--accent);
 }
 

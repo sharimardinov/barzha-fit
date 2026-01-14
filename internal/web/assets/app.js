@@ -356,8 +356,9 @@ function renderWeekCalendars(data) {
     return;
   }
   data.days.forEach((d) => {
-    food.appendChild(makeCalendarCell(d.day, d.foodOk));
-    steps.appendChild(makeCalendarCell(d.day, d.stepsOk));
+    const future = isFutureDate(d.date);
+    food.appendChild(makeCalendarCell(d.day, d.foodOk, future));
+    steps.appendChild(makeCalendarCell(d.day, d.stepsOk, future));
   });
 }
 
@@ -376,14 +377,15 @@ function renderMonthCalendars(data) {
     steps.appendChild(makeEmptyCell());
   }
   data.days.forEach((d) => {
-    food.appendChild(makeCalendarCell(d.day, d.foodOk));
-    steps.appendChild(makeCalendarCell(d.day, d.stepsOk));
+    const future = isFutureDate(d.date);
+    food.appendChild(makeCalendarCell(d.day, d.foodOk, future));
+    steps.appendChild(makeCalendarCell(d.day, d.stepsOk, future));
   });
 }
 
-function makeCalendarCell(day, active) {
+function makeCalendarCell(day, active, future) {
   const cell = document.createElement("div");
-  cell.className = "calendar-cell";
+  cell.className = future ? "calendar-cell future" : "calendar-cell";
   const dot = document.createElement("div");
   dot.className = `calendar-dot${active ? " active" : ""}`;
   const label = document.createElement("div");
@@ -410,6 +412,14 @@ function renderEmptyCalendar(target) {
   label.className = "calendar-empty-label";
   label.textContent = "Нет данных";
   target.appendChild(label);
+}
+
+function isFutureDate(value) {
+  if (!value) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const date = new Date(`${value}T00:00:00`);
+  return date > today;
 }
 
 bootstrap().catch((err) => {
