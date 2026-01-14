@@ -18,7 +18,7 @@ func (h *Help) Handle(m *tgbotapi.Message) {
 	var b strings.Builder
 	b.WriteString("Справка\n\n")
 	b.WriteString("Команды\n")
-	b.WriteString("День: /today, /status, /setmeal, /meals, /undo, /setstep\n")
+	b.WriteString("День: /today, /setmeal, /meals, /undo, /setstep\n")
 	b.WriteString("План: /plan, /setplan\n")
 	b.WriteString("Профиль и цели: /profile, /profileset, /weight, /targets, /targetsrefresh, /targetsset kcal <число>, /targetsset steps <число>\n")
 	b.WriteString("История: /streak\n")
@@ -44,9 +44,8 @@ func (h *Help) Handle(m *tgbotapi.Message) {
 	b.WriteString("5) Цель: похудение −20%, баланс 0%, набор +10–15%.\n")
 	b.WriteString("6) Шаги: по умолчанию 10 000, можно изменить /targetsset steps <число>.\n\n")
 
-	b.WriteString("Статусы в /status\n")
-	b.WriteString("- 🟢 >= 100% цели, 🟡 >= 85%, 🟠 >= 70%, 🔴 ниже 70%.\n")
-	b.WriteString("- Дефицит: норм, если >= 85% калорий.\n\n")
+	b.WriteString("Иконки прогресса в /today\n")
+	b.WriteString("- 🟢 90–110% от цели, иначе 🔴.\n\n")
 	b.WriteString("Команды: см. /start")
 
 	_, _ = h.api.Send(tgbotapi.NewMessage(m.Chat.ID, b.String()))

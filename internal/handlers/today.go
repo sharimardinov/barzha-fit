@@ -17,6 +17,7 @@ type Today struct {
 	workout *service.WorkoutService
 	targets *service.TargetsService
 	nut     *service.NutritionService
+	steps   *service.StepsService
 	tz      string
 }
 
@@ -26,6 +27,7 @@ func NewToday(
 	workout *service.WorkoutService,
 	targets *service.TargetsService,
 	nut *service.NutritionService,
+	steps *service.StepsService,
 	tz string,
 ) *Today {
 	return &Today{
@@ -34,6 +36,7 @@ func NewToday(
 		workout: workout,
 		targets: targets,
 		nut:     nut,
+		steps:   steps,
 		tz:      tz,
 	}
 }
@@ -69,28 +72,75 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 		}
 	}
 
-	kcal, p, _, _, err := h.nut.SumToday(ctx, chatID, loc, now)
+	kcal, p, f, c, err := h.nut.SumToday(ctx, chatID, loc, now)
 	if err != nil {
-		kcal, p = 0, 0
+		kcal, p, f, c = 0, 0, 0, 0
+	}
+	steps, hasSteps, _ := h.steps.GetByDate(ctx, chatID, dayDate)
+	if !hasSteps {
+		steps = 0
 	}
 
 	kcalTarget := 2400
 	proteinTarget := 170
-	source := "default"
+	fatTarget := 70
+	carbsTarget := 250
+	stepsTarget := 10000
 
 	tg, ok, _ := h.targets.Get(ctx, chatID)
 	if ok {
 		kcalTarget = tg.Kcal
 		proteinTarget = tg.ProteinG
-		source = tg.Source
+		fatTarget = tg.FatG
+		carbsTarget = tg.CarbsG
+		if tg.Steps > 0 {
+			stepsTarget = tg.Steps
+		}
 	}
 
-	text := fmt.Sprintf(
-		"День цикла %d\n\n%s\n\nТренировка: %s\n\nКалории: %d / %d (%s)\nБелок: %d / %d",
-		cycleDay, block, st, kcal, kcalTarget, source, p, proteinTarget,
-	)
+	kcalIcon := ratioIcon(float64(kcal), float64(kcalTarget))
+	proteinIcon := ratioIcon(float64(p), float64(proteinTarget))
+	fatIcon := ratioIcon(float64(f), float64(fatTarget))
+	carbsIcon := ratioIcon(float64(c), float64(carbsTarget))
+	stepsIcon := ratioIcon(float64(steps), float64(stepsTarget))
 
-	msg := tgbotapi.NewMessage(chatID, text)
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("День цикла %d\n\n%s\n\n", cycleDay, block))
+	b.WriteString("Сегодня:\n")
+	b.WriteString(fmt.Sprintf("Тренировка: %s\n", st))
+	b.WriteString(fmt.Sprintf("Калории: %d / %d %s\n", kcal, kcalTarget, kcalIcon))
+	b.WriteString(fmt.Sprintf("Белок: %d / %d %s\n", p, proteinTarget, proteinIcon))
+	b.WriteString(fmt.Sprintf("Жир: %d / %d %s\n", f, fatTarget, fatIcon))
+	b.WriteString(fmt.Sprintf("Углеводы: %d / %d %s\n", c, carbsTarget, carbsIcon))
+	b.WriteString(fmt.Sprintf("Шаги: %s / %s %s\n", formatInt(steps), formatInt(stepsTarget), stepsIcon))
+	b.WriteString(fmt.Sprintf("Еда: %s", kcalIcon))
+
+	msg := tgbotapi.NewMessage(chatID, b.String())
 	msg.ReplyMarkup = telegram.WorkoutButtons()
 	_, _ = h.api.Send(msg)
+}
+
+func ratioIcon(val, target float64) string {
+	if target <= 0 {
+		return "—"
+	}
+	r := val / target
+	if r >= 0.9 && r <= 1.1 {
+		return "🟢"
+	}
+	return "🔴"
+}
+
+func formatInt(v int) string {
+	s := fmt.Sprintf("%d", v)
+	if v < 1000 {
+		return s
+	}
+	var parts []string
+	for len(s) > 3 {
+		parts = append([]string{s[len(s)-3:]}, parts...)
+		s = s[:len(s)-3]
+	}
+	parts = append([]string{s}, parts...)
+	return strings.Join(parts, " ")
 }

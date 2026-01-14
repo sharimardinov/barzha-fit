@@ -2,7 +2,6 @@
 
 День
 /today — тренировка + прогресс
-/status — статус на сегодня
 /setstep — шаги за сегодня
 /setmeal — добавить еду
 /meals — еда за сегодня
@@ -40,7 +39,7 @@
 Справка
 
 Команды
-День: /today, /status, /setmeal, /meals, /undo, /setstep
+День: /today, /setmeal, /meals, /undo, /setstep
 План: /plan, /setplan
 Профиль и цели: /profile, /profileset, /weight, /targets, /targetsrefresh, /targetsset kcal <число>, /targetsset steps <число>
 История: /streak
@@ -66,9 +65,8 @@
 5) Цель: похудение −20%, баланс 0%, набор +10–15%.
 6) Шаги: по умолчанию 10 000, можно изменить /targetsset steps <число>.
 
-Статусы в /status
-- 🟢 >= 100% цели, 🟡 >= 85%, 🟠 >= 70%, 🔴 ниже 70%.
-- Дефицит: норм, если >= 85% калорий.
+Иконки прогресса в /today
+- 🟢 90–110% от цели, иначе 🔴.
 
 Команды: см. /start
 
