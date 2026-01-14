@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -413,8 +414,13 @@ func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth a
 }
 
 func (s *Server) handleTrainingProfileGet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.training == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_unavailable"})
+		return
+	}
 	p, ok, err := s.training.Get(context.Background(), auth.User.ID)
 	if err != nil {
+		log.Printf("training profile get failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_read_failed"})
 		return
 	}
@@ -426,6 +432,10 @@ func (s *Server) handleTrainingProfileGet(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.training == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_unavailable"})
+		return
+	}
 	var payload struct {
 		BenchKG          int     `json:"bench_kg"`
 		Pullups          int     `json:"pullups"`
@@ -456,6 +466,7 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := s.training.Save(context.Background(), p); err != nil {
+		log.Printf("training profile save failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_save_failed"})
 		return
 	}
@@ -463,14 +474,24 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.ai == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_ai_unavailable"})
+		return
+	}
+	if s.training == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_unavailable"})
+		return
+	}
 	ctx := context.Background()
 	p, ok, err := s.profile.Get(ctx, auth.User.ID)
 	if err != nil {
+		log.Printf("training profile read user failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
 		return
 	}
 	tp, okTP, err := s.training.Get(ctx, auth.User.ID)
 	if err != nil {
+		log.Printf("training profile read failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_read_failed"})
 		return
 	}
@@ -488,6 +509,7 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 	payload := buildTrainingPrompt(p, tp)
 	planText, raw, err := s.ai.GenerateTrainingPlan(ctx, payload)
 	if err != nil {
+		log.Printf("training generate failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{
 			OK:    false,
 			Error: "training_generate_failed",
