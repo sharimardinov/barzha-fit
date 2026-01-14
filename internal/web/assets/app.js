@@ -57,7 +57,6 @@ function setActiveTab(name) {
     profile: "Профиль",
     training: "Тренинг",
     stats: "Статистика",
-    streak: "Серии",
   };
   $("screen-title").textContent = titles[name] || "Сегодня";
 }
@@ -241,6 +240,7 @@ function initNav() {
       if (tab === "today") {
         await loadToday();
         await loadMeals();
+        await loadStreak();
       }
       if (tab === "meals") await loadMeals();
       if (tab === "plan") {
@@ -259,7 +259,6 @@ function initNav() {
         await loadStatsMonth();
         toggleStatsView("week");
       }
-      if (tab === "streak") await loadStreak();
     });
   });
 }
@@ -443,6 +442,7 @@ async function bootstrap() {
 
   await loadToday();
   await loadMeals();
+  await loadStreak();
   lucide?.createIcons();
 }
 
