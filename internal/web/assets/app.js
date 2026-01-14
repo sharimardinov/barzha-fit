@@ -8,6 +8,14 @@ const state = {
   planText: "",
 };
 
+const targetFields = [
+  { field: "kcal", id: "target-kcal", planId: "plan-target-kcal" },
+  { field: "protein", id: "target-protein", planId: "plan-target-protein" },
+  { field: "fat", id: "target-fat", planId: "plan-target-fat" },
+  { field: "carbs", id: "target-carbs", planId: "plan-target-carbs" },
+  { field: "steps", id: "target-steps", planId: "plan-target-steps" },
+];
+
 function toast(message) {
   const el = $("toast");
   el.textContent = message;
@@ -142,11 +150,13 @@ async function loadMeals() {
 
 async function loadTargets() {
   const t = await api("/api/targets/get");
-  $("target-kcal").value = t.kcal;
-  $("target-protein").value = t.protein;
-  $("target-fat").value = t.fat;
-  $("target-carbs").value = t.carbs;
-  $("target-steps").value = t.steps;
+  targetFields.forEach(({ id, planId, field }) => {
+    const value = t[field];
+    const main = document.getElementById(id);
+    if (main) main.value = value;
+    const plan = document.getElementById(planId);
+    if (plan) plan.value = value;
+  });
 }
 
 async function loadPlan() {
@@ -206,7 +216,10 @@ function initNav() {
         await loadMeals();
       }
       if (tab === "meals") await loadMeals();
-      if (tab === "plan") await loadPlan();
+      if (tab === "plan") {
+        await loadPlan();
+        await loadTargets();
+      }
       if (tab === "targets") await loadTargets();
       if (tab === "steps") await loadToday();
       if (tab === "profile") await loadProfile();
@@ -273,20 +286,19 @@ async function bootstrap() {
     toast("Сброшено");
   });
 
-  $("targets-save").addEventListener("click", async () => {
-    const fields = [
-      ["kcal", "target-kcal"],
-      ["protein", "target-protein"],
-      ["fat", "target-fat"],
-      ["carbs", "target-carbs"],
-      ["steps", "target-steps"],
-    ];
-    for (const [field, id] of fields) {
-      const value = Number($(id).value || 0);
+  const saveTargets = async (prefix) => {
+    for (const { field, id, planId } of targetFields) {
+      const fieldId = prefix === "plan" ? planId : id;
+      const el = document.getElementById(fieldId);
+      const value = Number(el?.value || 0);
       await api("/api/targets/set", { field, value });
     }
     toast("Цели обновлены");
     await loadToday();
+  };
+
+  $("targets-save").addEventListener("click", async () => {
+    await saveTargets("main");
   });
 
   $("targets-refresh").addEventListener("click", async () => {
@@ -295,6 +307,23 @@ async function bootstrap() {
     toast("Пересчитано");
     await loadToday();
   });
+
+  const planTargetsSave = document.getElementById("plan-targets-save");
+  if (planTargetsSave) {
+    planTargetsSave.addEventListener("click", async () => {
+      await saveTargets("plan");
+    });
+  }
+
+  const planTargetsRefresh = document.getElementById("plan-targets-refresh");
+  if (planTargetsRefresh) {
+    planTargetsRefresh.addEventListener("click", async () => {
+      await api("/api/targets/refresh");
+      await loadTargets();
+      toast("Пересчитано");
+      await loadToday();
+    });
+  }
 
   $("steps-save").addEventListener("click", async () => {
     const steps = Number($("steps-value").value || 0);

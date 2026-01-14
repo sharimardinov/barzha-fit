@@ -58,7 +58,7 @@ body {
 
 .card-title {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -73,6 +73,8 @@ body {
   padding: 12px;
   background: var(--white);
   color: var(--muted);
+  font-family: inherit;
+  font-style: italic;
   font-size: 14px;
 }
 
@@ -135,6 +137,10 @@ select {
 textarea {
   min-height: 120px;
   resize: vertical;
+}
+
+#plan-text {
+  min-height: 220px;
 }
 
 button {
