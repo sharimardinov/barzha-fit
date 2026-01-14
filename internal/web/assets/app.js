@@ -3,6 +3,11 @@ const initData = tg?.initData || "";
 
 const $ = (id) => document.getElementById(id);
 
+const state = {
+  today: null,
+  planText: "",
+};
+
 function toast(message) {
   const el = $("toast");
   el.textContent = message;
@@ -27,16 +32,37 @@ async function api(path, body = {}) {
 }
 
 function setActiveTab(name) {
-  document.querySelectorAll(".tab").forEach((btn) => {
+  document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === name);
   });
-  document.querySelectorAll(".panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `tab-${name}`);
+  document.querySelectorAll(".screen").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `screen-${name}`);
   });
+  const titles = {
+    today: "Сегодня",
+    meals: "Еда",
+    plan: "План",
+    targets: "Цели",
+    steps: "Шаги",
+    profile: "Профиль",
+    stats: "Статистика",
+    streak: "Серии",
+  };
+  $("screen-title").textContent = titles[name] || "Сегодня";
+}
+
+function setProgress(id, current, target, color) {
+  const el = $(id);
+  if (!el) return;
+  const ratio = target > 0 ? current / target : 0;
+  const pct = Math.min(Math.max(ratio * 100, 0), 100);
+  el.style.width = `${pct}%`;
+  if (color) el.style.background = color;
 }
 
 async function loadToday() {
   const data = await api("/api/today");
+  state.today = data;
   $("today-plan").textContent = data.plan || "—";
   $("today-workout").textContent = data.workoutIcon || "—";
   $("today-kcal").textContent = `${data.kcal} / ${data.targets.kcal} ${data.icons.kcal}`;
@@ -45,35 +71,55 @@ async function loadToday() {
   $("today-carbs").textContent = `${data.carbs} / ${data.targets.carbs} ${data.icons.carbs}`;
   $("today-steps").textContent = `${data.steps} / ${data.targets.steps} ${data.icons.steps}`;
   $("today-food").textContent = data.icons.food || "—";
-  $("hero-summary").textContent = `${data.kcal} ккал, ${data.icons.food}`;
+
+  setProgress("progress-kcal", data.kcal, data.targets.kcal, "var(--accent-1)");
+  setProgress("progress-protein", data.protein, data.targets.protein, "var(--accent-2)");
+  setProgress("progress-fat", data.fat, data.targets.fat, "var(--accent-3)");
+  setProgress("progress-carbs", data.carbs, data.targets.carbs, "var(--accent-4)");
+  setProgress("progress-steps", data.steps, data.targets.steps, "var(--success)");
+
+  $("steps-summary").textContent = `${data.steps} / ${data.targets.steps}`;
+  setProgress("progress-steps-screen", data.steps, data.targets.steps, "var(--success)");
 }
 
 async function loadMeals() {
   const items = await api("/api/meals/today");
   const list = $("meal-list");
   list.innerHTML = "";
+  let totalKcal = 0;
+  let totalP = 0;
+  let totalF = 0;
+  let totalC = 0;
+
   if (!items.length) {
-    list.innerHTML = "<div class=\"meta\">Пока пусто.</div>";
-    return;
-  }
-  items.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = "list-item";
-    card.innerHTML = `
-      <div>${item.text}</div>
-      <div class="meta">${item.kcal} ккал • Б${item.protein_g} Ж${item.fat_g} У${item.carbs_g}</div>
-      <div class="actions">
-        <button class="ghost" data-id="${item.id}">Удалить</button>
-      </div>
-    `;
-    card.querySelector("button").addEventListener("click", async () => {
-      await api("/api/meal/delete", { id: item.id });
-      toast("Удалено");
-      await loadMeals();
-      await loadToday();
+    list.innerHTML = '<div class="hint">Пока пусто.</div>';
+  } else {
+    items.forEach((item) => {
+      totalKcal += item.kcal;
+      totalP += item.protein_g;
+      totalF += item.fat_g;
+      totalC += item.carbs_g;
+      const card = document.createElement("div");
+      card.className = "list-item";
+      card.innerHTML = `
+        <div>${item.text}</div>
+        <div class="meta">${item.kcal} ккал • Б${item.protein_g} Ж${item.fat_g} У${item.carbs_g}</div>
+        <div class="actions">
+          <button class="btn btn-ghost" data-id="${item.id}">Удалить</button>
+        </div>
+      `;
+      card.querySelector("button").addEventListener("click", async () => {
+        await api("/api/meal/delete", { id: item.id });
+        toast("Удалено");
+        await loadMeals();
+        await loadToday();
+      });
+      list.appendChild(card);
     });
-    list.appendChild(card);
-  });
+  }
+
+  $("meal-total-kcal").textContent = `${totalKcal} ккал`;
+  $("meal-total-macros").textContent = `Б ${totalP} • Ж ${totalF} • У ${totalC}`;
 }
 
 async function loadTargets() {
@@ -88,8 +134,10 @@ async function loadTargets() {
 async function loadPlan() {
   try {
     const data = await api("/api/plan/get");
-    $("plan-text").value = data.text;
+    state.planText = data.text || "";
+    $("plan-text").value = state.planText;
   } catch (_) {
+    state.planText = "";
     $("plan-text").value = "";
   }
 }
@@ -126,28 +174,29 @@ async function loadStreak() {
   $("streak-bar").textContent = data.mealBar;
 }
 
-function initTabs() {
-  $("tabs").addEventListener("click", async (event) => {
-    const btn = event.target.closest(".tab");
-    if (!btn) return;
-    const tab = btn.dataset.tab;
-    setActiveTab(tab);
-    if (tab === "today") await loadToday();
-    if (tab === "meals") await loadMeals();
-    if (tab === "plan") await loadPlan();
-    if (tab === "targets") await loadTargets();
-    if (tab === "profile") await loadProfile();
-    if (tab === "stats") {
-      await loadStatsWeek();
-      await loadStatsMonth();
-    }
-    if (tab === "streak") await loadStreak();
+function initNav() {
+  document.querySelectorAll(".nav-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tab = btn.dataset.tab;
+      setActiveTab(tab);
+      if (tab === "today") await loadToday();
+      if (tab === "meals") await loadMeals();
+      if (tab === "plan") await loadPlan();
+      if (tab === "targets") await loadTargets();
+      if (tab === "steps") await loadToday();
+      if (tab === "profile") await loadProfile();
+      if (tab === "stats") {
+        await loadStatsWeek();
+        await loadStatsMonth();
+      }
+      if (tab === "streak") await loadStreak();
+    });
   });
 }
 
 async function bootstrap() {
   if (!initData) {
-    toast("Открой мини‑апп из Telegram");
+    toast("Открой мини-апп из Telegram");
     return;
   }
   tg?.ready();
@@ -157,7 +206,7 @@ async function bootstrap() {
     $("user-line").textContent = `Привет, ${u.first_name || u.username || "спортсмен"}!`;
   }
 
-  initTabs();
+  initNav();
 
   $("refresh-today").addEventListener("click", async () => {
     await loadToday();
@@ -180,11 +229,7 @@ async function bootstrap() {
     const text = $("meal-text").value.trim();
     if (!text) return;
     const data = await api("/api/meal/add", { text });
-    if (data.aiError) {
-      toast("AI упал, текст сохранён");
-    } else {
-      toast("Еда добавлена");
-    }
+    toast(data.aiError ? "AI упал, текст сохранён" : "Еда добавлена");
     $("meal-text").value = "";
     await loadMeals();
     await loadToday();
@@ -201,8 +246,14 @@ async function bootstrap() {
     const text = $("plan-text").value.trim();
     if (!text) return;
     await api("/api/plan/set", { text });
+    state.planText = text;
     toast("План сохранён");
     await loadToday();
+  });
+
+  $("plan-reset").addEventListener("click", () => {
+    $("plan-text").value = state.planText || "";
+    toast("Сброшено");
   });
 
   $("targets-save").addEventListener("click", async () => {
@@ -237,13 +288,13 @@ async function bootstrap() {
 
   $("profile-save").addEventListener("click", async () => {
     const payload = {
-      sex: $("profile-sex").value.trim(),
+      sex: $("profile-sex").value,
       age: Number($("profile-age").value || 0),
       height_cm: Number($("profile-height").value || 0),
       weight_kg: Number($("profile-weight").value || 0),
       bodyfat_pct: Number($("profile-bodyfat").value || 0),
-      activity: $("profile-activity").value.trim(),
-      goal: $("profile-goal").value.trim(),
+      activity: $("profile-activity").value,
+      goal: $("profile-goal").value,
     };
     await api("/api/profile/set", payload);
     toast("Профиль сохранён");
@@ -262,9 +313,10 @@ async function bootstrap() {
   });
 
   await loadToday();
+  lucide?.createIcons();
 }
 
 bootstrap().catch((err) => {
   console.error(err);
-  toast("Ошибка мини‑аппа");
+  toast("Ошибка мини-аппа");
 });
