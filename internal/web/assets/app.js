@@ -185,7 +185,7 @@ async function loadProfile() {
     $("profile-weight").value = p.weight_kg || "";
     $("profile-training-years").value = p.training_years || "";
     $("profile-bodyfat").value = p.bodyfat_pct || "";
-    $("profile-activity").value = p.activity || "";
+    $("profile-activity").value = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "";
     $("profile-goal").value = p.goal || "";
   } catch (_) {
     $("profile-sex").value = "";
@@ -201,6 +201,7 @@ async function loadTrainingProfile() {
     $("training-injuries").value = p.injuries || "";
     $("training-goal").value = p.goal || "";
     $("training-times").value = p.trainings_per_week || "";
+    $("training-wishes").value = p.wishes || "";
     $("training-dislikes").value = p.dislikes || "";
     $("training-cannot").value = p.cannot_do || "";
     if (p.pharma === true) $("training-pharma").value = "yes";
@@ -370,12 +371,28 @@ async function bootstrap() {
       weight_kg: Number($("profile-weight").value || 0),
       training_years: Number($("profile-training-years").value || 0),
       bodyfat_pct: Number($("profile-bodyfat").value || 0),
-      activity: $("profile-activity").value,
       goal: $("profile-goal").value,
     };
     await api("/api/profile/set", payload);
     toast("Профиль сохранён");
   });
+
+  const activityCalc = document.getElementById("profile-activity-calc");
+  if (activityCalc) {
+    activityCalc.addEventListener("click", async () => {
+      try {
+        const p = await api("/api/activity/estimate");
+        $("profile-activity").value = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "";
+        toast("Коэффициент рассчитан");
+      } catch (err) {
+        if (err.message === "plan_not_found") {
+          toast("Сначала заполни план тренировок");
+          return;
+        }
+        toast("Ошибка расчёта");
+      }
+    });
+  }
 
   const trainingSave = document.getElementById("training-save");
   if (trainingSave) {
@@ -388,6 +405,7 @@ async function bootstrap() {
         goal: $("training-goal").value,
         pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
         trainings_per_week: Number($("training-times").value || 0),
+        wishes: $("training-wishes").value.trim(),
         dislikes: $("training-dislikes").value.trim(),
         cannot_do: $("training-cannot").value.trim(),
       };
@@ -407,6 +425,7 @@ async function bootstrap() {
         goal: $("training-goal").value,
         pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
         trainings_per_week: Number($("training-times").value || 0),
+        wishes: $("training-wishes").value.trim(),
         dislikes: $("training-dislikes").value.trim(),
         cannot_do: $("training-cannot").value.trim(),
       };

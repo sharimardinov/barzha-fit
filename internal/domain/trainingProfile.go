@@ -11,4 +11,5 @@ type TrainingProfile struct {
 	TrainingsPerWeek int
 	Dislikes         string
 	CannotDo         string
+	Wishes           string
 }

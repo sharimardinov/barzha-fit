@@ -19,8 +19,8 @@ func NewTrainingProfileRepo(db *pgxpool.Pool) *TrainingProfileRepo {
 func (r *TrainingProfileRepo) Upsert(ctx context.Context, p domain.TrainingProfile) error {
 	_, err := r.db.Exec(ctx, `
 		insert into training_profiles
-			(chat_id, bench_kg, pullups, run_km, injuries, goal, pharma, trainings_per_week, dislikes, cannot_do)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+			(chat_id, bench_kg, pullups, run_km, injuries, goal, pharma, trainings_per_week, dislikes, cannot_do, wishes)
+		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		on conflict (chat_id) do update set
 			bench_kg=excluded.bench_kg,
 			pullups=excluded.pullups,
@@ -31,10 +31,11 @@ func (r *TrainingProfileRepo) Upsert(ctx context.Context, p domain.TrainingProfi
 			trainings_per_week=excluded.trainings_per_week,
 			dislikes=excluded.dislikes,
 			cannot_do=excluded.cannot_do,
+			wishes=excluded.wishes,
 			updated_at=now()
 	`, p.ChatID, nullInt(p.BenchKG), nullInt(p.Pullups), nullFloat(p.RunKM),
 		nullStr(p.Injuries), nullStr(p.Goal), nullBoolPtr(p.Pharma), nullInt(p.TrainingsPerWeek),
-		nullStr(p.Dislikes), nullStr(p.CannotDo))
+		nullStr(p.Dislikes), nullStr(p.CannotDo), nullStr(p.Wishes))
 	return err
 }
 
@@ -51,12 +52,13 @@ func (r *TrainingProfileRepo) Get(ctx context.Context, chatID int64) (domain.Tra
 	var tpw sql.NullInt32
 	var dislikes sql.NullString
 	var cannot sql.NullString
+	var wishes sql.NullString
 
 	err := r.db.QueryRow(ctx, `
-		select bench_kg, pullups, run_km, injuries, goal, pharma, trainings_per_week, dislikes, cannot_do
+		select bench_kg, pullups, run_km, injuries, goal, pharma, trainings_per_week, dislikes, cannot_do, wishes
 		from training_profiles
 		where chat_id=$1
-	`, chatID).Scan(&bench, &pullups, &run, &injuries, &goal, &pharma, &tpw, &dislikes, &cannot)
+	`, chatID).Scan(&bench, &pullups, &run, &injuries, &goal, &pharma, &tpw, &dislikes, &cannot, &wishes)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -92,6 +94,9 @@ func (r *TrainingProfileRepo) Get(ctx context.Context, chatID int64) (domain.Tra
 	}
 	if cannot.Valid {
 		p.CannotDo = cannot.String
+	}
+	if wishes.Valid {
+		p.Wishes = wishes.String
 	}
 
 	return p, true, nil

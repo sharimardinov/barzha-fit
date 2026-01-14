@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -37,6 +38,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/plan/set", s.withAuth(s.handlePlanSet))
 	mux.HandleFunc("/api/profile/get", s.withAuth(s.handleProfileGet))
 	mux.HandleFunc("/api/profile/set", s.withAuth(s.handleProfileSet))
+	mux.HandleFunc("/api/activity/estimate", s.withAuth(s.handleActivityEstimate))
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
 	mux.HandleFunc("/api/training/generate", s.withAuth(s.handleTrainingGenerate))
@@ -446,6 +448,7 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		TrainingsPerWeek int     `json:"trainings_per_week"`
 		Dislikes         string  `json:"dislikes"`
 		CannotDo         string  `json:"cannot_do"`
+		Wishes           string  `json:"wishes"`
 	}
 	if err := decodeJSON(r, &payload); err != nil {
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
@@ -457,12 +460,13 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		BenchKG:          payload.BenchKG,
 		Pullups:          payload.Pullups,
 		RunKM:            payload.RunKM,
-		Injuries:         strings.TrimSpace(payload.Injuries),
-		Goal:             strings.TrimSpace(payload.Goal),
+		Injuries:         trimLimit(payload.Injuries, 400),
+		Goal:             trimLimit(payload.Goal, 200),
 		Pharma:           payload.Pharma,
 		TrainingsPerWeek: payload.TrainingsPerWeek,
-		Dislikes:         strings.TrimSpace(payload.Dislikes),
-		CannotDo:         strings.TrimSpace(payload.CannotDo),
+		Dislikes:         trimLimit(payload.Dislikes, 200),
+		CannotDo:         trimLimit(payload.CannotDo, 200),
+		Wishes:           trimLimit(payload.Wishes, 200),
 	}
 
 	if err := s.training.Save(context.Background(), p); err != nil {
@@ -537,6 +541,44 @@ func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth au
 	p, ok, err := s.profile.UpdateWeight(context.Background(), auth.User.ID, payload.WeightKG)
 	if err != nil || !ok {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "weight_update_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: profileToDTO(p)})
+}
+
+func (s *Server) handleActivityEstimate(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.ai == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "activity_ai_unavailable"})
+		return
+	}
+	ctx := context.Background()
+	p, ok, err := s.profile.Get(ctx, auth.User.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "profile_not_found"})
+		return
+	}
+	planText, err := s.plan.Get(ctx, auth.User.ID)
+	if err != nil || strings.TrimSpace(planText) == "" {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "plan_not_found"})
+		return
+	}
+	mult, raw, err := s.ai.EstimateActivityMultiplierWithProfile(ctx, planText, p)
+	if err != nil {
+		log.Printf("activity estimate failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{
+			OK:    false,
+			Error: "activity_estimate_failed",
+			Data:  raw,
+		})
+		return
+	}
+	p.Activity = fmt.Sprintf("ai:%.2f", mult)
+	if err := s.profile.Save(ctx, p); err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_save_failed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: profileToDTO(p)})
@@ -761,6 +803,7 @@ type profileDTO struct {
 	WeightKG float64 `json:"weight_kg"`
 	BodyFat  float64 `json:"bodyfat_pct"`
 	Activity string  `json:"activity"`
+	ActivityMultiplier float64 `json:"activity_multiplier"`
 	Goal     string  `json:"goal"`
 	TrainingYears int `json:"training_years"`
 }
@@ -775,6 +818,7 @@ type trainingProfileDTO struct {
 	TrainingsPerWeek int     `json:"trainings_per_week"`
 	Dislikes         string  `json:"dislikes"`
 	CannotDo         string  `json:"cannot_do"`
+	Wishes           string  `json:"wishes"`
 }
 
 func profileToDTO(p domain.Profile) profileDTO {
@@ -786,6 +830,7 @@ func profileToDTO(p domain.Profile) profileDTO {
 		WeightKG: p.WeightKG,
 		BodyFat:  p.BodyFatPct,
 		Activity: p.Activity,
+		ActivityMultiplier: util.ActivityMultiplier(p.Activity),
 		Goal:     p.Goal,
 		TrainingYears: p.TrainingYears,
 	}
@@ -802,6 +847,7 @@ func trainingProfileToDTO(p domain.TrainingProfile) trainingProfileDTO {
 		TrainingsPerWeek: p.TrainingsPerWeek,
 		Dislikes:         p.Dislikes,
 		CannotDo:         p.CannotDo,
+		Wishes:           p.Wishes,
 	}
 }
 
@@ -848,7 +894,7 @@ func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPr
 		Goal:           tp.Goal,
 		Pharma:         pharma,
 		TrainingsPerWeek: tp.TrainingsPerWeek,
-		Preferences:    "не любит: " + tp.Dislikes + "; не может: " + tp.CannotDo,
+		Preferences:    "пожелания: " + tp.Wishes + "; не любит: " + tp.Dislikes + "; не может: " + tp.CannotDo,
 	}
 	out.Strength.BenchKG = tp.BenchKG
 	out.Strength.Pullups = tp.Pullups
@@ -913,6 +959,18 @@ func mealToDTO(m db.Meal) mealDTO {
 		FatG:     m.FatG,
 		CarbsG:   m.CarbsG,
 	}
+}
+
+func trimLimit(value string, max int) string {
+	value = strings.TrimSpace(value)
+	if max <= 0 {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) > max {
+		return string(runes[:max])
+	}
+	return value
 }
 
 func mealsToDTO(items []db.Meal) []mealDTO {
