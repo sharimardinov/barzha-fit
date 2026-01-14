@@ -63,24 +63,27 @@ func NewServer(d Deps) *Server {
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/miniapp", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/miniapp/", http.StatusMovedPermanently)
-	})
-
 	sub, err := fs.Sub(assets, "assets")
 	if err != nil {
 		return fmt.Errorf("miniapp assets: %w", err)
 	}
 	fileServer := http.FileServer(http.FS(sub))
-	mux.Handle("/miniapp/", http.StripPrefix("/miniapp/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" || strings.HasSuffix(path, ".html") {
-			w.Header().Set("Cache-Control", "no-store")
-		} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
-			w.Header().Set("Cache-Control", "no-cache")
-		}
-		fileServer.ServeHTTP(w, r)
-	})))
+	serveMiniapp := func(prefix string) {
+		mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, prefix+"/", http.StatusMovedPermanently)
+		})
+		mux.Handle(prefix+"/", http.StripPrefix(prefix+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/")
+			if path == "" || strings.HasSuffix(path, ".html") {
+				w.Header().Set("Cache-Control", "no-store")
+			} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
+				w.Header().Set("Cache-Control", "no-cache")
+			}
+			fileServer.ServeHTTP(w, r)
+		})))
+	}
+	serveMiniapp("/miniapp")
+	serveMiniapp("/miniapp-v3")
 
 	s.registerAPI(mux)
 
