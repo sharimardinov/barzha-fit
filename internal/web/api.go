@@ -50,7 +50,20 @@ func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, authCont
 		}
 		auth, err := s.authenticate(r)
 		if err != nil {
-			writeJSON(w, http.StatusUnauthorized, apiResponse{OK: false, Error: "unauthorized"})
+			errCode := "unauthorized"
+			switch {
+			case errors.Is(err, errMissingInit):
+				errCode = "missing_init_data"
+			case errors.Is(err, errBadHash):
+				errCode = "bad_hash"
+			case errors.Is(err, errStaleAuthDate):
+				errCode = "stale_auth_date"
+			case errors.Is(err, errBadInitData):
+				errCode = "bad_init_data"
+			case errors.Is(err, errBadUserPayload):
+				errCode = "bad_user_payload"
+			}
+			writeJSON(w, http.StatusUnauthorized, apiResponse{OK: false, Error: errCode})
 			return
 		}
 		next(w, r, auth)
