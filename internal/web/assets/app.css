@@ -282,6 +282,14 @@ button {
   visibility: hidden;
 }
 
+.calendar-empty-label {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 10px 0;
+}
+
 .streak-grid {
   display: grid;
   gap: 10px;

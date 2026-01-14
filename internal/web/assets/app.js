@@ -350,6 +350,11 @@ function renderWeekCalendars(data) {
   const steps = $("week-steps-calendar");
   food.innerHTML = "";
   steps.innerHTML = "";
+  if (!data || !Array.isArray(data.days) || data.days.length === 0) {
+    renderEmptyCalendar(food);
+    renderEmptyCalendar(steps);
+    return;
+  }
   data.days.forEach((d) => {
     food.appendChild(makeCalendarCell(d.day, d.foodOk));
     steps.appendChild(makeCalendarCell(d.day, d.stepsOk));
@@ -361,6 +366,11 @@ function renderMonthCalendars(data) {
   const steps = $("month-steps-calendar");
   food.innerHTML = "";
   steps.innerHTML = "";
+  if (!data || !Array.isArray(data.days) || data.days.length === 0) {
+    renderEmptyCalendar(food);
+    renderEmptyCalendar(steps);
+    return;
+  }
   for (let i = 0; i < data.offset; i += 1) {
     food.appendChild(makeEmptyCell());
     steps.appendChild(makeEmptyCell());
@@ -393,6 +403,13 @@ function makeEmptyCell() {
   cell.appendChild(dot);
   cell.appendChild(label);
   return cell;
+}
+
+function renderEmptyCalendar(target) {
+  const label = document.createElement("div");
+  label.className = "calendar-empty-label";
+  label.textContent = "Нет данных";
+  target.appendChild(label);
 }
 
 bootstrap().catch((err) => {
