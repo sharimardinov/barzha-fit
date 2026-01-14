@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-var dayHeaderRe = regexp.MustCompile(`(?m)^\s*([1-7])\s*$`)
+var dayHeaderRe = regexp.MustCompile(`(?mi)^\s*(?:день\s*)?([1-7])\s*$`)
 
-// SplitPlanByDays режет план по строкам, где строка — это "1".."7".
+// SplitPlanByDays режет план по строкам, где строка — это "1".."7" или "День 1".."День 7".
 // Возвращает map[day]text (текст дня без заголовка).
 func SplitPlanByDays(plan string) map[int]string {
 	plan = strings.ReplaceAll(plan, "\r\n", "\n")
