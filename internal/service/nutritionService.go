@@ -48,6 +48,9 @@ func (s *NutritionService) AddMealFromText(ctx context.Context, chatID int64, ea
 	m.ProteinG = est.ProteinG
 	m.FatG = est.FatG
 	m.CarbsG = est.CarbsG
+	if m.Kcal <= 0 && (m.ProteinG > 0 || m.FatG > 0 || m.CarbsG > 0) {
+		m.Kcal = m.ProteinG*4 + m.FatG*9 + m.CarbsG*4
+	}
 
 	if err := s.meals.Add(ctx, &m, raw); err != nil {
 		return m, fmt.Errorf("%w: %v", ErrNutritionSave, err)

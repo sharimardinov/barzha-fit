@@ -99,7 +99,7 @@ func (h *Today) Handle(m *tgbotapi.Message) {
 	}
 
 	kcalIcon := ratioIcon(float64(kcal), float64(kcalTarget))
-	proteinIcon := ratioIcon(float64(p), float64(proteinTarget))
+	proteinIcon := proteinRatioIcon(float64(p), float64(proteinTarget))
 	fatIcon := ratioIcon(float64(f), float64(fatTarget))
 	carbsIcon := ratioIcon(float64(c), float64(carbsTarget))
 	stepsIcon := ratioIcon(float64(steps), float64(stepsTarget))
@@ -126,6 +126,17 @@ func ratioIcon(val, target float64) string {
 	}
 	r := val / target
 	if r >= 0.9 && r <= 1.1 {
+		return "🟢"
+	}
+	return "🔴"
+}
+
+func proteinRatioIcon(val, target float64) string {
+	if target <= 0 {
+		return "—"
+	}
+	r := val / target
+	if r >= 0.9 {
 		return "🟢"
 	}
 	return "🔴"

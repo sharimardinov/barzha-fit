@@ -139,7 +139,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, auth authCo
 		},
 		"icons": map[string]string{
 			"kcal":    ratioIcon(float64(kcal), float64(kcalTarget)),
-			"protein": ratioIcon(float64(p), float64(proteinTarget)),
+			"protein": proteinRatioIcon(float64(p), float64(proteinTarget)),
 			"fat":     ratioIcon(float64(f), float64(fatTarget)),
 			"carbs":   ratioIcon(float64(c), float64(carbsTarget)),
 			"steps":   ratioIcon(float64(steps), float64(stepsTarget)),
@@ -503,6 +503,17 @@ func ratioIcon(val, target float64) string {
 	}
 	r := val / target
 	if r >= 0.9 && r <= 1.1 {
+		return "🟢"
+	}
+	return "🔴"
+}
+
+func proteinRatioIcon(val, target float64) string {
+	if target <= 0 {
+		return "—"
+	}
+	r := val / target
+	if r >= 0.9 {
 		return "🟢"
 	}
 	return "🔴"
