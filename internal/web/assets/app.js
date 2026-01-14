@@ -177,12 +177,12 @@ async function loadProfile() {
 
 async function loadStatsWeek() {
   const data = await api("/api/stats/week");
-  $("stats-week-text").innerHTML = data.text;
+  renderWeekCalendars(data);
 }
 
 async function loadStatsMonth() {
   const data = await api("/api/stats/month");
-  $("stats-month-text").textContent = data.text;
+  renderMonthCalendars(data);
 }
 
 async function loadStreak() {
@@ -213,6 +213,7 @@ function initNav() {
       if (tab === "stats") {
         await loadStatsWeek();
         await loadStatsMonth();
+        toggleStatsView("week");
       }
       if (tab === "streak") await loadStreak();
     });
@@ -317,10 +318,12 @@ async function bootstrap() {
   });
 
   $("stats-week").addEventListener("click", async () => {
+    toggleStatsView("week");
     await loadStatsWeek();
   });
 
   $("stats-month").addEventListener("click", async () => {
+    toggleStatsView("month");
     await loadStatsMonth();
   });
 
@@ -331,6 +334,65 @@ async function bootstrap() {
   await loadToday();
   await loadMeals();
   lucide?.createIcons();
+}
+
+function toggleStatsView(view) {
+  $("stats-week").classList.toggle("btn-accent", view === "week");
+  $("stats-week").classList.toggle("btn-outline", view !== "week");
+  $("stats-month").classList.toggle("btn-accent", view === "month");
+  $("stats-month").classList.toggle("btn-outline", view !== "month");
+  $("stats-week-section").classList.toggle("active", view === "week");
+  $("stats-month-section").classList.toggle("active", view === "month");
+}
+
+function renderWeekCalendars(data) {
+  const food = $("week-food-calendar");
+  const steps = $("week-steps-calendar");
+  food.innerHTML = "";
+  steps.innerHTML = "";
+  data.days.forEach((d) => {
+    food.appendChild(makeCalendarCell(d.day, d.foodOk));
+    steps.appendChild(makeCalendarCell(d.day, d.stepsOk));
+  });
+}
+
+function renderMonthCalendars(data) {
+  const food = $("month-food-calendar");
+  const steps = $("month-steps-calendar");
+  food.innerHTML = "";
+  steps.innerHTML = "";
+  for (let i = 0; i < data.offset; i += 1) {
+    food.appendChild(makeEmptyCell());
+    steps.appendChild(makeEmptyCell());
+  }
+  data.days.forEach((d) => {
+    food.appendChild(makeCalendarCell(d.day, d.foodOk));
+    steps.appendChild(makeCalendarCell(d.day, d.stepsOk));
+  });
+}
+
+function makeCalendarCell(day, active) {
+  const cell = document.createElement("div");
+  cell.className = "calendar-cell";
+  const dot = document.createElement("div");
+  dot.className = `calendar-dot${active ? " active" : ""}`;
+  const label = document.createElement("div");
+  label.textContent = String(day);
+  cell.appendChild(dot);
+  cell.appendChild(label);
+  return cell;
+}
+
+function makeEmptyCell() {
+  const cell = document.createElement("div");
+  cell.className = "calendar-cell calendar-empty";
+  const dot = document.createElement("div");
+  dot.className = "calendar-dot";
+  const label = document.createElement("div");
+  label.textContent = "-";
+  cell.appendChild(dot);
+  cell.appendChild(label);
+  return cell;
 }
 
 bootstrap().catch((err) => {

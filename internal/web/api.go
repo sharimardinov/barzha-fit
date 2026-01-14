@@ -422,26 +422,96 @@ func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth au
 }
 
 func (s *Server) handleStatsWeek(w http.ResponseWriter, r *http.Request, auth authContext) {
+	ctx := context.Background()
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
-	text, err := s.statsView.WeekText(context.Background(), auth.User.ID, now, false)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "stats_failed"})
-		return
+	weekday := util.Weekday1to7(now)
+	weekStart := util.DayStart(now.AddDate(0, 0, -(weekday-1)), loc)
+	weekDays := weekday
+	weekEnd := weekStart.AddDate(0, 0, weekDays-1)
+
+	foodMap, _ := s.nutrition.SumByRangeDaily(ctx, auth.User.ID, weekStart, weekEnd.Add(24*time.Hour), s.tz)
+	stepsMap, _ := s.steps.ListByRange(ctx, auth.User.ID, util.LocalDateStr(weekStart, loc), util.LocalDateStr(weekEnd, loc))
+
+	kcalTarget := 2400
+	stepsTarget := 10000
+	if tg, ok, _ := s.targets.Get(ctx, auth.User.ID); ok {
+		kcalTarget = tg.Kcal
+		if tg.Steps > 0 {
+			stepsTarget = tg.Steps
+		}
 	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"text": text, "mode": "html"}})
+
+	days := make([]map[string]interface{}, 0, weekDays)
+	for i := 0; i < weekDays; i++ {
+		dayStart := util.DayStart(weekStart.AddDate(0, 0, i), loc)
+		dayDate := util.LocalDateStr(dayStart, loc)
+		kcal := 0
+		if dn, ok := foodMap[dayDate]; ok {
+			kcal = dn.Kcal
+		}
+		steps := 0
+		if v, ok := stepsMap[dayDate]; ok {
+			steps = v
+		}
+		days = append(days, map[string]interface{}{
+			"day":     dayStart.Day(),
+			"date":    dayDate,
+			"foodOk":  foodInRange(kcal, kcalTarget),
+			"stepsOk": steps >= stepsTarget,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"days": days,
+	}})
 }
 
 func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth authContext) {
+	ctx := context.Background()
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
-	text, err := s.statsView.MonthText(context.Background(), auth.User.ID, now, monthStart, true)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "stats_failed"})
-		return
+	monthDays := daysInMonth(monthStart)
+	monthEnd := monthStart.AddDate(0, 0, monthDays-1)
+	offset := util.Weekday1to7(monthStart) - 1
+
+	foodMap, _ := s.nutrition.SumByRangeDaily(ctx, auth.User.ID, monthStart, monthEnd.Add(24*time.Hour), s.tz)
+	stepsMap, _ := s.steps.ListByRange(ctx, auth.User.ID, util.LocalDateStr(monthStart, loc), util.LocalDateStr(monthEnd, loc))
+
+	kcalTarget := 2400
+	stepsTarget := 10000
+	if tg, ok, _ := s.targets.Get(ctx, auth.User.ID); ok {
+		kcalTarget = tg.Kcal
+		if tg.Steps > 0 {
+			stepsTarget = tg.Steps
+		}
 	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"text": text, "mode": "text"}})
+
+	days := make([]map[string]interface{}, 0, monthDays)
+	for i := 0; i < monthDays; i++ {
+		dayStart := monthStart.AddDate(0, 0, i)
+		dayDate := util.LocalDateStr(dayStart, loc)
+		kcal := 0
+		if dn, ok := foodMap[dayDate]; ok {
+			kcal = dn.Kcal
+		}
+		steps := 0
+		if v, ok := stepsMap[dayDate]; ok {
+			steps = v
+		}
+		days = append(days, map[string]interface{}{
+			"day":     dayStart.Day(),
+			"date":    dayDate,
+			"foodOk":  foodInRange(kcal, kcalTarget),
+			"stepsOk": steps >= stepsTarget,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"offset": offset,
+		"days":   days,
+	}})
 }
 
 func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authContext) {
@@ -537,6 +607,19 @@ func streakBar(val, max int) string {
 	}
 	b.WriteString("]")
 	return b.String()
+}
+
+func daysInMonth(start time.Time) int {
+	return time.Date(start.Year(), start.Month()+1, 0, 0, 0, 0, 0, start.Location()).Day()
+}
+
+func foodInRange(kcal int, target int) bool {
+	if kcal == 0 {
+		return false
+	}
+	min := int(float64(target) * 0.9)
+	max := int(float64(target) * 1.1)
+	return kcal >= min && kcal <= max
 }
 
 type mealDTO struct {

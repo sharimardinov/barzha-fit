@@ -15,7 +15,7 @@
 
 body {
   margin: 0;
-  font-family: "Aptos", sans-serif;
+  font-family: "Aptos", Arial, sans-serif;
   color: var(--black);
   background: var(--white);
   min-height: 100vh;
@@ -213,7 +213,7 @@ button {
 }
 
 .mono {
-  font-family: "Aptos", sans-serif;
+  font-family: "Aptos", Arial, sans-serif;
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -229,6 +229,57 @@ button {
 
 .stats-block {
   margin-top: 12px;
+}
+
+.stats-section {
+  display: none;
+}
+
+.stats-section.active {
+  display: block;
+}
+
+.stats-subtitle {
+  font-weight: 600;
+  color: var(--muted);
+  margin: 10px 0 8px;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.week-grid {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.month-grid {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-cell {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.calendar-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.calendar-dot.active {
+  background: var(--accent);
+}
+
+.calendar-empty {
+  visibility: hidden;
 }
 
 .streak-grid {
