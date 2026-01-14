@@ -71,7 +71,3 @@ func (h *DebugMeals) Handle(m *tgbotapi.Message) {
 
 	_, _ = h.api.Send(tgbotapi.NewMessage(chatID, b.String()))
 }
-
-func calcKcal(p, f, c int) int {
-	return p*4 + f*9 + c*4
-}
