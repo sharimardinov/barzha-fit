@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-var dayHeaderRe = regexp.MustCompile(`(?mi)^\s*(?:день\s*)?([1-7])\s*$`)
+var dayHeaderRe = regexp.MustCompile(`(?mi)^\s*(?:[*_#>\-•]+\s*)?(?:день\s*)?([1-7])\s*[:\-–—.]?\s*(?:[*_]+)?\s*$`)
 
 // SplitPlanByDays режет план по строкам, где строка — это "1".."7" или "День 1".."День 7".
 // Возвращает map[day]text (текст дня без заголовка).
