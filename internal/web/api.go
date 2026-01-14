@@ -36,6 +36,9 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/plan/set", s.withAuth(s.handlePlanSet))
 	mux.HandleFunc("/api/profile/get", s.withAuth(s.handleProfileGet))
 	mux.HandleFunc("/api/profile/set", s.withAuth(s.handleProfileSet))
+	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
+	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
+	mux.HandleFunc("/api/training/generate", s.withAuth(s.handleTrainingGenerate))
 	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
@@ -366,6 +369,7 @@ func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth a
 		BodyFat  float64 `json:"bodyfat_pct"`
 		Activity string  `json:"activity"`
 		Goal     string  `json:"goal"`
+		TrainingYears int `json:"training_years"`
 	}
 	if err := decodeJSON(r, &payload); err != nil {
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
@@ -397,12 +401,107 @@ func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth a
 	if payload.Goal != "" {
 		p.Goal = payload.Goal
 	}
+	if payload.TrainingYears > 0 {
+		p.TrainingYears = payload.TrainingYears
+	}
 
 	if err := s.profile.Save(context.Background(), p); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_save_failed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: profileToDTO(p)})
+}
+
+func (s *Server) handleTrainingProfileGet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	p, ok, err := s.training.Get(context.Background(), auth.User.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_read_failed"})
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: trainingProfileDTO{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: trainingProfileToDTO(p)})
+}
+
+func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	var payload struct {
+		BenchKG          int     `json:"bench_kg"`
+		Pullups          int     `json:"pullups"`
+		RunKM            float64 `json:"run_km"`
+		Injuries         string  `json:"injuries"`
+		Goal             string  `json:"goal"`
+		Pharma           *bool   `json:"pharma"`
+		TrainingsPerWeek int     `json:"trainings_per_week"`
+		Dislikes         string  `json:"dislikes"`
+		CannotDo         string  `json:"cannot_do"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+
+	p := domain.TrainingProfile{
+		ChatID:           auth.User.ID,
+		BenchKG:          payload.BenchKG,
+		Pullups:          payload.Pullups,
+		RunKM:            payload.RunKM,
+		Injuries:         strings.TrimSpace(payload.Injuries),
+		Goal:             strings.TrimSpace(payload.Goal),
+		Pharma:           payload.Pharma,
+		TrainingsPerWeek: payload.TrainingsPerWeek,
+		Dislikes:         strings.TrimSpace(payload.Dislikes),
+		CannotDo:         strings.TrimSpace(payload.CannotDo),
+	}
+
+	if err := s.training.Save(context.Background(), p); err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_save_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: trainingProfileToDTO(p)})
+}
+
+func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, auth authContext) {
+	ctx := context.Background()
+	p, ok, err := s.profile.Get(ctx, auth.User.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
+		return
+	}
+	tp, okTP, err := s.training.Get(ctx, auth.User.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_read_failed"})
+		return
+	}
+
+	missing := missingTrainingFields(p, tp, ok, okTP)
+	if len(missing) > 0 {
+		writeJSON(w, http.StatusBadRequest, apiResponse{
+			OK:    false,
+			Error: "missing_fields",
+			Data:  map[string]any{"fields": missing},
+		})
+		return
+	}
+
+	payload := buildTrainingPrompt(p, tp)
+	planText, raw, err := s.ai.GenerateTrainingPlan(ctx, payload)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{
+			OK:    false,
+			Error: "training_generate_failed",
+			Data:  raw,
+		})
+		return
+	}
+
+	if err := s.plan.Save(ctx, auth.User.ID, planText); err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"plan": planText}})
 }
 
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {
@@ -641,6 +740,19 @@ type profileDTO struct {
 	BodyFat  float64 `json:"bodyfat_pct"`
 	Activity string  `json:"activity"`
 	Goal     string  `json:"goal"`
+	TrainingYears int `json:"training_years"`
+}
+
+type trainingProfileDTO struct {
+	BenchKG          int     `json:"bench_kg"`
+	Pullups          int     `json:"pullups"`
+	RunKM            float64 `json:"run_km"`
+	Injuries         string  `json:"injuries"`
+	Goal             string  `json:"goal"`
+	Pharma           *bool   `json:"pharma"`
+	TrainingsPerWeek int     `json:"trainings_per_week"`
+	Dislikes         string  `json:"dislikes"`
+	CannotDo         string  `json:"cannot_do"`
 }
 
 func profileToDTO(p domain.Profile) profileDTO {
@@ -653,7 +765,120 @@ func profileToDTO(p domain.Profile) profileDTO {
 		BodyFat:  p.BodyFatPct,
 		Activity: p.Activity,
 		Goal:     p.Goal,
+		TrainingYears: p.TrainingYears,
 	}
+}
+
+func trainingProfileToDTO(p domain.TrainingProfile) trainingProfileDTO {
+	return trainingProfileDTO{
+		BenchKG:          p.BenchKG,
+		Pullups:          p.Pullups,
+		RunKM:            p.RunKM,
+		Injuries:         p.Injuries,
+		Goal:             p.Goal,
+		Pharma:           p.Pharma,
+		TrainingsPerWeek: p.TrainingsPerWeek,
+		Dislikes:         p.Dislikes,
+		CannotDo:         p.CannotDo,
+	}
+}
+
+type trainingPrompt struct {
+	Sex            string `json:"пол"`
+	Age            int    `json:"возраст"`
+	HeightCM       int    `json:"рост_см"`
+	WeightKG       float64 `json:"вес_кг"`
+	TrainingYears  int    `json:"стаж_тренировок_лет"`
+	BodyFatPct     float64 `json:"уровень_жира_проц,omitempty"`
+	Strength       struct {
+		BenchKG int     `json:"жим_лёжа_кг"`
+		Pullups int     `json:"подтягивания_раз"`
+		RunKM   float64 `json:"бег_км"`
+	} `json:"силовые_показатели"`
+	Injuries        string `json:"травмы"`
+	Goal            string `json:"цель"`
+	Pharma          string `json:"фармакология"`
+	TrainingsPerWeek int   `json:"тренировок_в_неделю"`
+	Preferences     string `json:"предпочтения"`
+}
+
+func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPrompt {
+	sex := ""
+	switch p.Sex {
+	case "m":
+		sex = "мужчина"
+	case "f":
+		sex = "женщина"
+	}
+	pharma := "нет"
+	if tp.Pharma != nil && *tp.Pharma {
+		pharma = "да"
+	}
+
+	out := trainingPrompt{
+		Sex:            sex,
+		Age:            p.Age,
+		HeightCM:       p.HeightCM,
+		WeightKG:       p.WeightKG,
+		TrainingYears:  p.TrainingYears,
+		BodyFatPct:     p.BodyFatPct,
+		Injuries:       tp.Injuries,
+		Goal:           tp.Goal,
+		Pharma:         pharma,
+		TrainingsPerWeek: tp.TrainingsPerWeek,
+		Preferences:    "не любит: " + tp.Dislikes + "; не может: " + tp.CannotDo,
+	}
+	out.Strength.BenchKG = tp.BenchKG
+	out.Strength.Pullups = tp.Pullups
+	out.Strength.RunKM = tp.RunKM
+	return out
+}
+
+func missingTrainingFields(p domain.Profile, tp domain.TrainingProfile, hasProfile bool, hasTraining bool) []string {
+	missing := make([]string, 0)
+	if !hasProfile || p.Sex == "" {
+		missing = append(missing, "пол")
+	}
+	if !hasProfile || p.Age <= 0 {
+		missing = append(missing, "возраст")
+	}
+	if !hasProfile || p.HeightCM <= 0 {
+		missing = append(missing, "рост_см")
+	}
+	if !hasProfile || p.WeightKG <= 0 {
+		missing = append(missing, "вес_кг")
+	}
+	if !hasProfile || p.TrainingYears <= 0 {
+		missing = append(missing, "стаж_тренировок_лет")
+	}
+	if !hasTraining || tp.BenchKG <= 0 {
+		missing = append(missing, "жим_лёжа_кг")
+	}
+	if !hasTraining || tp.Pullups <= 0 {
+		missing = append(missing, "подтягивания_раз")
+	}
+	if !hasTraining || tp.RunKM <= 0 {
+		missing = append(missing, "бег_км")
+	}
+	if !hasTraining || strings.TrimSpace(tp.Injuries) == "" {
+		missing = append(missing, "травмы")
+	}
+	if !hasTraining || strings.TrimSpace(tp.Goal) == "" {
+		missing = append(missing, "цель")
+	}
+	if !hasTraining || tp.Pharma == nil {
+		missing = append(missing, "фармакология")
+	}
+	if !hasTraining || tp.TrainingsPerWeek <= 0 {
+		missing = append(missing, "тренировок_в_неделю")
+	}
+	if !hasTraining || strings.TrimSpace(tp.Dislikes) == "" {
+		missing = append(missing, "что_не_любит")
+	}
+	if !hasTraining || strings.TrimSpace(tp.CannotDo) == "" {
+		missing = append(missing, "что_не_может")
+	}
+	return missing
 }
 
 func mealToDTO(m db.Meal) mealDTO {

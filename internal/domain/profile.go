@@ -9,4 +9,5 @@ type Profile struct {
 	BodyFatPct float64
 	Activity   string // "low"|"mid"|"high"
 	Goal       string // "cut"|"balance"|"bulk"
+	TrainingYears int
 }

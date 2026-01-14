@@ -66,6 +66,9 @@ func main() {
 	targetsRepo := db.NewTargetsRepo(pool)
 	targetsSvc := service.NewTargetsService(targetsRepo, profileRepo)
 
+	trainingProfileRepo := db.NewTrainingProfileRepo(pool)
+	trainingProfileSvc := service.NewTrainingProfileService(trainingProfileRepo)
+
 	aiSvc, err := service.NewAIService()
 	if err != nil {
 		log.Fatal(err)
@@ -126,6 +129,8 @@ func main() {
 		Nutrition: nutSvc,
 		Steps:     stepsSvc,
 		Profile:   profileSvc,
+		Training:  trainingProfileSvc,
+		AI:        aiSvc,
 		PlanView:  planView,
 		StatsView: statsView,
 	})

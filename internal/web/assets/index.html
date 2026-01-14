@@ -200,6 +200,9 @@
             <label>Вес (кг)
               <input type="number" step="0.1" id="profile-weight">
             </label>
+            <label>Стаж тренировок (лет)
+              <input type="number" id="profile-training-years">
+            </label>
             <label>Процент жира (%)
               <input type="number" step="0.1" id="profile-bodyfat">
             </label>
@@ -221,6 +224,59 @@
             </label>
           </div>
           <button class="btn btn-accent" id="profile-save">Сохранить профиль</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-training">
+        <div class="card">
+          <div class="card-title">Тренинг</div>
+          <div class="form-grid">
+            <label>Жим лёжа (кг)
+              <input type="number" id="training-bench">
+            </label>
+            <label>Подтягивания (раз)
+              <input type="number" id="training-pullups">
+            </label>
+            <label>Бег (км)
+              <input type="number" step="0.1" id="training-run">
+            </label>
+            <label>Травмы
+              <textarea id="training-injuries" placeholder="Например: грыжа L5-S1"></textarea>
+            </label>
+            <label>Цель
+              <select id="training-goal">
+                <option value="">Выбери цель</option>
+                <option value="масса">Масса</option>
+                <option value="сушка">Сушка</option>
+                <option value="сила">Сила</option>
+                <option value="рекомп">Рекомп</option>
+              </select>
+            </label>
+            <label>Фармакология
+              <select id="training-pharma">
+                <option value="">Выбери</option>
+                <option value="yes">Да</option>
+                <option value="no">Нет</option>
+              </select>
+            </label>
+            <label>Тренировок в неделю
+              <input type="number" id="training-times">
+            </label>
+            <label>Что не любит
+              <textarea id="training-dislikes" placeholder="Например: бег, рывки"></textarea>
+            </label>
+            <label>Что не может
+              <textarea id="training-cannot" placeholder="Например: тяжёлые приседы"></textarea>
+            </label>
+          </div>
+          <div class="row">
+            <button class="btn btn-outline" id="training-save">Сохранить профиль</button>
+            <button class="btn btn-accent" id="training-generate">Сформировать программу тренировок</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Программа тренировок</div>
+          <pre class="plan" id="training-result">—</pre>
         </div>
       </section>
 
@@ -278,6 +334,7 @@
       <button class="nav-btn" data-tab="targets"><i data-lucide="target"></i><span>Цели</span></button>
       <button class="nav-btn" data-tab="steps"><i data-lucide="footprints"></i><span>Шаги</span></button>
       <button class="nav-btn" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>
+      <button class="nav-btn" data-tab="training"><i data-lucide="activity"></i><span>Тренинг</span></button>
       <button class="nav-btn" data-tab="stats"><i data-lucide="bar-chart-3"></i><span>Статистика</span></button>
       <button class="nav-btn" data-tab="streak"><i data-lucide="flame"></i><span>Серии</span></button>
     </nav>

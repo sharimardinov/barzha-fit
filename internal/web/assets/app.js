@@ -34,7 +34,9 @@ async function api(path, body = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!data.ok) {
-    throw new Error(data.error || "request_failed");
+    const err = new Error(data.error || "request_failed");
+    err.data = data.data;
+    throw err;
   }
   return data.data;
 }
@@ -53,6 +55,7 @@ function setActiveTab(name) {
     targets: "Цели",
     steps: "Шаги",
     profile: "Профиль",
+    training: "Тренинг",
     stats: "Статистика",
     streak: "Серии",
   };
@@ -164,9 +167,13 @@ async function loadPlan() {
     const data = await api("/api/plan/get");
     state.planText = data.text || "";
     $("plan-text").value = state.planText;
+    const trainingResult = $("training-result");
+    if (trainingResult) trainingResult.textContent = state.planText || "—";
   } catch (_) {
     state.planText = "";
     $("plan-text").value = "";
+    const trainingResult = $("training-result");
+    if (trainingResult) trainingResult.textContent = "—";
   }
 }
 
@@ -177,11 +184,31 @@ async function loadProfile() {
     $("profile-age").value = p.age || "";
     $("profile-height").value = p.height_cm || "";
     $("profile-weight").value = p.weight_kg || "";
+    $("profile-training-years").value = p.training_years || "";
     $("profile-bodyfat").value = p.bodyfat_pct || "";
     $("profile-activity").value = p.activity || "";
     $("profile-goal").value = p.goal || "";
   } catch (_) {
     $("profile-sex").value = "";
+  }
+}
+
+async function loadTrainingProfile() {
+  try {
+    const p = await api("/api/training/profile/get");
+    $("training-bench").value = p.bench_kg || "";
+    $("training-pullups").value = p.pullups || "";
+    $("training-run").value = p.run_km || "";
+    $("training-injuries").value = p.injuries || "";
+    $("training-goal").value = p.goal || "";
+    $("training-times").value = p.trainings_per_week || "";
+    $("training-dislikes").value = p.dislikes || "";
+    $("training-cannot").value = p.cannot_do || "";
+    if (p.pharma === true) $("training-pharma").value = "yes";
+    else if (p.pharma === false) $("training-pharma").value = "no";
+    else $("training-pharma").value = "";
+  } catch (_) {
+    $("training-bench").value = "";
   }
 }
 
@@ -223,6 +250,10 @@ function initNav() {
       if (tab === "targets") await loadTargets();
       if (tab === "steps") await loadToday();
       if (tab === "profile") await loadProfile();
+      if (tab === "training") {
+        await loadTrainingProfile();
+        await loadPlan();
+      }
       if (tab === "stats") {
         await loadStatsWeek();
         await loadStatsMonth();
@@ -338,6 +369,7 @@ async function bootstrap() {
       age: Number($("profile-age").value || 0),
       height_cm: Number($("profile-height").value || 0),
       weight_kg: Number($("profile-weight").value || 0),
+      training_years: Number($("profile-training-years").value || 0),
       bodyfat_pct: Number($("profile-bodyfat").value || 0),
       activity: $("profile-activity").value,
       goal: $("profile-goal").value,
@@ -345,6 +377,55 @@ async function bootstrap() {
     await api("/api/profile/set", payload);
     toast("Профиль сохранён");
   });
+
+  const trainingSave = document.getElementById("training-save");
+  if (trainingSave) {
+    trainingSave.addEventListener("click", async () => {
+      const payload = {
+        bench_kg: Number($("training-bench").value || 0),
+        pullups: Number($("training-pullups").value || 0),
+        run_km: Number($("training-run").value || 0),
+        injuries: $("training-injuries").value.trim(),
+        goal: $("training-goal").value,
+        pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
+        trainings_per_week: Number($("training-times").value || 0),
+        dislikes: $("training-dislikes").value.trim(),
+        cannot_do: $("training-cannot").value.trim(),
+      };
+      await api("/api/training/profile/set", payload);
+      toast("Анкета сохранена");
+    });
+  }
+
+  const trainingGenerate = document.getElementById("training-generate");
+  if (trainingGenerate) {
+    trainingGenerate.addEventListener("click", async () => {
+      const payload = {
+        bench_kg: Number($("training-bench").value || 0),
+        pullups: Number($("training-pullups").value || 0),
+        run_km: Number($("training-run").value || 0),
+        injuries: $("training-injuries").value.trim(),
+        goal: $("training-goal").value,
+        pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
+        trainings_per_week: Number($("training-times").value || 0),
+        dislikes: $("training-dislikes").value.trim(),
+        cannot_do: $("training-cannot").value.trim(),
+      };
+      try {
+        await api("/api/training/profile/set", payload);
+        const res = await api("/api/training/generate");
+        $("training-result").textContent = res.plan || "—";
+        await loadPlan();
+        toast("План сохранён");
+      } catch (err) {
+        if (err.message === "missing_fields" && err.data?.fields?.length) {
+          toast(`Заполни: ${err.data.fields.join(", ")}`);
+          return;
+        }
+        toast("Ошибка генерации");
+      }
+    });
+  }
 
   $("stats-week").addEventListener("click", async () => {
     toggleStatsView("week");

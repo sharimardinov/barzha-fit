@@ -268,6 +268,104 @@ func (a *AIService) EstimateActivityMultiplier(ctx context.Context, planText str
 	return est.ActivityMultiplier, raw, nil
 }
 
+func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (string, any, error) {
+	instructions := `Ты профессиональный силовой тренер, работающий с опытными атлетами.
+
+Считай, что пользователь может ошибаться в своих предположениях.
+Критически оценивай входные данные и отбрасывай неэффективные или опасные идеи.
+Если пользователь предлагает слишком много вариантов — агрессивно фильтруй.
+
+Говори по-русски.
+Не используй вступления, приветствия и канцелярит.
+Пиши прямо, коротко и по делу.
+
+Задача:
+— выбрать только рабочие упражнения
+— убрать дубли и мусор
+— составить недельную программу тренировок
+— адаптировать её под опыт, вес, цели и травмы
+— не переоценивать восстановление, даже если есть фармакология
+
+Если есть проблемы со спиной:
+— ограничь осевую нагрузку
+— избегай ненужных рисков
+— кратко объясни логику решений
+
+Приоритет — результат и здоровье, а не разнообразие.
+
+Всегда отвечай на русском языке.`
+
+	body, _ := json.Marshal(profile)
+	prompt := fmt.Sprintf(`На основе профиля атлета составь недельную программу тренировок.
+
+Требования:
+— количество тренировочных дней соответствует профилю
+— исключить неэффективные и дублирующие упражнения
+— учитывать травмы
+— сочетать силу и гипертрофию
+— не включать разминку и растяжку, если это не критично
+
+Профиль атлета:
+%s`, string(body))
+
+	reqBody := respReq{
+		Model: a.model,
+		Input: []respMsg{
+			{Role: "user", Content: prompt},
+		},
+		Instructions:    instructions,
+		Temperature:     0.2,
+		MaxOutputTokens: 1200,
+	}
+
+	b, _ := json.Marshal(reqBody)
+	httpReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/responses", bytes.NewReader(b))
+	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.http.Do(httpReq)
+	if err != nil {
+		return "", nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return "", map[string]any{
+			"status": resp.StatusCode,
+			"body":   string(body),
+		}, fmt.Errorf("openai status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	var out respOut
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", nil, err
+	}
+
+	if out.Error != nil {
+		return "", map[string]any{"error": out.Error}, fmt.Errorf("openai error: %s", out.Error.Message)
+	}
+
+	rawText := extractOutputText(out)
+	if rawText == "" {
+		return "", out, errors.New("openai: empty output_text")
+	}
+
+	return rawText, out, nil
+}
+
+func extractOutputText(out respOut) string {
+	rawText := ""
+	for _, item := range out.Output {
+		for _, c := range item.Content {
+			if c.Type == "output_text" && c.Text != "" {
+				rawText += c.Text
+			}
+		}
+	}
+	return strings.TrimSpace(rawText)
+}
+
 func (a *AIService) EstimateActivityMultiplierWithProfile(ctx context.Context, planText string, p domain.Profile) (float64, any, error) {
 	schema := map[string]any{
 		"type": "object",
