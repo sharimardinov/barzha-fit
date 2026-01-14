@@ -82,8 +82,11 @@ func validateInitData(initData, botToken string) (url.Values, error) {
 		b.WriteString(values.Get(k))
 	}
 
-	secret := sha256.Sum256([]byte(botToken))
-	mac := hmac.New(sha256.New, secret[:])
+	secretMac := hmac.New(sha256.New, []byte("WebAppData"))
+	_, _ = secretMac.Write([]byte(botToken))
+	secretKey := secretMac.Sum(nil)
+
+	mac := hmac.New(sha256.New, secretKey)
 	_, _ = mac.Write([]byte(b.String()))
 	expected := hex.EncodeToString(mac.Sum(nil))
 
