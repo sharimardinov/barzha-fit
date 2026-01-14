@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 
 	"barzhafit/internal/service"
 )
@@ -70,7 +71,16 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("miniapp assets: %w", err)
 	}
-	mux.Handle("/miniapp/", http.StripPrefix("/miniapp/", http.FileServer(http.FS(sub))))
+	fileServer := http.FileServer(http.FS(sub))
+	mux.Handle("/miniapp/", http.StripPrefix("/miniapp/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" || strings.HasSuffix(path, ".html") {
+			w.Header().Set("Cache-Control", "no-store")
+		} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		fileServer.ServeHTTP(w, r)
+	})))
 
 	s.registerAPI(mux)
 
