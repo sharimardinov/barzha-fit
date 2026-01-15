@@ -95,7 +95,7 @@ function formatPlanForDisplay(plan) {
         .filter(Boolean);
       const title = dayLines.length ? dayLines[0] : "—";
       const body = dayLines.length > 1 ? dayLines.slice(1).join("\n") : "";
-      lines.push(`ДЕНЬ ${i + 1} — ${title}${body ? `\n${body}` : ""}`);
+      lines.push(`${title}${body ? `\n${body}` : ""}`);
     }
     return lines.join("\n\n");
   } catch (_) {
