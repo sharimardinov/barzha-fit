@@ -334,6 +334,67 @@ button {
   margin-bottom: 10px;
 }
 
+.accordion {
+  display: grid;
+  gap: 10px;
+}
+
+.accordion-item {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.accordion-toggle {
+  width: 100%;
+  background: var(--white);
+  color: var(--black);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.accordion-toggle span {
+  text-align: left;
+}
+
+.accordion-toggle::after {
+  content: "+";
+  font-size: 18px;
+}
+
+.accordion-item.open .accordion-toggle::after {
+  content: "–";
+}
+
+.accordion-body {
+  display: none;
+  padding: 0 14px 14px;
+  font-size: 13px;
+  color: var(--black);
+}
+
+.accordion-item.open .accordion-body {
+  display: block;
+}
+
+.accordion-group-title {
+  font-weight: 700;
+  margin: 12px 0 6px;
+}
+
+.accordion-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.accordion-list li {
+  margin: 6px 0;
+}
+
 .streak-item {
   display: flex;
   justify-content: space-between;

@@ -104,7 +104,7 @@ function parsePlan(plan) {
   try {
     const data = safeParseJSON(raw);
     if (Array.isArray(data.week_plan) && data.week_plan.length) {
-      return { text: formatWeekPlan(data.week_plan), structured: true };
+      return { text: formatWeekPlan(data.week_plan), structured: true, weekPlan: data.week_plan };
     }
     const days = Array.isArray(data.days) ? data.days : null;
     if (days && days.length) {
@@ -114,6 +114,88 @@ function parsePlan(plan) {
     return { text: raw || "—", structured: false };
   }
   return { text: raw || "—", structured: false };
+}
+
+function renderTrainingAccordion(items) {
+  const container = $("training-accordion");
+  if (!container) return;
+  container.innerHTML = "";
+  items.forEach((dayItem) => {
+    const dayNum = Number(dayItem.day || 0);
+    const name = String(dayItem.name || "—").trim();
+    const focus = String(dayItem.focus || "").trim();
+    const title = focus ? `${name} (${focus})` : name;
+
+    const item = document.createElement("div");
+    item.className = "accordion-item";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "accordion-toggle";
+    const label = document.createElement("span");
+    label.textContent = `ДЕНЬ ${dayNum || "—"} — ${title}`;
+    toggle.appendChild(label);
+    toggle.addEventListener("click", () => item.classList.toggle("open"));
+
+    const body = document.createElement("div");
+    body.className = "accordion-body";
+
+    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
+    let hasExercises = false;
+    let counter = 0;
+    groups.forEach((group) => {
+      const groupName = String(group.muscle_group || "").trim();
+      if (groupName) {
+        const h = document.createElement("div");
+        h.className = "accordion-group-title";
+        h.textContent = groupName;
+        body.appendChild(h);
+      }
+      const list = document.createElement("ol");
+      list.className = "accordion-list";
+      const exercises = Array.isArray(group.exercises) ? group.exercises : [];
+      exercises.forEach((ex) => {
+        const exName = String(ex.name || "").trim();
+        if (!exName) return;
+        hasExercises = true;
+        counter += 1;
+        const sets = String(ex.sets || "").trim();
+        const reps = String(ex.reps || "").trim();
+        const duration = String(ex.duration || "").trim();
+        const notes = String(ex.notes || "").trim();
+        let tail = "";
+        if (duration) tail = duration;
+        else if (sets || reps) tail = `${sets}${sets && reps ? "x" : ""}${reps}`;
+        let text = `${exName}`;
+        if (tail) text += ` — ${tail}`;
+        if (notes) text += ` (${notes})`;
+        const li = document.createElement("li");
+        li.textContent = text;
+        list.appendChild(li);
+      });
+      if (list.children.length) body.appendChild(list);
+    });
+
+    if (!hasExercises) {
+      const activities = Array.isArray(dayItem.activities) ? dayItem.activities : [];
+      if (activities.length) {
+        const list = document.createElement("ol");
+        list.className = "accordion-list";
+        activities.forEach((act) => {
+          const text = String(act || "").trim();
+          if (!text) return;
+          const li = document.createElement("li");
+          li.textContent = text;
+          list.appendChild(li);
+        });
+        if (list.children.length) body.appendChild(list);
+      }
+    }
+
+    item.appendChild(toggle);
+    item.appendChild(body);
+    container.appendChild(item);
+  });
 }
 
 function safeParseJSON(raw) {
@@ -279,7 +361,17 @@ async function loadPlan() {
     if (editor) editor.style.display = parsed.structured ? "none" : "block";
     $("plan-text").value = parsed.structured ? "" : state.planText;
     const trainingResult = $("training-result");
-    if (trainingResult) trainingResult.textContent = parsed.text || "—";
+    if (parsed.weekPlan && parsed.weekPlan.length) {
+      renderTrainingAccordion(parsed.weekPlan);
+      if (trainingResult) trainingResult.style.display = "none";
+    } else {
+      if (trainingResult) {
+        trainingResult.style.display = "block";
+        trainingResult.textContent = parsed.text || "—";
+      }
+      const container = $("training-accordion");
+      if (container) container.innerHTML = "";
+    }
   } catch (_) {
     state.planText = "";
     $("plan-text").value = "";
@@ -546,7 +638,14 @@ async function bootstrap() {
       try {
         await api("/api/training/profile/set", payload);
         const res = await api("/api/training/generate");
-        $("training-result").textContent = formatPlanForDisplay(res.plan);
+        const parsed = parsePlan(res.plan);
+        if (parsed.weekPlan && parsed.weekPlan.length) {
+          renderTrainingAccordion(parsed.weekPlan);
+          $("training-result").style.display = "none";
+        } else {
+          $("training-result").style.display = "block";
+          $("training-result").textContent = parsed.text || "—";
+        }
         await loadPlan();
         toast("План сохранён");
       } catch (err) {
