@@ -537,6 +537,11 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 	planText = normalized
 	if tp, ok := service.ParseTrainingPlan(planText); ok {
 		if issues := validateTrainingPlan(tp); len(issues) > 0 {
+			snippet := planText
+			if len(snippet) > 600 {
+				snippet = snippet[:600] + "..."
+			}
+			log.Printf("training plan invalid: chat_id=%d issues=%v plan=%s", auth.User.ID, issues, snippet)
 			writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
 				OK:    false,
 				Error: "training_plan_invalid",

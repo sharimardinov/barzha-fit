@@ -718,7 +718,8 @@ async function bootstrap() {
           return;
         }
         if (err.message === "training_plan_invalid") {
-          toast("План без упражнений/повторов. Перегенерируй.");
+          const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
+          toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
           return;
         }
         toast("Ошибка генерации");
