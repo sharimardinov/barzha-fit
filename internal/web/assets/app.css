@@ -38,8 +38,14 @@ body {
 }
 
 .brand {
-  font-size: 20px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+}
+
+.brand-logo {
+  height: 24px;
+  width: auto;
+  display: block;
 }
 
 .screen-label {
@@ -85,6 +91,12 @@ body {
   font-weight: 700;
 }
 
+.status-pill.is-empty {
+  padding: 0;
+  border-color: transparent;
+  min-width: 0;
+}
+
 .status-row {
   align-items: center;
   justify-content: space-between;
@@ -95,6 +107,27 @@ body {
 
 .status-row .status-pill {
   color: var(--black);
+}
+
+.indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: 6px;
+  background: transparent;
+}
+
+.indicator.ok {
+  background: #1aa25a;
+}
+
+.indicator.bad {
+  background: #d63b3b;
+}
+
+.indicator.none {
+  display: none;
 }
 
 .row {

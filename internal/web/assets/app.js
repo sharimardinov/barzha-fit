@@ -361,12 +361,24 @@ async function loadToday() {
     const container = $("today-accordion");
     if (container) container.innerHTML = "";
   }
-  $("today-workout").textContent = data.workoutIcon || "—";
-  $("today-kcal").textContent = `${data.kcal} / ${data.targets.kcal} ${data.icons.kcal}`;
-  $("today-protein").textContent = `${data.protein} / ${data.targets.protein} ${data.icons.protein}`;
-  $("today-fat").textContent = `${data.fat} / ${data.targets.fat} ${data.icons.fat}`;
-  $("today-carbs").textContent = `${data.carbs} / ${data.targets.carbs} ${data.icons.carbs}`;
-  $("today-steps").textContent = `${data.steps} / ${data.targets.steps} ${data.icons.steps}`;
+  const workout = $("today-workout");
+  if (workout) {
+    const icon = data.workoutIcon || "";
+    workout.textContent = icon === "—" ? "" : icon;
+    workout.classList.toggle("is-empty", icon === "" || icon === "—");
+  }
+
+  const setMetricValue = (id, text, icon) => {
+    const el = $(id);
+    if (!el) return;
+    const status = icon === "🟢" ? "ok" : icon === "🔴" ? "bad" : "none";
+    el.innerHTML = `${text} <span class="indicator ${status}"></span>`;
+  };
+  setMetricValue("today-kcal", `${data.kcal} / ${data.targets.kcal}`, data.icons.kcal);
+  setMetricValue("today-protein", `${data.protein} / ${data.targets.protein}`, data.icons.protein);
+  setMetricValue("today-fat", `${data.fat} / ${data.targets.fat}`, data.icons.fat);
+  setMetricValue("today-carbs", `${data.carbs} / ${data.targets.carbs}`, data.icons.carbs);
+  setMetricValue("today-steps", `${data.steps} / ${data.targets.steps}`, data.icons.steps);
 
   setProgress("progress-kcal", data.kcal, data.targets.kcal);
   setProgress("progress-protein", data.protein, data.targets.protein);
