@@ -184,6 +184,26 @@ function setActiveTab(name) {
     btn.classList.toggle("active", btn.dataset.tab === name);
   });
   setActiveScreen(name);
+  requestAnimationFrame(updateNavHighlight);
+}
+
+function updateNavHighlight() {
+  const nav = document.querySelector(".nav");
+  const highlight = $("nav-highlight");
+  if (!nav || !highlight) return;
+  const active = nav.querySelector(".nav-btn.active");
+  if (!active) {
+    highlight.style.opacity = "0";
+    return;
+  }
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = active.getBoundingClientRect();
+  const left = btnRect.left - navRect.left;
+  const top = btnRect.top - navRect.top;
+  highlight.style.width = `${btnRect.width}px`;
+  highlight.style.height = `${btnRect.height}px`;
+  highlight.style.transform = `translate(${left}px, ${top}px)`;
+  highlight.style.opacity = "1";
 }
 
 function setProgress(id, current, target) {
@@ -983,6 +1003,7 @@ function initNav() {
       }
     });
   });
+  window.addEventListener("resize", () => requestAnimationFrame(updateNavHighlight));
 }
 
 function initOnboardingWizard() {
