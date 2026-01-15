@@ -56,6 +56,76 @@ function formatApiError(err, fallback) {
   return fallback;
 }
 
+function buildWheelValues(min, max, step) {
+  const values = [];
+  const isFloat = Math.abs(step % 1) > 0;
+  for (let v = min; v <= max + 1e-9; v += step) {
+    values.push(isFloat ? v.toFixed(1) : String(Math.round(v)));
+  }
+  return values;
+}
+
+function createWheel(values, initial, onChange) {
+  const wheel = document.createElement("div");
+  wheel.className = "wheel";
+  const list = document.createElement("div");
+  list.className = "wheel-list";
+  const selector = document.createElement("div");
+  selector.className = "wheel-selector";
+
+  values.forEach((value) => {
+    const item = document.createElement("div");
+    item.className = "wheel-item";
+    item.textContent = value;
+    item.dataset.value = value;
+    list.appendChild(item);
+  });
+
+  const itemHeight = 40;
+  let currentValue = null;
+  let ticking = false;
+
+  const syncActive = () => {
+    const idx = Math.min(values.length - 1, Math.max(0, Math.round(list.scrollTop / itemHeight)));
+    const children = list.children;
+    for (let i = 0; i < children.length; i += 1) {
+      children[i].classList.toggle("active", i === idx);
+    }
+    const value = values[idx];
+    if (value !== currentValue) {
+      currentValue = value;
+      onChange(value);
+    }
+  };
+
+  list.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      syncActive();
+      ticking = false;
+    });
+  });
+
+  list.addEventListener("click", (event) => {
+    const item = event.target.closest(".wheel-item");
+    if (!item) return;
+    const idx = values.indexOf(item.dataset.value || "");
+    if (idx >= 0) {
+      list.scrollTo({ top: idx * itemHeight, behavior: "smooth" });
+    }
+  });
+
+  wheel.appendChild(list);
+  wheel.appendChild(selector);
+
+  const initialIndex = Math.max(0, values.indexOf(initial));
+  list.scrollTop = initialIndex * itemHeight;
+  requestAnimationFrame(syncActive);
+
+  return wheel;
+}
+
 async function api(path, body = {}) {
   const res = await fetch(path, {
     method: "POST",
@@ -698,6 +768,39 @@ async function runProfilePipeline() {
   await api("/api/targets/refresh");
 }
 
+async function saveProfileFlow(payload, trainingPayload, button) {
+  setButtonLoading(button, true, "Сохраняю и считаю...");
+  const activityEl = $("profile-activity");
+  if (activityEl) activityEl.textContent = "…";
+  try {
+    await api("/api/profile/set", payload);
+    await api("/api/training/profile/set", trainingPayload);
+    await runProfilePipeline();
+    await loadPlan();
+    await loadTargets();
+    await loadToday();
+    toast("Профиль сохранён");
+    if (state.onboarding) {
+      setActiveScreen("onboarding-done");
+    }
+  } catch (err) {
+    if (err.message === "missing_fields" && err.data?.fields?.length) {
+      toast(`Заполни: ${err.data.fields.join(", ")}`);
+      return false;
+    }
+    if (err.message === "training_plan_invalid") {
+      const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
+      toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
+      return false;
+    }
+    toast(formatApiError(err, "Ошибка пересчёта"));
+    return false;
+  } finally {
+    setButtonLoading(button, false);
+  }
+  return true;
+}
+
 async function loadTrainingProfile() {
   try {
     const p = await api("/api/training/profile/get");
@@ -753,6 +856,313 @@ function initNav() {
   });
 }
 
+function initOnboardingWizard() {
+  const progressEl = $("onboarding-progress");
+  const titleEl = $("onboarding-title");
+  const descEl = $("onboarding-desc");
+  const bodyEl = $("onboarding-body");
+  const helpEl = $("onboarding-help");
+  const backBtn = $("onboarding-back");
+  const nextBtn = $("onboarding-next");
+
+  if (!progressEl || !titleEl || !descEl || !bodyEl || !helpEl || !nextBtn || !backBtn) {
+    return;
+  }
+
+  const steps = [
+    {
+      id: "sex",
+      title: "Твой пол",
+      type: "options",
+      options: [
+        { value: "m", label: "Мужской" },
+        { value: "f", label: "Женский" },
+      ],
+      help: "Нужно для корректных норм и нагрузки.",
+      required: true,
+    },
+    {
+      id: "age",
+      title: "Сколько тебе лет?",
+      type: "wheel",
+      min: 14,
+      max: 80,
+      step: 1,
+      unit: "лет",
+      help: "Возраст влияет на восстановление и объём.",
+      required: true,
+    },
+    {
+      id: "height",
+      title: "Твой рост",
+      type: "wheel",
+      min: 100,
+      max: 250,
+      step: 1,
+      unit: "см",
+      help: "Используем для расчёта калорий и целей.",
+      required: true,
+    },
+    {
+      id: "weight",
+      title: "Твой вес",
+      type: "wheel",
+      min: 30,
+      max: 300,
+      step: 0.5,
+      unit: "кг",
+      help: "Нужен для расчёта нагрузки и калорий.",
+      required: true,
+    },
+    {
+      id: "trainingYears",
+      title: "Стаж тренировок",
+      type: "wheel",
+      min: 1,
+      max: 80,
+      step: 1,
+      unit: "лет",
+      help: "Определяет уровень и подбор упражнений.",
+      required: true,
+    },
+    {
+      id: "bodyfat",
+      title: "Процент жира",
+      type: "wheel",
+      min: 1,
+      max: 100,
+      step: 0.5,
+      unit: "%",
+      help: "Для точных целей по весу и форме.",
+      required: true,
+    },
+    {
+      id: "bench",
+      title: "Жим лёжа",
+      type: "wheel",
+      min: 0,
+      max: 400,
+      step: 1,
+      unit: "кг",
+      help: "Понимаем силу верхнего тела.",
+      required: true,
+    },
+    {
+      id: "pullups",
+      title: "Подтягивания",
+      type: "wheel",
+      min: 0,
+      max: 100,
+      step: 1,
+      unit: "раз",
+      help: "Оценка тяговой силы.",
+      required: true,
+    },
+    {
+      id: "run",
+      title: "Бег",
+      type: "wheel",
+      min: 0,
+      max: 100,
+      step: 0.5,
+      unit: "км",
+      help: "Помогает оценить выносливость.",
+      required: true,
+    },
+    {
+      id: "injuries",
+      title: "Травмы и ограничения",
+      type: "textarea",
+      placeholder: "Например: грыжа L5-S1",
+      help: "Чтобы исключить рискованные упражнения.",
+      required: false,
+    },
+    {
+      id: "goal",
+      title: "Твоя цель",
+      type: "textarea",
+      placeholder: "Коротко: цель и фокус",
+      help: "Определяет акцент программы.",
+      required: true,
+    },
+    {
+      id: "pharma",
+      title: "Фармакология",
+      type: "options",
+      options: [
+        { value: true, label: "Да" },
+        { value: false, label: "Нет" },
+      ],
+      help: "Влияет на восстановление и объём.",
+      required: true,
+    },
+    {
+      id: "trainingsPerWeek",
+      title: "Тренировок в неделю",
+      type: "wheel",
+      min: 1,
+      max: 7,
+      step: 1,
+      unit: "раз",
+      help: "Формируем недельную структуру.",
+      required: true,
+    },
+    {
+      id: "wishes",
+      title: "Пожелания",
+      type: "textarea",
+      placeholder: "Например: больше спины, не люблю бег",
+      help: "Учтём предпочтения и ограничения.",
+      required: false,
+    },
+  ];
+
+  const data = {};
+  let stepIndex = 0;
+
+  const getDefaultWheelValue = (step) => {
+    if (step.defaultValue !== undefined) {
+      return String(step.defaultValue);
+    }
+    const midpoint = (step.min + step.max) / 2;
+    const isFloat = Math.abs(step.step % 1) > 0;
+    const rounded = isFloat
+      ? (Math.round(midpoint / step.step) * step.step).toFixed(1)
+      : String(Math.round(midpoint));
+    return rounded;
+  };
+
+  const formatWheelValue = (step, value) => {
+    if (value === undefined || value === null || Number.isNaN(value)) {
+      return getDefaultWheelValue(step);
+    }
+    const isFloat = Math.abs(step.step % 1) > 0;
+    return isFloat ? Number(value).toFixed(1) : String(Math.round(Number(value)));
+  };
+
+  const setValue = (step, raw) => {
+    if (step.type === "wheel") {
+      const val = Math.abs(step.step % 1) > 0 ? Number.parseFloat(raw) : Number(raw);
+      data[step.id] = Number.isNaN(val) ? null : val;
+      return;
+    }
+    data[step.id] = raw;
+  };
+
+  const renderStep = () => {
+    const step = steps[stepIndex];
+    progressEl.textContent = `Шаг ${stepIndex + 1} из ${steps.length}`;
+    titleEl.textContent = step.title;
+    descEl.textContent = step.type === "wheel"
+      ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
+      : step.type === "options"
+        ? "Выбери один вариант"
+        : "Можно написать коротко";
+    helpEl.textContent = step.help || "";
+    bodyEl.innerHTML = "";
+
+    if (step.type === "options") {
+      const list = document.createElement("div");
+      list.className = "option-list";
+      step.options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "option-card";
+        btn.textContent = opt.label;
+        btn.classList.toggle("active", data[step.id] === opt.value);
+        btn.addEventListener("click", () => {
+          data[step.id] = opt.value;
+          renderStep();
+        });
+        list.appendChild(btn);
+      });
+      bodyEl.appendChild(list);
+    }
+
+    if (step.type === "wheel") {
+      const values = buildWheelValues(step.min, step.max, step.step);
+      const initial = formatWheelValue(step, data[step.id]);
+      if (data[step.id] === undefined) {
+        setValue(step, initial);
+      }
+      const wheel = createWheel(values, initial, (value) => setValue(step, value));
+      bodyEl.appendChild(wheel);
+    }
+
+    if (step.type === "textarea") {
+      const field = document.createElement("textarea");
+      field.placeholder = step.placeholder || "";
+      field.value = data[step.id] || "";
+      field.addEventListener("input", () => {
+        data[step.id] = field.value;
+      });
+      bodyEl.appendChild(field);
+    }
+
+    backBtn.style.visibility = stepIndex === 0 ? "hidden" : "visible";
+    nextBtn.textContent = stepIndex === steps.length - 1 ? "Готово" : "Далее";
+  };
+
+  const validateStep = (step) => {
+    const value = data[step.id];
+    if (!step.required) return true;
+    if (step.type === "options" && (value === undefined || value === null || value === "")) {
+      toast("Выбери вариант");
+      return false;
+    }
+    if (step.type === "wheel" && (value === undefined || value === null || Number.isNaN(value))) {
+      toast("Выбери значение");
+      return false;
+    }
+    if (step.type === "textarea" && String(value || "").trim() === "") {
+      toast("Заполни поле");
+      return false;
+    }
+    return true;
+  };
+
+  const submitOnboarding = async () => {
+    const payload = {
+      sex: data.sex,
+      age: Number(data.age || 0),
+      height_cm: Number(data.height || 0),
+      weight_kg: Number(data.weight || 0),
+      training_years: Number(data.trainingYears || 0),
+      bodyfat_pct: Number(data.bodyfat || 0),
+    };
+    const trainingPayload = {
+      bench_kg: Number(data.bench || 0),
+      pullups: Number(data.pullups || 0),
+      run_km: Number(data.run || 0),
+      injuries: String(data.injuries || "").trim(),
+      goal: String(data.goal || "").trim(),
+      pharma: data.pharma,
+      trainings_per_week: Number(data.trainingsPerWeek || 0),
+      wishes: String(data.wishes || "").trim(),
+    };
+    await saveProfileFlow(payload, trainingPayload, nextBtn);
+  };
+
+  backBtn.addEventListener("click", () => {
+    if (stepIndex === 0) return;
+    stepIndex -= 1;
+    renderStep();
+  });
+
+  nextBtn.addEventListener("click", async () => {
+    const step = steps[stepIndex];
+    if (!validateStep(step)) return;
+    if (stepIndex === steps.length - 1) {
+      await submitOnboarding();
+      return;
+    }
+    stepIndex += 1;
+    renderStep();
+  });
+
+  renderStep();
+}
+
 async function bootstrap() {
   if (!initData) {
     toast("Открой мини-апп из Telegram");
@@ -765,14 +1175,7 @@ async function bootstrap() {
 
   const onboardingReady = await ensureOnboarding();
   if (!onboardingReady) {
-    const onboardingStart = $("onboarding-start");
-    if (onboardingStart) {
-      onboardingStart.addEventListener("click", async () => {
-        setActiveScreen("profile");
-        await loadProfile();
-        await loadTrainingProfile();
-      });
-    }
+    initOnboardingWizard();
     const onboardingGoToday = $("onboarding-go-today");
     if (onboardingGoToday) {
       onboardingGoToday.addEventListener("click", async () => {
@@ -893,34 +1296,7 @@ async function bootstrap() {
         trainings_per_week: trainingValidated.times,
         wishes: $("training-wishes").value.trim(),
       };
-      setButtonLoading(profileSave, true, "Сохраняю и считаю...");
-      const activityEl = $("profile-activity");
-      if (activityEl) activityEl.textContent = "…";
-      try {
-        await api("/api/profile/set", payload);
-        await api("/api/training/profile/set", trainingPayload);
-        await runProfilePipeline();
-        await loadPlan();
-        await loadTargets();
-        await loadToday();
-        toast("Профиль сохранён");
-        if (state.onboarding) {
-          setActiveScreen("onboarding-done");
-        }
-      } catch (err) {
-        if (err.message === "missing_fields" && err.data?.fields?.length) {
-          toast(`Заполни: ${err.data.fields.join(", ")}`);
-          return;
-        }
-        if (err.message === "training_plan_invalid") {
-          const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
-          toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
-          return;
-        }
-        toast(formatApiError(err, "Ошибка пересчёта"));
-      } finally {
-        setButtonLoading(profileSave, false);
-      }
+      await saveProfileFlow(payload, trainingPayload, profileSave);
     });
   }
 

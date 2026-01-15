@@ -18,11 +18,17 @@
       </header>
 
       <section class="screen" id="screen-onboarding">
-        <div class="card onboarding-card">
+        <div class="card onboarding-card onboarding-wizard">
           <div class="onboarding-brand">BARZHA-FIT</div>
-          <div class="onboarding-step">Шаг 1 из 3</div>
-          <div class="onboarding-title">Заполни профиль</div>
-          <button class="btn btn-accent" id="onboarding-start">Начать</button>
+          <div class="onboarding-step" id="onboarding-progress">Шаг 1 из 1</div>
+          <div class="onboarding-title" id="onboarding-title">Заполни профиль</div>
+          <div class="onboarding-desc" id="onboarding-desc"></div>
+          <div class="onboarding-body" id="onboarding-body"></div>
+          <div class="onboarding-help" id="onboarding-help"></div>
+          <div class="row onboarding-actions">
+            <button class="btn btn-outline" id="onboarding-back">Назад</button>
+            <button class="btn btn-accent" id="onboarding-next">Далее</button>
+          </div>
         </div>
       </section>
 
