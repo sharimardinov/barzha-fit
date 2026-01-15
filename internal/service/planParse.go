@@ -231,6 +231,10 @@ func sanitizeJSON(raw string) string {
 	return raw
 }
 
+func SanitizeJSON(raw string) string {
+	return sanitizeJSON(raw)
+}
+
 func escapeJSONStrings(raw string) string {
 	var b strings.Builder
 	b.Grow(len(raw))

@@ -528,44 +528,53 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 	}
 
 	payload := buildTrainingPrompt(p, tp)
-	planText, raw, err := s.ai.GenerateTrainingPlan(ctx, payload)
-	if err != nil {
-		log.Printf("training generate failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{
-			OK:    false,
-			Error: "training_generate_failed",
-			Data:  raw,
-		})
-		return
-	}
-	normalized, ok := service.NormalizeTrainingPlan(planText)
-	if !ok {
-		writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
-			OK:    false,
-			Error: "training_plan_invalid",
-			Data:  map[string]any{"issues": []string{"invalid_json"}},
-		})
-		return
-	}
-	planText = normalizeTrainingPlanTypes(normalized)
-	if tp, ok := service.ParseTrainingPlan(planText); ok {
-		issues := validateTrainingPlan(tp)
-		if payloadIssues := validateTrainingPlanPayload(planText); len(payloadIssues) > 0 {
-			issues = append(issues, payloadIssues...)
-		}
-		if len(issues) > 0 {
-			snippet := planText
-			if len(snippet) > 600 {
-				snippet = snippet[:600] + "..."
-			}
-			log.Printf("training plan invalid: chat_id=%d issues=%v plan=%s", auth.User.ID, issues, snippet)
-			writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
+	var planText string
+	var raw any
+	var issues []string
+	for attempt := 0; attempt < 3; attempt++ {
+		planText, raw, err = s.ai.GenerateTrainingPlan(ctx, payload)
+		if err != nil {
+			log.Printf("training generate failed: chat_id=%d err=%v", auth.User.ID, err)
+			writeJSON(w, http.StatusInternalServerError, apiResponse{
 				OK:    false,
-				Error: "training_plan_invalid",
-				Data:  map[string]any{"issues": issues},
+				Error: "training_generate_failed",
+				Data:  raw,
 			})
 			return
 		}
+		normalized, ok := service.NormalizeTrainingPlan(planText)
+		if !ok {
+			issues = []string{"invalid_json"}
+		} else {
+			planText = normalizeTrainingPlanTypes(normalized)
+			if tp, ok := service.ParseTrainingPlan(planText); ok {
+				issues = validateTrainingPlan(tp)
+				if payloadIssues := validateTrainingPlanPayload(planText); len(payloadIssues) > 0 {
+					issues = append(issues, payloadIssues...)
+				}
+			} else {
+				issues = []string{"invalid_json"}
+			}
+		}
+		if len(issues) == 0 {
+			break
+		}
+		if attempt < 2 {
+			log.Printf("training plan retry: chat_id=%d attempt=%d issues=%v", auth.User.ID, attempt+1, issues)
+		}
+	}
+	if len(issues) > 0 {
+		snippet := planText
+		if len(snippet) > 600 {
+			snippet = snippet[:600] + "..."
+		}
+		log.Printf("training plan invalid: chat_id=%d issues=%v plan=%s", auth.User.ID, issues, snippet)
+		writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
+			OK:    false,
+			Error: "training_plan_invalid",
+			Data:  map[string]any{"issues": issues},
+		})
+		return
 	}
 
 	if err := s.plan.Save(ctx, auth.User.ID, planText); err != nil {
@@ -1270,7 +1279,7 @@ func validateTrainingPlanPayload(planText string) []string {
 		return nil
 	}
 	var payload trainingPlanPayload
-	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+	if err := json.Unmarshal([]byte(service.SanitizeJSON(raw)), &payload); err != nil {
 		return nil
 	}
 	if len(payload.Week) == 0 {
@@ -1293,18 +1302,7 @@ func validateTrainingPlanPayload(planText string) []string {
 				continue
 			}
 			if kind == "rest" {
-				if !isAllowedActivity(item) {
-					issues = append(issues, fmt.Sprintf("day_%d_invalid_activity", i+1))
-				}
 				continue
-			}
-			name := extractExerciseName(item)
-			if name == "" {
-				issues = append(issues, fmt.Sprintf("day_%d_invalid_exercise", i+1))
-				continue
-			}
-			if _, ok := allowedExerciseNames[name]; !ok {
-				issues = append(issues, fmt.Sprintf("day_%d_invalid_exercise", i+1))
 			}
 		}
 	}
