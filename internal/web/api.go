@@ -334,7 +334,7 @@ func (s *Server) handlePlanGet(w http.ResponseWriter, r *http.Request, auth auth
 		return
 	}
 	if normalized, ok := service.NormalizeTrainingPlan(planText); ok {
-		planText = normalized
+		planText = normalizeTrainingPlanTypes(normalized)
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"text": planText}})
 }
@@ -348,7 +348,7 @@ func (s *Server) handlePlanSet(w http.ResponseWriter, r *http.Request, auth auth
 		return
 	}
 	if normalized, ok := service.NormalizeTrainingPlan(payload.Text); ok {
-		payload.Text = normalized
+		payload.Text = normalizeTrainingPlanTypes(normalized)
 		if tp, ok := service.ParseTrainingPlan(payload.Text); ok {
 			issues := validateTrainingPlan(tp)
 			if payloadIssues := validateTrainingPlanPayload(payload.Text); len(payloadIssues) > 0 {
@@ -547,7 +547,7 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 		})
 		return
 	}
-	planText = normalized
+	planText = normalizeTrainingPlanTypes(normalized)
 	if tp, ok := service.ParseTrainingPlan(planText); ok {
 		issues := validateTrainingPlan(tp)
 		if payloadIssues := validateTrainingPlanPayload(planText); len(payloadIssues) > 0 {
@@ -1143,6 +1143,65 @@ var allowedExerciseNames = map[string]struct{}{
 	"поочередное разгибание пред. в крос.":    {},
 }
 
+var exerciseAliases = map[string]string{
+	"жим штанги лежа":                             "жим штанги лежа (max.)",
+	"жим штанги лежа на наклонной скамье":        "жим штанги лежа на накл.ск.",
+	"жим штанги лежа на накл. ск.":               "жим штанги лежа на накл.ск.",
+	"жим лежа на наклонной скамье в тренажере":   "жим лежа на накл.ск. в тренажере",
+	"жим лежа на накл. ск. в тренажере":          "жим лежа на накл.ск. в тренажере",
+	"жим гантелей лежа на наклонной скамье":      "жим гантелей лежа на накл.ск.",
+	"жим гантелей лежа на накл. ск.":             "жим гантелей лежа на накл.ск.",
+	"жим гантелей лежа под углом":                "жим гантелей лежа на накл.ск.",
+	"жим гантелей под углом":                     "жим гантелей лежа на накл.ск.",
+	"жим штанги сидя":                            "жим штанги сидя в смите",
+	"тяга верхнего блока":                        "тяга вертикального блока",
+	"тяга верхнего блока к груди":                "тяга вертикального блока",
+	"тяга вертикального блока к груди":           "тяга вертикального блока",
+	"тяга вертикального блока обратный хват":     "тяга верт. блока обратный хват",
+	"тяга вертикального блока обратным хватом":   "тяга верт. блока обратный хват",
+	"тяга горизонтального блока":                 "тяга горизонтального блока/прям. ручка",
+	"тяга горизонтального блока прямая ручка":    "тяга горизонтального блока/прям. ручка",
+	"тяга горизонтального блока с прямой ручкой": "тяга горизонтального блока/прям. ручка",
+	"тяга гантели в наклоне":                     "тяга гантелей в наклоне",
+	"гребная тяга в тренажере":                   "гребная тяга в тренажере (черн.)",
+	"гребная тяга в тренажере черн.":             "гребная тяга в тренажере (черн.)",
+	"пуловер":                                    "пулловер",
+	"пуловер с гантелью":                         "пулловер",
+	"пуловер с гантелями":                        "пулловер",
+	"жим ногами":                                 "жим платформы ногами",
+	"жим ногами в тренажере":                     "жим платформы ногами",
+	"жим платформы":                              "жим платформы ногами",
+	"разгибание ног":                             "разгибание голени",
+	"разгибание ног в тренажере":                 "разгибание голени",
+	"сгибание ног":                               "сгибание голени",
+	"сгибание ног сидя":                          "сгибание голени сидя",
+	"сгибание ног в кроссовере":                  "сгибание голени в кроссовере",
+	"присед со штангой":                          "приседания со штангой",
+	"присед в смите":                             "приседания со штангой в смите",
+	"румынская тяга":                             "румынская тяга штанги",
+	"румынская тяга на одной ноге":               "румынская тяга на 1 ноге",
+	"ягодичный мост":                             "ягодичный мостик",
+	"сгибание плеча гантелями":                   "сгибание плеча с гантелями",
+	"отведение плеча в тренажере бабочка":        "отведение плеча в трен. бабочка",
+	"сгибание предплечья на скамье скотта":       "сгибание предплечья larry scott",
+	"сгибание предплечья ларри скотт":            "сгибание предплечья larry scott",
+	"подъем гантелей на бицепс":                  "сгибание предплечья с гантелями",
+	"подъем штанги на бицепс":                    "сгибание предплечья со штангой",
+	"подъем на бицепс в кроссовере":              "сгибание предплечья в кроссовере",
+	"тяга троса на бицепс":                       "боковая тяга тросса на бицепс",
+	"французский жим с гантелями":                "фрунцузский жим с гантелями",
+	"французский жим со штангой":                 "фрунцузский жим со штангой",
+	"разгибание рук в кроссовере":                "разгибание предплечья в кроссовере",
+	"разгибание рук на блоке":                    "разгибание предплечья в кроссовере",
+	"разгибание рук из-за головы в кроссовере":   "разгибание пред. из-за голов. в крос.",
+	"разгибание предплечья из-за головы в кроссовере": "разгибание пред. из-за голов. в крос.",
+	"разгибание предплечья из-за головы в крос.": "разгибание пред. из-за голов. в крос.",
+	"жим узким хватом":                           "жим лежа штанги узким хватом",
+	"жим лежа узким хватом":                      "жим лежа штанги узким хватом",
+	"поочередное разгибание предплечья в крос.":  "поочередное разгибание пред. в крос.",
+	"тяга т-образного грифа тренажер":            "тяга т-образного грифа в тренажере",
+}
+
 var allowedActivityPrefixes = []string{
 	"отдых",
 	"ходьба",
@@ -1167,6 +1226,7 @@ func normalizeExerciseName(value string) string {
 	if out == "" {
 		return ""
 	}
+	out = strings.ReplaceAll(out, "ё", "е")
 	for strings.Contains(out, "  ") {
 		out = strings.ReplaceAll(out, "  ", " ")
 	}
@@ -1184,7 +1244,11 @@ func extractExerciseName(value string) string {
 			break
 		}
 	}
-	return normalizeExerciseName(raw)
+	normalized := normalizeExerciseName(raw)
+	if alias, ok := exerciseAliases[normalized]; ok {
+		return alias
+	}
+	return normalized
 }
 
 func isAllowedActivity(value string) bool {
@@ -1245,6 +1309,48 @@ func validateTrainingPlanPayload(planText string) []string {
 		}
 	}
 	return issues
+}
+
+func normalizeTrainingPlanTypes(planText string) string {
+	raw := strings.TrimSpace(planText)
+	if raw == "" || !strings.HasPrefix(raw, "{") {
+		return planText
+	}
+	var payload trainingPlanPayload
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return planText
+	}
+	if len(payload.Week) == 0 {
+		return planText
+	}
+	changed := false
+	for i := range payload.Week {
+		day := &payload.Week[i]
+		if len(day.Items) == 0 {
+			continue
+		}
+		allActivities := true
+		for _, item := range day.Items {
+			if !isAllowedActivity(item) {
+				allActivities = false
+				break
+			}
+		}
+		if allActivities && len(day.Items) <= 2 {
+			if strings.TrimSpace(strings.ToLower(day.Type)) != "rest" {
+				day.Type = "rest"
+				changed = true
+			}
+		}
+	}
+	if !changed {
+		return planText
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return planText
+	}
+	return string(data)
 }
 
 func validateTrainingPlan(tp service.TrainingPlan) []string {

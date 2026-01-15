@@ -227,6 +227,7 @@ func sanitizeJSON(raw string) string {
 	raw = strings.TrimPrefix(raw, "\uFEFF")
 	raw = escapeJSONStrings(raw)
 	raw = regexp.MustCompile(`,\s*([}\]])`).ReplaceAllString(raw, "$1")
+	raw = regexp.MustCompile(`\]\s*,\s*{`).ReplaceAllString(raw, ", {")
 	return raw
 }
 
