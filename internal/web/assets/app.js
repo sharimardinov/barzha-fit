@@ -496,8 +496,9 @@ function setPlanEditMode(active) {
     return;
   }
   editor.classList.remove("active");
-  if (accordion) accordion.style.display = "";
-  if (result) result.style.display = "";
+  const hasStructuredPlan = state.planStructured && state.planPayload?.week_plan?.length;
+  if (accordion) accordion.style.display = hasStructuredPlan ? "" : "none";
+  if (result) result.style.display = hasStructuredPlan ? "none" : "";
   if (state.planStructured && state.planPayload?.week_plan?.length) {
     editBtn.style.display = "inline-flex";
   } else {
