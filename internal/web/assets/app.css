@@ -168,6 +168,11 @@ button {
   border: 1px solid var(--black);
 }
 
+.today-actions .btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .btn.loading {
   opacity: 0.7;
   pointer-events: none;

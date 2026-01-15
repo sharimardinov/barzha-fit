@@ -347,7 +347,13 @@ async function loadToday() {
   const parsed = parsePlan(planText || data.plan || "");
   const todayResult = $("today-training-result");
   if (parsed.weekPlan && parsed.weekPlan.length) {
-    renderTrainingAccordion(parsed.weekPlan, "today-accordion");
+    const todayNum = Number(data.cycleDay || 0);
+    const todayItem = parsed.weekPlan.find((item) => Number(item.day || 0) === todayNum);
+    if (todayItem) {
+      renderTrainingAccordion([todayItem], "today-accordion");
+    } else {
+      renderTrainingAccordion(parsed.weekPlan.slice(0, 1), "today-accordion");
+    }
     if (todayResult) todayResult.style.display = "none";
   } else {
     if (todayResult) {
