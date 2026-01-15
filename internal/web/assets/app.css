@@ -512,6 +512,10 @@ button {
   color: var(--white);
 }
 
+.nav-bottom {
+  grid-column: span 2;
+}
+
 .toast {
   position: fixed;
   bottom: 150px;
