@@ -204,6 +204,11 @@ button {
   margin-top: 8px;
 }
 
+.muted {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .list {
   display: grid;
   gap: 10px;

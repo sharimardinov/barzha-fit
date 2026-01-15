@@ -338,7 +338,8 @@ comment: строка (пустая строка)
 						"focus": map[string]any{"type": "string"},
 						"items": map[string]any{
 							"type":     "array",
-							"minItems": 5,
+							"minItems": 2,
+							"maxItems": 7,
 							"items":    map[string]any{"type": "string"},
 						},
 					},
