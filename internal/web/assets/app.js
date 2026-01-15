@@ -69,6 +69,27 @@ function setProgress(id, current, target) {
   el.style.width = `${pct}%`;
 }
 
+function formatPlanForDisplay(plan) {
+  const raw = String(plan || "").trim();
+  if (!raw.startsWith("{")) return raw || "—";
+  try {
+    const data = JSON.parse(raw);
+    const days = Array.isArray(data.days) ? data.days : null;
+    if (!days || days.length < 7) return raw;
+    const lines = [];
+    for (let i = 0; i < 7; i += 1) {
+      const text = String(days[i] || "—").trim() || "—";
+      lines.push(`День ${i + 1}\n${text}`);
+    }
+    if (data.comment) {
+      lines.push(`Комментарий:\n${String(data.comment).trim()}`);
+    }
+    return lines.join("\n\n");
+  } catch (_) {
+    return raw || "—";
+  }
+}
+
 async function loadToday() {
   const data = await api("/api/today");
   state.today = data;
@@ -167,7 +188,7 @@ async function loadPlan() {
     state.planText = data.text || "";
     $("plan-text").value = state.planText;
     const trainingResult = $("training-result");
-    if (trainingResult) trainingResult.textContent = state.planText || "—";
+    if (trainingResult) trainingResult.textContent = formatPlanForDisplay(state.planText);
   } catch (_) {
     state.planText = "";
     $("plan-text").value = "";
@@ -432,7 +453,7 @@ async function bootstrap() {
       try {
         await api("/api/training/profile/set", payload);
         const res = await api("/api/training/generate");
-        $("training-result").textContent = res.plan || "—";
+        $("training-result").textContent = formatPlanForDisplay(res.plan);
         await loadPlan();
         toast("План сохранён");
       } catch (err) {

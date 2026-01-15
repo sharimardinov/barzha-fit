@@ -306,8 +306,26 @@ func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (stri
 — сочетать силу и гипертрофию
 — не включать разминку и растяжку, если это не критично
 
+Ответ верни строго в JSON формата:
+{"days":["...","...","...","...","...","...","..."],"comment":"..."}
+
 Профиль атлета:
 %s`, string(body))
+
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"days": map[string]any{
+				"type":     "array",
+				"minItems": 7,
+				"maxItems": 7,
+				"items":    map[string]any{"type": "string"},
+			},
+			"comment": map[string]any{"type": "string"},
+		},
+		"required":             []string{"days", "comment"},
+		"additionalProperties": false,
+	}
 
 	reqBody := respReq{
 		Model: a.model,
@@ -317,6 +335,14 @@ func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (stri
 		Instructions:    instructions,
 		Temperature:     0.2,
 		MaxOutputTokens: 1200,
+		Text: &respTextCfg{
+			Format: map[string]any{
+				"type":   "json_schema",
+				"strict": true,
+				"schema": schema,
+				"name":   "training_plan",
+			},
+		},
 	}
 
 	b, _ := json.Marshal(reqBody)

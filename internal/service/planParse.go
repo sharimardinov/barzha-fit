@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -11,6 +13,14 @@ var dayHeaderRe = regexp.MustCompile(`(?mi)^\s*(?:[*_#>\-•]+\s*)?(?:день\s
 // Возвращает map[day]text (текст дня без заголовка).
 func SplitPlanByDays(plan string) map[int]string {
 	plan = strings.ReplaceAll(plan, "\r\n", "\n")
+
+	if tp, ok := ParseTrainingPlan(plan); ok {
+		out := make(map[int]string, 7)
+		for i := 0; i < 7; i++ {
+			out[i+1] = strings.TrimSpace(tp.Days[i])
+		}
+		return out
+	}
 
 	matches := dayHeaderRe.FindAllStringSubmatchIndex(plan, -1)
 	res := make(map[int]string)
@@ -35,4 +45,85 @@ func SplitPlanByDays(plan string) map[int]string {
 	}
 
 	return res
+}
+
+type TrainingPlan struct {
+	Days    []string
+	Comment string
+}
+
+type trainingPlanPayload struct {
+	Days    []string `json:"days"`
+	Comment string   `json:"comment"`
+	Day1    string   `json:"day1"`
+	Day2    string   `json:"day2"`
+	Day3    string   `json:"day3"`
+	Day4    string   `json:"day4"`
+	Day5    string   `json:"day5"`
+	Day6    string   `json:"day6"`
+	Day7    string   `json:"day7"`
+}
+
+func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
+	raw := strings.TrimSpace(plan)
+	if raw == "" || (!strings.HasPrefix(raw, "{") && !strings.HasPrefix(raw, "[")) {
+		return TrainingPlan{}, false
+	}
+
+	var payload trainingPlanPayload
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return TrainingPlan{}, false
+	}
+
+	days := make([]string, 0, 7)
+	if len(payload.Days) > 0 {
+		days = payload.Days
+	} else {
+		days = []string{
+			payload.Day1,
+			payload.Day2,
+			payload.Day3,
+			payload.Day4,
+			payload.Day5,
+			payload.Day6,
+			payload.Day7,
+		}
+	}
+
+	if len(days) < 7 {
+		for len(days) < 7 {
+			days = append(days, "")
+		}
+	}
+	if len(days) > 7 {
+		days = days[:7]
+	}
+
+	return TrainingPlan{Days: days, Comment: strings.TrimSpace(payload.Comment)}, true
+}
+
+func FormatPlanForDisplay(plan string) (string, bool) {
+	tp, ok := ParseTrainingPlan(plan)
+	if !ok {
+		return "", false
+	}
+	var b strings.Builder
+	for i := 0; i < 7; i++ {
+		dayText := strings.TrimSpace(tp.Days[i])
+		if dayText == "" {
+			dayText = "—"
+		}
+		b.WriteString("День ")
+		b.WriteString(strconv.Itoa(i + 1))
+		b.WriteString("\n")
+		b.WriteString(dayText)
+		if i < 6 {
+			b.WriteString("\n\n")
+		}
+	}
+	if tp.Comment != "" {
+		b.WriteString("\n\nКомментарий:\n")
+		b.WriteString(tp.Comment)
+	}
+	return b.String(), true
 }

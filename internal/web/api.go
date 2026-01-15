@@ -365,14 +365,14 @@ func (s *Server) handleProfileGet(w http.ResponseWriter, r *http.Request, auth a
 
 func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth authContext) {
 	var payload struct {
-		Sex      string  `json:"sex"`
-		Age      int     `json:"age"`
-		HeightCM int     `json:"height_cm"`
-		WeightKG float64 `json:"weight_kg"`
-		BodyFat  float64 `json:"bodyfat_pct"`
-		Activity string  `json:"activity"`
-		Goal     string  `json:"goal"`
-		TrainingYears int `json:"training_years"`
+		Sex           string  `json:"sex"`
+		Age           int     `json:"age"`
+		HeightCM      int     `json:"height_cm"`
+		WeightKG      float64 `json:"weight_kg"`
+		BodyFat       float64 `json:"bodyfat_pct"`
+		Activity      string  `json:"activity"`
+		Goal          string  `json:"goal"`
+		TrainingYears int     `json:"training_years"`
 	}
 	if err := decodeJSON(r, &payload); err != nil {
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
@@ -796,16 +796,16 @@ type mealDTO struct {
 }
 
 type profileDTO struct {
-	ChatID   int64   `json:"chat_id"`
-	Sex      string  `json:"sex"`
-	Age      int     `json:"age"`
-	HeightCM int     `json:"height_cm"`
-	WeightKG float64 `json:"weight_kg"`
-	BodyFat  float64 `json:"bodyfat_pct"`
-	Activity string  `json:"activity"`
+	ChatID             int64   `json:"chat_id"`
+	Sex                string  `json:"sex"`
+	Age                int     `json:"age"`
+	HeightCM           int     `json:"height_cm"`
+	WeightKG           float64 `json:"weight_kg"`
+	BodyFat            float64 `json:"bodyfat_pct"`
+	Activity           string  `json:"activity"`
 	ActivityMultiplier float64 `json:"activity_multiplier"`
-	Goal     string  `json:"goal"`
-	TrainingYears int `json:"training_years"`
+	Goal               string  `json:"goal"`
+	TrainingYears      int     `json:"training_years"`
 }
 
 type trainingProfileDTO struct {
@@ -823,16 +823,16 @@ type trainingProfileDTO struct {
 
 func profileToDTO(p domain.Profile) profileDTO {
 	return profileDTO{
-		ChatID:   p.ChatID,
-		Sex:      p.Sex,
-		Age:      p.Age,
-		HeightCM: p.HeightCM,
-		WeightKG: p.WeightKG,
-		BodyFat:  p.BodyFatPct,
-		Activity: p.Activity,
+		ChatID:             p.ChatID,
+		Sex:                p.Sex,
+		Age:                p.Age,
+		HeightCM:           p.HeightCM,
+		WeightKG:           p.WeightKG,
+		BodyFat:            p.BodyFatPct,
+		Activity:           p.Activity,
 		ActivityMultiplier: util.ActivityMultiplier(p.Activity),
-		Goal:     p.Goal,
-		TrainingYears: p.TrainingYears,
+		Goal:               p.Goal,
+		TrainingYears:      p.TrainingYears,
 	}
 }
 
@@ -852,22 +852,22 @@ func trainingProfileToDTO(p domain.TrainingProfile) trainingProfileDTO {
 }
 
 type trainingPrompt struct {
-	Sex            string `json:"пол"`
-	Age            int    `json:"возраст"`
-	HeightCM       int    `json:"рост_см"`
-	WeightKG       float64 `json:"вес_кг"`
-	TrainingYears  int    `json:"стаж_тренировок_лет"`
-	BodyFatPct     float64 `json:"уровень_жира_проц,omitempty"`
-	Strength       struct {
+	Sex           string  `json:"пол"`
+	Age           int     `json:"возраст"`
+	HeightCM      int     `json:"рост_см"`
+	WeightKG      float64 `json:"вес_кг"`
+	TrainingYears int     `json:"стаж_тренировок_лет"`
+	BodyFatPct    float64 `json:"уровень_жира_проц,omitempty"`
+	Strength      struct {
 		BenchKG int     `json:"жим_лёжа_кг"`
 		Pullups int     `json:"подтягивания_раз"`
 		RunKM   float64 `json:"бег_км"`
 	} `json:"силовые_показатели"`
-	Injuries        string `json:"травмы"`
-	Goal            string `json:"цель"`
-	Pharma          string `json:"фармакология"`
-	TrainingsPerWeek int   `json:"тренировок_в_неделю"`
-	Preferences     string `json:"предпочтения"`
+	Injuries         string `json:"травмы"`
+	Goal             string `json:"цель"`
+	Pharma           string `json:"фармакология"`
+	TrainingsPerWeek int    `json:"тренировок_в_неделю"`
+	Preferences      string `json:"предпочтения"`
 }
 
 func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPrompt {
@@ -884,17 +884,17 @@ func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPr
 	}
 
 	out := trainingPrompt{
-		Sex:            sex,
-		Age:            p.Age,
-		HeightCM:       p.HeightCM,
-		WeightKG:       p.WeightKG,
-		TrainingYears:  p.TrainingYears,
-		BodyFatPct:     p.BodyFatPct,
-		Injuries:       tp.Injuries,
-		Goal:           tp.Goal,
-		Pharma:         pharma,
+		Sex:              sex,
+		Age:              p.Age,
+		HeightCM:         p.HeightCM,
+		WeightKG:         p.WeightKG,
+		TrainingYears:    p.TrainingYears,
+		BodyFatPct:       p.BodyFatPct,
+		Injuries:         tp.Injuries,
+		Goal:             tp.Goal,
+		Pharma:           pharma,
 		TrainingsPerWeek: tp.TrainingsPerWeek,
-		Preferences:    "пожелания: " + tp.Wishes + "; не любит: " + tp.Dislikes + "; не может: " + tp.CannotDo,
+		Preferences:      "пожелания: " + tp.Wishes + "; не любит: " + tp.Dislikes + "; не может: " + tp.CannotDo,
 	}
 	out.Strength.BenchKG = tp.BenchKG
 	out.Strength.Pullups = tp.Pullups

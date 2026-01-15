@@ -47,6 +47,9 @@ func (h *Plan) Handle(m *tgbotapi.Message) {
 		return
 	}
 
+	if formatted, ok := service.FormatPlanForDisplay(planText); ok {
+		planText = formatted
+	}
 	msg := tgbotapi.NewMessage(chatID, planText)
 	loc := util.MustLocation(h.tz)
 	day := util.Weekday1to7(util.NowIn(loc))
