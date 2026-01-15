@@ -245,10 +245,9 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
   const container = $(containerId);
   if (!container) return;
   container.innerHTML = "";
+  const seenDays = new Set();
   const hasContent = (dayItem) => {
     if (!dayItem || typeof dayItem !== "object") return false;
-    const name = String(dayItem.name || "").trim();
-    const focus = String(dayItem.focus || "").trim();
     const itemsList = Array.isArray(dayItem.items) ? dayItem.items.filter((v) => String(v || "").trim()) : [];
     const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
     const activities = Array.isArray(dayItem.activities) ? dayItem.activities : [];
@@ -257,11 +256,16 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     if (groups.some((g) => Array.isArray(g.exercises) && g.exercises.length)) return true;
     if (activities.some((a) => String(a || "").trim() !== "")) return true;
     if (notes) return true;
-    return name !== "" || focus !== "";
+    return false;
   };
   items.forEach((dayItem) => {
     if (!hasContent(dayItem)) return;
     const dayNum = Number(dayItem.day || 0);
+    if (dayNum && (dayNum < 1 || dayNum > 7)) return;
+    if (dayNum) {
+      if (seenDays.has(dayNum)) return;
+      seenDays.add(dayNum);
+    }
     const name = String(dayItem.name || "—").trim();
     const focus = String(dayItem.focus || "").trim();
     const title = focus ? `${name} (${focus})` : name;
@@ -360,7 +364,8 @@ function safeParseJSON(raw) {
   const sliced = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
   const cleaned = normalizeJSONString(sliced)
     .replace(/^\uFEFF/, "")
-    .replace(/,\s*([}\]])/g, "$1");
+    .replace(/,\s*([}\]])/g, "$1")
+    .replace(/\]\s*,\s*{/g, ", {");
   return JSON.parse(cleaned);
 }
 
@@ -516,15 +521,6 @@ function renderTrainingEditor(payload) {
     title.className = "muted";
     title.textContent = `День ${day.day || index + 1}`;
     wrapper.appendChild(title);
-
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.placeholder = "Название дня";
-    const dayFallback = `День ${day.day || index + 1}`;
-    const rawName = String(day.name || "").trim();
-    nameInput.value = rawName || dayFallback;
-    nameInput.dataset.field = "name";
-    wrapper.appendChild(nameInput);
 
     const focusInput = document.createElement("input");
     focusInput.type = "text";
@@ -1480,22 +1476,16 @@ async function bootstrap() {
       const dayBlocks = Array.from(editor.querySelectorAll(".training-day-editor"));
       for (const block of dayBlocks) {
         const idx = Number(block.dataset.index || 0);
-        const name = block.querySelector('[data-field="name"]')?.value.trim() || "";
         const focus = block.querySelector('[data-field="focus"]')?.value.trim() || "";
         const itemsRaw = block.querySelector('[data-field="items"]')?.value || "";
         const items = itemsRaw
           .split("\n")
           .map((line) => line.trim())
           .filter(Boolean);
-        if (!name) {
-          toast("Укажи название дня");
-          return;
-        }
         if (items.length === 0) {
           toast("Добавь упражнения");
           return;
         }
-        updated.week_plan[idx].name = name;
         updated.week_plan[idx].focus = focus;
         updated.week_plan[idx].items = items;
       }
