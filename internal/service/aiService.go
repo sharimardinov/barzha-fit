@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -437,7 +438,7 @@ comment: строка (пустая строка)
 		return "", out, errors.New("openai: empty output_text")
 	}
 
-	return rawText, out, nil
+	return cleanJSON(rawText), out, nil
 }
 
 func extractOutputText(out respOut) string {
@@ -450,6 +451,13 @@ func extractOutputText(out respOut) string {
 		}
 	}
 	return strings.TrimSpace(rawText)
+}
+
+func cleanJSON(raw string) string {
+	raw = strings.TrimPrefix(raw, "\uFEFF")
+	raw = regexp.MustCompile(`,(\s*[}\]])`).ReplaceAllString(raw, "$1")
+	raw = regexp.MustCompile(`,\s*\n\s*"`).ReplaceAllString(raw, ",\n\"")
+	return strings.TrimSpace(raw)
 }
 
 func (a *AIService) EstimateActivityMultiplierWithProfile(ctx context.Context, planText string, p domain.Profile) (float64, any, error) {
