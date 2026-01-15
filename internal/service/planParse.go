@@ -106,6 +106,12 @@ func NormalizeTrainingPlan(plan string) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	if len(payload.Week) > 0 {
+		for i, day := range payload.Week {
+			day = normalizeTrainingDayItems(day)
+			payload.Week[i] = day
+		}
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return "", false
@@ -349,4 +355,70 @@ func formatTrainingDay(day trainingPlanDay) (string, int) {
 	}
 
 	return strings.TrimSpace(b.String()), counter
+}
+
+func normalizeTrainingDayItems(day trainingPlanDay) trainingPlanDay {
+	if len(day.Items) > 0 {
+		return day
+	}
+	items := make([]string, 0)
+	for _, group := range day.Groups {
+		groupName := strings.TrimSpace(group.MuscleGroup)
+		for _, ex := range group.Exercises {
+			line := formatExerciseLine(ex, groupName)
+			if line != "" {
+				items = append(items, line)
+			}
+		}
+	}
+	if len(items) == 0 && len(day.Activities) > 0 {
+		for _, act := range day.Activities {
+			act = strings.TrimSpace(act)
+			if act != "" {
+				items = append(items, act)
+			}
+		}
+	}
+	day.Items = items
+	if len(items) > 0 {
+		day.Groups = nil
+		day.Activities = nil
+		day.Notes = ""
+	}
+	return day
+}
+
+func formatExerciseLine(ex trainingPlanExercise, group string) string {
+	name := strings.TrimSpace(ex.Name)
+	if name == "" {
+		return ""
+	}
+	prefix := ""
+	if strings.TrimSpace(group) != "" {
+		prefix = strings.TrimSpace(group) + ": "
+	}
+	sets := strings.TrimSpace(ex.Sets)
+	reps := strings.TrimSpace(ex.Reps)
+	duration := strings.TrimSpace(ex.Duration)
+	notes := strings.TrimSpace(ex.Notes)
+	tail := ""
+	if duration != "" {
+		tail = duration
+	} else if sets != "" || reps != "" {
+		if sets != "" && reps != "" {
+			tail = sets + "x" + reps
+		} else if sets != "" {
+			tail = sets
+		} else {
+			tail = reps
+		}
+	}
+	line := prefix + name
+	if tail != "" {
+		line += " — " + tail
+	}
+	if notes != "" {
+		line += " (" + notes + ")"
+	}
+	return line
 }
