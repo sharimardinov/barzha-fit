@@ -754,27 +754,36 @@ async function bootstrap() {
     });
   }
 
-  $("workout-done").addEventListener("click", async () => {
-    await api("/api/workout/set", { status: "done" });
-    await loadToday();
-    toast("Отмечено ✅");
-  });
+  const workoutDone = $("workout-done");
+  if (workoutDone) {
+    workoutDone.addEventListener("click", async () => {
+      await api("/api/workout/set", { status: "done" });
+      await loadToday();
+      toast("Отмечено ✅");
+    });
+  }
 
-  $("workout-skip").addEventListener("click", async () => {
-    await api("/api/workout/set", { status: "skip" });
-    await loadToday();
-    toast("Отмечено ❌");
-  });
+  const workoutSkip = $("workout-skip");
+  if (workoutSkip) {
+    workoutSkip.addEventListener("click", async () => {
+      await api("/api/workout/set", { status: "skip" });
+      await loadToday();
+      toast("Отмечено ❌");
+    });
+  }
 
-  $("meal-add").addEventListener("click", async () => {
-    const text = $("meal-text").value.trim();
-    if (!text) return;
-    const data = await api("/api/meal/add", { text });
-    toast(data.aiError ? "AI упал, текст сохранён" : "Еда добавлена");
-    $("meal-text").value = "";
-    await loadMeals();
-    await loadToday();
-  });
+  const mealAdd = $("meal-add");
+  if (mealAdd) {
+    mealAdd.addEventListener("click", async () => {
+      const text = $("meal-text").value.trim();
+      if (!text) return;
+      const data = await api("/api/meal/add", { text });
+      toast(data.aiError ? "AI упал, текст сохранён" : "Еда добавлена");
+      $("meal-text").value = "";
+      await loadMeals();
+      await loadToday();
+    });
+  }
 
   const saveTargets = async (prefix) => {
     for (const { field, id, planId } of targetFields) {
@@ -805,70 +814,82 @@ async function bootstrap() {
     });
   }
 
-  $("steps-save").addEventListener("click", async () => {
-    const steps = parseNumberInput($("steps-value").value);
-    await api("/api/steps/set", { steps });
-    toast("Шаги записаны");
-    await loadToday();
-  });
-
-  $("profile-save").addEventListener("click", async () => {
-    const profileValidated = validateProfileInputs();
-    const trainingValidated = validateTrainingInputs();
-    if (!profileValidated || !trainingValidated) return;
-
-    const payload = {
-      sex: $("profile-sex").value,
-      age: profileValidated.age,
-      height_cm: profileValidated.height,
-      weight_kg: profileValidated.weight,
-      training_years: profileValidated.trainingYears,
-      bodyfat_pct: profileValidated.bodyfat,
-    };
-    const trainingPayload = {
-      bench_kg: trainingValidated.bench,
-      pullups: trainingValidated.pullups,
-      run_km: trainingValidated.run,
-      injuries: $("training-injuries").value.trim(),
-      goal: trainingValidated.goal,
-      pharma: trainingValidated.pharma,
-      trainings_per_week: trainingValidated.times,
-      wishes: $("training-wishes").value.trim(),
-    };
-    await api("/api/profile/set", payload);
-    await api("/api/training/profile/set", trainingPayload);
-    try {
-      await runProfilePipeline();
-      await loadPlan();
-      await loadTargets();
+  const stepsSave = $("steps-save");
+  if (stepsSave) {
+    stepsSave.addEventListener("click", async () => {
+      const steps = parseNumberInput($("steps-value").value);
+      await api("/api/steps/set", { steps });
+      toast("Шаги записаны");
       await loadToday();
-      toast("Профиль сохранён");
-      if (state.onboarding) {
-        setActiveScreen("onboarding-done");
-      }
-    } catch (err) {
-      if (err.message === "missing_fields" && err.data?.fields?.length) {
-        toast(`Заполни: ${err.data.fields.join(", ")}`);
-        return;
-      }
-      if (err.message === "training_plan_invalid") {
-        const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
-        toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
-        return;
-      }
-      toast("Ошибка пересчёта");
-    }
-  });
+    });
+  }
 
-  $("stats-week").addEventListener("click", async () => {
-    toggleStatsView("week");
-    await loadStatsWeek();
-  });
+  const profileSave = $("profile-save");
+  if (profileSave) {
+    profileSave.addEventListener("click", async () => {
+      const profileValidated = validateProfileInputs();
+      const trainingValidated = validateTrainingInputs();
+      if (!profileValidated || !trainingValidated) return;
 
-  $("stats-month").addEventListener("click", async () => {
-    toggleStatsView("month");
-    await loadStatsMonth();
-  });
+      const payload = {
+        sex: $("profile-sex").value,
+        age: profileValidated.age,
+        height_cm: profileValidated.height,
+        weight_kg: profileValidated.weight,
+        training_years: profileValidated.trainingYears,
+        bodyfat_pct: profileValidated.bodyfat,
+      };
+      const trainingPayload = {
+        bench_kg: trainingValidated.bench,
+        pullups: trainingValidated.pullups,
+        run_km: trainingValidated.run,
+        injuries: $("training-injuries").value.trim(),
+        goal: trainingValidated.goal,
+        pharma: trainingValidated.pharma,
+        trainings_per_week: trainingValidated.times,
+        wishes: $("training-wishes").value.trim(),
+      };
+      await api("/api/profile/set", payload);
+      await api("/api/training/profile/set", trainingPayload);
+      try {
+        await runProfilePipeline();
+        await loadPlan();
+        await loadTargets();
+        await loadToday();
+        toast("Профиль сохранён");
+        if (state.onboarding) {
+          setActiveScreen("onboarding-done");
+        }
+      } catch (err) {
+        if (err.message === "missing_fields" && err.data?.fields?.length) {
+          toast(`Заполни: ${err.data.fields.join(", ")}`);
+          return;
+        }
+        if (err.message === "training_plan_invalid") {
+          const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
+          toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
+          return;
+        }
+        toast("Ошибка пересчёта");
+      }
+    });
+  }
+
+  const statsWeek = $("stats-week");
+  if (statsWeek) {
+    statsWeek.addEventListener("click", async () => {
+      toggleStatsView("week");
+      await loadStatsWeek();
+    });
+  }
+
+  const statsMonth = $("stats-month");
+  if (statsMonth) {
+    statsMonth.addEventListener("click", async () => {
+      toggleStatsView("month");
+      await loadStatsMonth();
+    });
+  }
 
   if (!onboardingReady) {
     lucide?.createIcons();

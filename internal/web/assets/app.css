@@ -85,6 +85,18 @@ body {
   font-weight: 700;
 }
 
+.status-row {
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 4px;
+}
+
+.status-row .status-pill {
+  color: var(--black);
+}
+
 .row {
   display: flex;
   gap: 10px;
