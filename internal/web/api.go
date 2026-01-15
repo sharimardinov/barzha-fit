@@ -347,6 +347,23 @@ func (s *Server) handlePlanSet(w http.ResponseWriter, r *http.Request, auth auth
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "empty_text"})
 		return
 	}
+	if normalized, ok := service.NormalizeTrainingPlan(payload.Text); ok {
+		payload.Text = normalized
+		if tp, ok := service.ParseTrainingPlan(payload.Text); ok {
+			issues := validateTrainingPlan(tp)
+			if payloadIssues := validateTrainingPlanPayload(payload.Text); len(payloadIssues) > 0 {
+				issues = append(issues, payloadIssues...)
+			}
+			if len(issues) > 0 {
+				writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
+					OK:    false,
+					Error: "training_plan_invalid",
+					Data:  map[string]any{"issues": issues},
+				})
+				return
+			}
+		}
+	}
 	if err := s.plan.Save(context.Background(), auth.User.ID, payload.Text); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
 		return
@@ -532,7 +549,11 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 	}
 	planText = normalized
 	if tp, ok := service.ParseTrainingPlan(planText); ok {
-		if issues := validateTrainingPlan(tp); len(issues) > 0 {
+		issues := validateTrainingPlan(tp)
+		if payloadIssues := validateTrainingPlanPayload(planText); len(payloadIssues) > 0 {
+			issues = append(issues, payloadIssues...)
+		}
+		if len(issues) > 0 {
 			snippet := planText
 			if len(snippet) > 600 {
 				snippet = snippet[:600] + "..."
@@ -1040,6 +1061,191 @@ func trimLimit(value string, max int) string {
 }
 
 var exerciseLineRe = regexp.MustCompile(`(?i)\b\d+\s*[xх]\s*\d+`)
+
+var allowedExerciseNames = map[string]struct{}{
+	"жим штанги лежа (max.)":                  {},
+	"жим штанги лежа на накл.ск.":             {},
+	"жим лежа на накл.ск. в тренажере":        {},
+	"жим гантелей лежа":                       {},
+	"жим гантелей лежа на накл.ск.":           {},
+	"жим сидя":                                {},
+	"разведение гантелей лежа":                {},
+	"бабочка":                                 {},
+	"сведение рук в кроссовере":               {},
+	"тяга вертикального блока":                {},
+	"тяга верт. блока обратный хват":          {},
+	"тяга горизонтального блока/прям. ручка":  {},
+	"гребная тяга в тренажере (черн.)":        {},
+	"гребная тяга в тренажере (зел.)":         {},
+	"хаммер верхнего блока":                   {},
+	"пулловер":                                {},
+	"пулл эраунд":                             {},
+	"тяга штанги в наклоне":                   {},
+	"тяга гантелей в наклоне":                 {},
+	"шраги со штангой":                        {},
+	"шраги с гантелями":                       {},
+	"шраги в тренажере":                       {},
+	"подтягивания в гравитроне":               {},
+	"гиперэкстензия":                          {},
+	"гиперэкстензия обратная":                 {},
+	"тяга т-образного грифа":                  {},
+	"тяга т-образного грифа в тренажере":      {},
+	"тяга нижнего хаммера":                    {},
+	"приседания со штангой":                   {},
+	"приседания со штангой в смите":           {},
+	"разгибание голени":                       {},
+	"выпады с гантелями":                      {},
+	"жим платформы ногами":                    {},
+	"жим платформы паралельный":               {},
+	"гакк приседания":                         {},
+	"приседания с гантелями":                  {},
+	"сгибание голени":                         {},
+	"сгибание голени сидя":                    {},
+	"жим ногами высокая пост. стопы":          {},
+	"сгибание голени в кроссовере":            {},
+	"мертвая тяга":                            {},
+	"приседание плие":                         {},
+	"румынская тяга штанги":                   {},
+	"румынская тяга на 1 ноге":                {},
+	"ягодичный мостик":                        {},
+	"болгарские приседания":                   {},
+	"разгибание бедра в кроссовере":           {},
+	"приведение бедра":                        {},
+	"отведение бедра":                         {},
+	"гиперэкстензия на ягодицы":               {},
+	"жим гантелей сидя":                       {},
+	"жим арнольда":                            {},
+	"армейский жим стоя":                      {},
+	"жим штанги сидя в смите":                 {},
+	"сгибание плеча в кроссовере":             {},
+	"сгибание плеча с гантелями":              {},
+	"обратный жим от плеч в тренажере":        {},
+	"махи с гантелями стоя":                   {},
+	"махи с гантелями сидя":                   {},
+	"протяжка со штангой":                     {},
+	"протяжка с гантелями":                    {},
+	"махи в кроссовере (манжеты)":             {},
+	"отведение плеча в кроссовере":            {},
+	"отведение плеча в трен. бабочка":         {},
+	"отведение плеча на скамье с гантел.":     {},
+	"cгибание предплечья larry scott":         {},
+	"сгибание предплечья larry scott":         {},
+	"сгибание предплечья со штангой":          {},
+	"сгибание предплечья с гантелями":         {},
+	"сгибание предплечья в кроссовере":        {},
+	"боковая тяга тросса на бицепс":           {},
+	"фрунцузский жим с гантелями":             {},
+	"фрунцузский жим со штангой":              {},
+	"жим гантели из-за головы":                {},
+	"разгибание предплечья в кроссовере":      {},
+	"разгибание пред. из-за голов. в крос.":   {},
+	"жим лежа штанги узким хватом":            {},
+	"поочередное разгибание пред. в крос.":    {},
+}
+
+var allowedActivityPrefixes = []string{
+	"отдых",
+	"ходьба",
+	"бег",
+	"эллипс",
+	"стэппер",
+	"мобилити",
+}
+
+type trainingPlanPayload struct {
+	Week []struct {
+		Day   int      `json:"day"`
+		Name  string   `json:"name"`
+		Focus string   `json:"focus"`
+		Type  string   `json:"type"`
+		Items []string `json:"items"`
+	} `json:"week_plan"`
+}
+
+func normalizeExerciseName(value string) string {
+	out := strings.ToLower(strings.TrimSpace(value))
+	if out == "" {
+		return ""
+	}
+	for strings.Contains(out, "  ") {
+		out = strings.ReplaceAll(out, "  ", " ")
+	}
+	return out
+}
+
+func extractExerciseName(value string) string {
+	raw := strings.TrimSpace(value)
+	if raw == "" {
+		return ""
+	}
+	for _, sep := range []string{" — ", " - ", " – "} {
+		if idx := strings.Index(raw, sep); idx >= 0 {
+			raw = raw[:idx]
+			break
+		}
+	}
+	return normalizeExerciseName(raw)
+}
+
+func isAllowedActivity(value string) bool {
+	raw := normalizeExerciseName(value)
+	if raw == "" {
+		return false
+	}
+	for _, prefix := range allowedActivityPrefixes {
+		if strings.HasPrefix(raw, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func validateTrainingPlanPayload(planText string) []string {
+	raw := strings.TrimSpace(planText)
+	if raw == "" || !strings.HasPrefix(raw, "{") {
+		return nil
+	}
+	var payload trainingPlanPayload
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return nil
+	}
+	if len(payload.Week) == 0 {
+		return nil
+	}
+	issues := make([]string, 0)
+	for i, day := range payload.Week {
+		name := strings.TrimSpace(day.Name)
+		if name == "" || name == "—" {
+			issues = append(issues, fmt.Sprintf("day_%d_no_name", i+1))
+		}
+		kind := strings.ToLower(strings.TrimSpace(day.Type))
+		if kind == "" {
+			issues = append(issues, fmt.Sprintf("day_%d_no_type", i+1))
+		}
+		for _, item := range day.Items {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				issues = append(issues, fmt.Sprintf("day_%d_empty_item", i+1))
+				continue
+			}
+			if kind == "rest" {
+				if !isAllowedActivity(item) {
+					issues = append(issues, fmt.Sprintf("day_%d_invalid_activity", i+1))
+				}
+				continue
+			}
+			name := extractExerciseName(item)
+			if name == "" {
+				issues = append(issues, fmt.Sprintf("day_%d_invalid_exercise", i+1))
+				continue
+			}
+			if _, ok := allowedExerciseNames[name]; !ok {
+				issues = append(issues, fmt.Sprintf("day_%d_invalid_exercise", i+1))
+			}
+		}
+	}
+	return issues
+}
 
 func validateTrainingPlan(tp service.TrainingPlan) []string {
 	issues := make([]string, 0)

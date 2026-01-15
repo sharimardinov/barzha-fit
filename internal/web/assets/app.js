@@ -245,7 +245,22 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
   const container = $(containerId);
   if (!container) return;
   container.innerHTML = "";
+  const hasContent = (dayItem) => {
+    if (!dayItem || typeof dayItem !== "object") return false;
+    const name = String(dayItem.name || "").trim();
+    const focus = String(dayItem.focus || "").trim();
+    const itemsList = Array.isArray(dayItem.items) ? dayItem.items.filter((v) => String(v || "").trim()) : [];
+    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
+    const activities = Array.isArray(dayItem.activities) ? dayItem.activities : [];
+    const notes = String(dayItem.notes || "").trim();
+    if (itemsList.length > 0) return true;
+    if (groups.some((g) => Array.isArray(g.exercises) && g.exercises.length)) return true;
+    if (activities.some((a) => String(a || "").trim() !== "")) return true;
+    if (notes) return true;
+    return name !== "" || focus !== "";
+  };
   items.forEach((dayItem) => {
+    if (!hasContent(dayItem)) return;
     const dayNum = Number(dayItem.day || 0);
     const name = String(dayItem.name || "—").trim();
     const focus = String(dayItem.focus || "").trim();

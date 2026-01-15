@@ -511,6 +511,10 @@ button {
 
 .plan-actions .btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .plan-actions .btn-spinner {
