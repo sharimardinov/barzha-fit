@@ -754,9 +754,9 @@ button {
   height: 44px;
   width: 44px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(180deg, rgba(255, 3, 62, 0.22), rgba(255, 3, 62, 0.12));
+  border: 1px solid rgba(255, 3, 62, 0.35);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 3, 62, 0.12);
   opacity: 0;
   transform: translate(0, 0);
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -780,17 +780,25 @@ button {
   border: 1px solid transparent;
   z-index: 2;
   transition: color 0.2s ease, transform 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .nav-btn svg {
   width: 20px;
   height: 20px;
   stroke-width: 2;
+  stroke: currentColor;
 }
 
 .nav-btn.active {
-  color: var(--black);
+  color: var(--accent);
   font-weight: 700;
+}
+
+.nav-btn:active {
+  background: transparent;
 }
 
 .nav-bottom {
