@@ -73,7 +73,7 @@ function formatPlanForDisplay(plan) {
   const raw = String(plan || "").trim();
   if (!raw.startsWith("{")) return raw || "—";
   try {
-    const data = JSON.parse(raw);
+    const data = safeParseJSON(raw);
     if (Array.isArray(data.week_plan)) {
       return formatWeekPlan(data.week_plan);
     }
@@ -102,8 +102,8 @@ function parsePlan(plan) {
     return { text: raw || "—", structured: false };
   }
   try {
-    const data = JSON.parse(raw);
-    if (Array.isArray(data.week_plan) && data.week_plan.length >= 7) {
+    const data = safeParseJSON(raw);
+    if (Array.isArray(data.week_plan) && data.week_plan.length) {
       return { text: formatWeekPlan(data.week_plan), structured: true };
     }
     const days = Array.isArray(data.days) ? data.days : null;
@@ -114,6 +114,13 @@ function parsePlan(plan) {
     return { text: raw || "—", structured: false };
   }
   return { text: raw || "—", structured: false };
+}
+
+function safeParseJSON(raw) {
+  const cleaned = raw
+    .replace(/^\uFEFF/, "")
+    .replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(cleaned);
 }
 
 function formatWeekPlan(items) {

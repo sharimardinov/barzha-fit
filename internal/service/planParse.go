@@ -95,7 +95,7 @@ func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
 	}
 
 	var payload trainingPlanPayload
-	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+	if err := json.Unmarshal([]byte(sanitizeJSON(raw)), &payload); err != nil {
 		return TrainingPlan{}, false
 	}
 
@@ -186,6 +186,12 @@ func splitPlanLines(text string) []string {
 		out = append(out, clean)
 	}
 	return out
+}
+
+func sanitizeJSON(raw string) string {
+	raw = strings.TrimPrefix(raw, "\uFEFF")
+	raw = regexp.MustCompile(`,\s*([}\]])`).ReplaceAllString(raw, "$1")
+	return raw
 }
 
 func formatTrainingDay(day trainingPlanDay) (string, int) {
