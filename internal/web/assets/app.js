@@ -299,6 +299,10 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     const label = document.createElement("span");
     label.textContent = `${title}`;
     toggle.appendChild(label);
+    const burger = document.createElement("span");
+    burger.className = "burger";
+    burger.innerHTML = "<span></span><span></span><span></span>";
+    toggle.appendChild(burger);
     toggle.addEventListener("click", () => item.classList.toggle("open"));
 
     const body = document.createElement("div");
