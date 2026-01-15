@@ -26,7 +26,8 @@
           <div class="onboarding-help" id="onboarding-help"></div>
           <div class="row onboarding-actions">
             <button class="btn btn-outline" id="onboarding-back">Назад</button>
-            <button class="btn btn-accent" id="onboarding-next">Далее</button>
+            <button class="btn btn-accent" id="onboarding-next" data-spinner="onboarding-next-spinner">Далее</button>
+            <span class="btn-spinner" id="onboarding-next-spinner" aria-hidden="true"></span>
           </div>
         </div>
       </section>
@@ -124,6 +125,13 @@
           <div class="card-title">Программа тренировок</div>
           <div class="accordion" id="training-accordion"></div>
           <pre class="plan" id="training-result">—</pre>
+          <div class="training-editor" id="training-editor"></div>
+          <div class="row plan-actions">
+            <button class="btn btn-outline" id="training-edit">Редактировать</button>
+            <button class="btn btn-accent" id="training-save" data-spinner="training-save-spinner">Сохранить</button>
+            <button class="btn btn-outline" id="training-cancel">Отмена</button>
+            <span class="btn-spinner" id="training-save-spinner" aria-hidden="true"></span>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Дневные цели</div>
@@ -195,9 +203,6 @@
               <input type="number" step="0.1" id="profile-bodyfat">
             </label>
           </div>
-          <div class="row activity-hint">
-            <div class="muted">Коэффициент активности (расчёт): <span id="profile-activity">—</span></div>
-          </div>
           <div class="form-grid">
             <label>Жим лёжа (кг)
               <input type="number" id="training-bench">
@@ -228,8 +233,12 @@
               <textarea id="training-wishes" maxlength="200" placeholder="Например: больше спины, не люблю бег, не могу тяжёлые приседы"></textarea>
             </label>
           </div>
+          <div class="row activity-hint">
+            <div class="muted">Коэффициент активности (расчёт): <span id="profile-activity">—</span></div>
+          </div>
           <div class="row">
-            <button class="btn btn-accent" id="profile-save">Готово</button>
+            <button class="btn btn-accent" id="profile-save" data-spinner="profile-save-spinner">Готово</button>
+            <span class="btn-spinner" id="profile-save-spinner" aria-hidden="true"></span>
           </div>
         </div>
       </section>

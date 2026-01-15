@@ -1047,6 +1047,13 @@ func validateTrainingPlan(tp service.TrainingPlan) []string {
 		issues = append(issues, "days<7")
 	}
 	for i, day := range tp.Days {
+		lines := splitPlanLines(day)
+		if len(lines) > 0 {
+			title := strings.TrimSpace(lines[0])
+			if title == "" || strings.HasPrefix(title, "—") {
+				issues = append(issues, fmt.Sprintf("day_%d_no_title", i+1))
+			}
+		}
 		isRestDay := func() bool {
 			if len(tp.Types) > i {
 				kind := strings.ToLower(strings.TrimSpace(tp.Types[i]))
@@ -1076,7 +1083,6 @@ func validateTrainingPlan(tp service.TrainingPlan) []string {
 			}
 			continue
 		}
-		lines := splitPlanLines(day)
 		if len(lines) < 2 {
 			issues = append(issues, fmt.Sprintf("day_%d_no_body", i+1))
 			continue

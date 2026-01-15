@@ -6,6 +6,8 @@ const $ = (id) => document.getElementById(id);
 const state = {
   today: null,
   planText: "",
+  planPayload: null,
+  planStructured: false,
   onboarding: false,
 };
 
@@ -26,6 +28,8 @@ function toast(message) {
 
 function setButtonLoading(btn, loading, label) {
   if (!btn) return;
+  const spinnerId = btn.dataset.spinner;
+  const spinner = spinnerId ? $(spinnerId) : null;
   if (loading) {
     if (!btn.dataset.label) {
       btn.dataset.label = btn.textContent || "";
@@ -34,6 +38,7 @@ function setButtonLoading(btn, loading, label) {
     btn.disabled = true;
     btn.setAttribute("aria-busy", "true");
     if (label) btn.textContent = label;
+    if (spinner) spinner.classList.add("active");
     return;
   }
   btn.classList.remove("loading");
@@ -42,6 +47,7 @@ function setButtonLoading(btn, loading, label) {
   if (btn.dataset.label) {
     btn.textContent = btn.dataset.label;
   }
+  if (spinner) spinner.classList.remove("active");
 }
 
 function formatApiError(err, fallback) {
@@ -51,6 +57,7 @@ function formatApiError(err, fallback) {
   if (code === "training_generate_failed") return "Не удалось сгенерировать план";
   if (code === "activity_estimate_failed") return "Не удалось пересчитать активность";
   if (code === "plan_not_found") return "План не найден для пересчёта активности";
+  if (code === "plan_save_failed") return "Не удалось сохранить план";
   if (code === "training_profile_save_failed") return "Ошибка сохранения тренировочного профиля";
   if (code === "profile_save_failed") return "Ошибка сохранения профиля";
   return fallback;
@@ -342,6 +349,16 @@ function safeParseJSON(raw) {
   return JSON.parse(cleaned);
 }
 
+function extractPlanPayload(planText) {
+  const raw = String(planText || "").trim();
+  if (!raw.startsWith("{")) return null;
+  try {
+    return safeParseJSON(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
 function normalizeJSONString(raw) {
   let out = "";
   let inString = false;
@@ -438,6 +455,77 @@ function formatWeekPlan(items) {
     lines.push(`${title}${body ? `\n${body}` : ""}`);
   });
   return lines.join("\n\n");
+}
+
+function setPlanEditMode(active) {
+  const editor = $("training-editor");
+  const accordion = $("training-accordion");
+  const result = $("training-result");
+  const editBtn = $("training-edit");
+  const saveBtn = $("training-save");
+  const cancelBtn = $("training-cancel");
+  if (!editor || !editBtn || !saveBtn || !cancelBtn) return;
+
+  if (active) {
+    editor.classList.add("active");
+    if (accordion) accordion.style.display = "none";
+    if (result) result.style.display = "none";
+    editBtn.style.display = "none";
+    saveBtn.style.display = "inline-flex";
+    cancelBtn.style.display = "inline-flex";
+    return;
+  }
+  editor.classList.remove("active");
+  if (accordion) accordion.style.display = "";
+  if (result) result.style.display = "";
+  if (state.planStructured && state.planPayload?.week_plan?.length) {
+    editBtn.style.display = "inline-flex";
+  } else {
+    editBtn.style.display = "none";
+  }
+  saveBtn.style.display = "none";
+  cancelBtn.style.display = "none";
+}
+
+function renderTrainingEditor(payload) {
+  const editor = $("training-editor");
+  if (!editor) return;
+  editor.innerHTML = "";
+  const weekPlan = Array.isArray(payload?.week_plan) ? payload.week_plan : [];
+  weekPlan.forEach((day, index) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "training-day-editor";
+    wrapper.dataset.index = String(index);
+
+    const title = document.createElement("div");
+    title.className = "muted";
+    title.textContent = `День ${day.day || index + 1}`;
+    wrapper.appendChild(title);
+
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Название дня";
+    const dayFallback = `День ${day.day || index + 1}`;
+    const rawName = String(day.name || "").trim();
+    nameInput.value = rawName || dayFallback;
+    nameInput.dataset.field = "name";
+    wrapper.appendChild(nameInput);
+
+    const focusInput = document.createElement("input");
+    focusInput.type = "text";
+    focusInput.placeholder = "Фокус (можно пусто)";
+    focusInput.value = String(day.focus || "").trim();
+    focusInput.dataset.field = "focus";
+    wrapper.appendChild(focusInput);
+
+    const itemsArea = document.createElement("textarea");
+    itemsArea.placeholder = "Упражнения, по одному на строку";
+    itemsArea.value = Array.isArray(day.items) ? day.items.join("\n") : "";
+    itemsArea.dataset.field = "items";
+    wrapper.appendChild(itemsArea);
+
+    editor.appendChild(wrapper);
+  });
 }
 
 async function loadToday() {
@@ -576,6 +664,8 @@ async function loadPlan() {
   try {
     const data = await api("/api/plan/get");
     state.planText = data.text || "";
+    state.planPayload = extractPlanPayload(state.planText);
+    state.planStructured = Array.isArray(state.planPayload?.week_plan);
     const parsed = parsePlan(state.planText);
     const trainingResult = $("training-result");
     if (parsed.weekPlan && parsed.weekPlan.length) {
@@ -589,10 +679,14 @@ async function loadPlan() {
       const container = $("training-accordion");
       if (container) container.innerHTML = "";
     }
+    setPlanEditMode(false);
   } catch (_) {
     state.planText = "";
+    state.planPayload = null;
+    state.planStructured = false;
     const trainingResult = $("training-result");
     if (trainingResult) trainingResult.textContent = "—";
+    setPlanEditMode(false);
   }
 }
 
@@ -1338,6 +1432,81 @@ async function bootstrap() {
     toast("Цели обновлены");
     await loadToday();
   };
+
+  const trainingEdit = $("training-edit");
+  if (trainingEdit) {
+    trainingEdit.addEventListener("click", () => {
+      if (!state.planStructured || !state.planPayload?.week_plan?.length) {
+        toast("Редактирование доступно только для структурного плана");
+        return;
+      }
+      renderTrainingEditor(state.planPayload);
+      setPlanEditMode(true);
+    });
+  }
+
+  const trainingCancel = $("training-cancel");
+  if (trainingCancel) {
+    trainingCancel.addEventListener("click", () => {
+      setPlanEditMode(false);
+    });
+  }
+
+  const trainingSave = $("training-save");
+  if (trainingSave) {
+    trainingSave.addEventListener("click", async () => {
+      if (!state.planStructured || !state.planPayload?.week_plan?.length) {
+        toast("Редактирование недоступно");
+        return;
+      }
+      const editor = $("training-editor");
+      if (!editor) return;
+      const updated = JSON.parse(JSON.stringify(state.planPayload));
+      const dayBlocks = Array.from(editor.querySelectorAll(".training-day-editor"));
+      for (const block of dayBlocks) {
+        const idx = Number(block.dataset.index || 0);
+        const name = block.querySelector('[data-field="name"]')?.value.trim() || "";
+        const focus = block.querySelector('[data-field="focus"]')?.value.trim() || "";
+        const itemsRaw = block.querySelector('[data-field="items"]')?.value || "";
+        const items = itemsRaw
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (!name) {
+          toast("Укажи название дня");
+          return;
+        }
+        if (items.length === 0) {
+          toast("Добавь упражнения");
+          return;
+        }
+        updated.week_plan[idx].name = name;
+        updated.week_plan[idx].focus = focus;
+        updated.week_plan[idx].items = items;
+      }
+
+      const text = JSON.stringify(updated);
+      setButtonLoading(trainingSave, true, "Сохраняю...");
+      try {
+        await api("/api/plan/set", { text });
+        state.planText = text;
+        state.planPayload = updated;
+        await api("/api/activity/estimate");
+        await loadPlan();
+        await loadToday();
+        const p = await api("/api/profile/get");
+        const activityEl = $("profile-activity");
+        if (activityEl) {
+          activityEl.textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
+        }
+        toast("План обновлён");
+      } catch (err) {
+        toast(formatApiError(err, "Ошибка сохранения плана"));
+      } finally {
+        setButtonLoading(trainingSave, false);
+      }
+    });
+  }
 
   const planTargetsSave = document.getElementById("plan-targets-save");
   if (planTargetsSave) {
