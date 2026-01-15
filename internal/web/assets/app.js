@@ -518,9 +518,11 @@ function initNav() {
       }
       if (tab === "targets") await loadTargets();
       if (tab === "steps") await loadToday();
-      if (tab === "profile") await loadProfile();
-      if (tab === "training") {
+      if (tab === "profile") {
+        await loadProfile();
         await loadTrainingProfile();
+      }
+      if (tab === "training") {
         await loadPlan();
       }
       if (tab === "stats") {
@@ -641,7 +643,20 @@ async function bootstrap() {
       bodyfat_pct: Number($("profile-bodyfat").value || 0),
       goal: $("profile-goal").value,
     };
+    const trainingPayload = {
+      bench_kg: Number($("training-bench").value || 0),
+      pullups: Number($("training-pullups").value || 0),
+      run_km: Number($("training-run").value || 0),
+      injuries: $("training-injuries").value.trim(),
+      goal: $("training-goal").value,
+      pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
+      trainings_per_week: Number($("training-times").value || 0),
+      wishes: $("training-wishes").value.trim(),
+      dislikes: $("training-dislikes").value.trim(),
+      cannot_do: $("training-cannot").value.trim(),
+    };
     await api("/api/profile/set", payload);
+    await api("/api/training/profile/set", trainingPayload);
     toast("Профиль сохранён");
   });
 
@@ -659,26 +674,6 @@ async function bootstrap() {
         }
         toast("Ошибка расчёта");
       }
-    });
-  }
-
-  const trainingSave = document.getElementById("training-save");
-  if (trainingSave) {
-    trainingSave.addEventListener("click", async () => {
-      const payload = {
-        bench_kg: Number($("training-bench").value || 0),
-        pullups: Number($("training-pullups").value || 0),
-        run_km: Number($("training-run").value || 0),
-        injuries: $("training-injuries").value.trim(),
-        goal: $("training-goal").value,
-        pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
-        trainings_per_week: Number($("training-times").value || 0),
-        wishes: $("training-wishes").value.trim(),
-        dislikes: $("training-dislikes").value.trim(),
-        cannot_do: $("training-cannot").value.trim(),
-      };
-      await api("/api/training/profile/set", payload);
-      toast("Анкета сохранена");
     });
   }
 
