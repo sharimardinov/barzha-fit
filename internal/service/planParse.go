@@ -109,14 +109,23 @@ func FormatPlanForDisplay(plan string) (string, bool) {
 	}
 	var b strings.Builder
 	for i := 0; i < 7; i++ {
-		dayText := strings.TrimSpace(tp.Days[i])
-		if dayText == "" {
-			dayText = "—"
+		lines := splitPlanLines(tp.Days[i])
+		title := "—"
+		body := ""
+		if len(lines) > 0 {
+			title = strings.TrimSpace(lines[0])
 		}
-		b.WriteString("День ")
+		if len(lines) > 1 {
+			body = strings.Join(lines[1:], "\n")
+		}
+		b.WriteString("ДЕНЬ ")
 		b.WriteString(strconv.Itoa(i + 1))
-		b.WriteString("\n")
-		b.WriteString(dayText)
+		b.WriteString(" — ")
+		b.WriteString(title)
+		if body != "" {
+			b.WriteString("\n")
+			b.WriteString(body)
+		}
 		if i < 6 {
 			b.WriteString("\n\n")
 		}
@@ -126,4 +135,19 @@ func FormatPlanForDisplay(plan string) (string, bool) {
 		b.WriteString(tp.Comment)
 	}
 	return b.String(), true
+}
+
+func splitPlanLines(text string) []string {
+	raw := strings.ReplaceAll(text, "\r\n", "\n")
+	lines := strings.Split(raw, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		clean := strings.TrimSpace(line)
+		clean = strings.Trim(clean, "*_")
+		if clean == "" {
+			continue
+		}
+		out = append(out, clean)
+	}
+	return out
 }

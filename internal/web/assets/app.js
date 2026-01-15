@@ -78,8 +78,14 @@ function formatPlanForDisplay(plan) {
     if (!days || days.length < 7) return raw;
     const lines = [];
     for (let i = 0; i < 7; i += 1) {
-      const text = String(days[i] || "—").trim() || "—";
-      lines.push(`День ${i + 1}\n${text}`);
+      const rawDay = String(days[i] || "").replace(/\r\n/g, "\n");
+      const dayLines = rawDay
+        .split("\n")
+        .map((line) => line.trim().replace(/^[_*]+|[_*]+$/g, ""))
+        .filter(Boolean);
+      const title = dayLines.length ? dayLines[0] : "—";
+      const body = dayLines.length > 1 ? dayLines.slice(1).join("\n") : "";
+      lines.push(`ДЕНЬ ${i + 1} — ${title}${body ? `\n${body}` : ""}`);
     }
     if (data.comment) {
       lines.push(`Комментарий:\n${String(data.comment).trim()}`);
