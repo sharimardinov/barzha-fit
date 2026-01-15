@@ -450,8 +450,6 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		Goal             string  `json:"goal"`
 		Pharma           *bool   `json:"pharma"`
 		TrainingsPerWeek int     `json:"trainings_per_week"`
-		Dislikes         string  `json:"dislikes"`
-		CannotDo         string  `json:"cannot_do"`
 		Wishes           string  `json:"wishes"`
 	}
 	if err := decodeJSON(r, &payload); err != nil {
@@ -468,8 +466,6 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		Goal:             trimLimit(payload.Goal, 200),
 		Pharma:           payload.Pharma,
 		TrainingsPerWeek: payload.TrainingsPerWeek,
-		Dislikes:         trimLimit(payload.Dislikes, 200),
-		CannotDo:         trimLimit(payload.CannotDo, 200),
 		Wishes:           trimLimit(payload.Wishes, 200),
 	}
 
@@ -845,8 +841,6 @@ type trainingProfileDTO struct {
 	Goal             string  `json:"goal"`
 	Pharma           *bool   `json:"pharma"`
 	TrainingsPerWeek int     `json:"trainings_per_week"`
-	Dislikes         string  `json:"dislikes"`
-	CannotDo         string  `json:"cannot_do"`
 	Wishes           string  `json:"wishes"`
 }
 
@@ -874,8 +868,6 @@ func trainingProfileToDTO(p domain.TrainingProfile) trainingProfileDTO {
 		Goal:             p.Goal,
 		Pharma:           p.Pharma,
 		TrainingsPerWeek: p.TrainingsPerWeek,
-		Dislikes:         p.Dislikes,
-		CannotDo:         p.CannotDo,
 		Wishes:           p.Wishes,
 	}
 }
@@ -911,6 +903,14 @@ func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPr
 	if tp.Pharma != nil && *tp.Pharma {
 		pharma = "да"
 	}
+	injuries := strings.TrimSpace(tp.Injuries)
+	if injuries == "" {
+		injuries = "травм нет"
+	}
+	wishes := strings.TrimSpace(tp.Wishes)
+	if wishes == "" {
+		wishes = "пожеланий нет"
+	}
 
 	out := trainingPrompt{
 		Sex:              sex,
@@ -919,11 +919,11 @@ func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPr
 		WeightKG:         p.WeightKG,
 		TrainingYears:    p.TrainingYears,
 		BodyFatPct:       p.BodyFatPct,
-		Injuries:         tp.Injuries,
+		Injuries:         injuries,
 		Goal:             tp.Goal,
 		Pharma:           pharma,
 		TrainingsPerWeek: tp.TrainingsPerWeek,
-		Preferences:      "пожелания: " + tp.Wishes + "; не любит: " + tp.Dislikes + "; не может: " + tp.CannotDo,
+		Preferences:      "пожелания: " + wishes,
 	}
 	out.Strength.BenchKG = tp.BenchKG
 	out.Strength.Pullups = tp.Pullups
@@ -936,29 +936,29 @@ func missingTrainingFields(p domain.Profile, tp domain.TrainingProfile, hasProfi
 	if !hasProfile || p.Sex == "" {
 		missing = append(missing, "пол")
 	}
-	if !hasProfile || p.Age <= 0 {
+	if !hasProfile || p.Age < 14 || p.Age > 80 {
 		missing = append(missing, "возраст")
 	}
-	if !hasProfile || p.HeightCM <= 0 {
+	if !hasProfile || p.HeightCM < 100 || p.HeightCM > 250 {
 		missing = append(missing, "рост_см")
 	}
-	if !hasProfile || p.WeightKG <= 0 {
+	if !hasProfile || p.WeightKG < 30 || p.WeightKG > 300 {
 		missing = append(missing, "вес_кг")
+	}
+	if !hasProfile || p.BodyFatPct < 1 || p.BodyFatPct > 100 {
+		missing = append(missing, "процент_жира")
 	}
 	if !hasProfile || p.TrainingYears <= 0 {
 		missing = append(missing, "стаж_тренировок_лет")
 	}
-	if !hasTraining || tp.BenchKG <= 0 {
+	if !hasTraining || tp.BenchKG < 0 || tp.BenchKG > 400 {
 		missing = append(missing, "жим_лёжа_кг")
 	}
-	if !hasTraining || tp.Pullups <= 0 {
+	if !hasTraining || tp.Pullups < 0 || tp.Pullups > 100 {
 		missing = append(missing, "подтягивания_раз")
 	}
-	if !hasTraining || tp.RunKM <= 0 {
+	if !hasTraining || tp.RunKM < 0 || tp.RunKM > 300 {
 		missing = append(missing, "бег_км")
-	}
-	if !hasTraining || strings.TrimSpace(tp.Injuries) == "" {
-		missing = append(missing, "травмы")
 	}
 	if !hasTraining || strings.TrimSpace(tp.Goal) == "" {
 		missing = append(missing, "цель")
@@ -966,14 +966,8 @@ func missingTrainingFields(p domain.Profile, tp domain.TrainingProfile, hasProfi
 	if !hasTraining || tp.Pharma == nil {
 		missing = append(missing, "фармакология")
 	}
-	if !hasTraining || tp.TrainingsPerWeek <= 0 {
+	if !hasTraining || tp.TrainingsPerWeek < 1 || tp.TrainingsPerWeek > 7 {
 		missing = append(missing, "тренировок_в_неделю")
-	}
-	if !hasTraining || strings.TrimSpace(tp.Dislikes) == "" {
-		missing = append(missing, "что_не_любит")
-	}
-	if !hasTraining || strings.TrimSpace(tp.CannotDo) == "" {
-		missing = append(missing, "что_не_может")
 	}
 	return missing
 }

@@ -454,10 +454,84 @@ async function loadProfile() {
     $("profile-training-years").value = p.training_years || "";
     $("profile-bodyfat").value = p.bodyfat_pct || "";
     $("profile-activity").value = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "";
-    $("profile-goal").value = p.goal || "";
   } catch (_) {
     $("profile-sex").value = "";
   }
+}
+
+function normalizeNumberInput(value) {
+  return String(value || "").replace(/,/g, ".").replace(/\s+/g, "");
+}
+
+function parseNumberInput(value) {
+  const normalized = normalizeNumberInput(value);
+  return Number(normalized || 0);
+}
+
+function parseNumberField(id, label, opts) {
+  const normalized = normalizeNumberInput($(id).value);
+  if (!normalized) {
+    return { ok: !opts.required, value: 0, label };
+  }
+  const value = Number(normalized);
+  if (!Number.isFinite(value)) {
+    return { ok: false, value: 0, label };
+  }
+  if (opts.integer && !Number.isInteger(value)) {
+    return { ok: false, value: 0, label };
+  }
+  if (value < opts.min || value > opts.max) {
+    return { ok: false, value: 0, label };
+  }
+  return { ok: true, value, label };
+}
+
+function validateProfileInputs() {
+  const issues = [];
+  const age = parseNumberField("profile-age", "возраст", { required: true, integer: true, min: 14, max: 80 });
+  const height = parseNumberField("profile-height", "рост", { required: true, integer: true, min: 100, max: 250 });
+  const weight = parseNumberField("profile-weight", "вес", { required: true, integer: false, min: 30, max: 300 });
+  const bodyfat = parseNumberField("profile-bodyfat", "процент жира", { required: true, integer: false, min: 1, max: 100 });
+
+  if (!age.ok) issues.push(age.label);
+  if (!height.ok) issues.push(height.label);
+  if (!weight.ok) issues.push(weight.label);
+  if (!bodyfat.ok) issues.push(bodyfat.label);
+
+  if (issues.length) {
+    toast(`Заполни корректно: ${issues.join(", ")}`);
+    return null;
+  }
+
+  return { age: age.value, height: height.value, weight: weight.value, bodyfat: bodyfat.value };
+}
+
+function validateTrainingInputs() {
+  const issues = [];
+  const bench = parseNumberField("training-bench", "жим лёжа", { required: true, integer: true, min: 0, max: 400 });
+  const pullups = parseNumberField("training-pullups", "подтягивания", { required: true, integer: true, min: 0, max: 100 });
+  const run = parseNumberField("training-run", "бег", { required: true, integer: false, min: 0, max: 300 });
+  const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
+  const goal = $("training-goal").value.trim();
+
+  if (!bench.ok) issues.push(bench.label);
+  if (!pullups.ok) issues.push(pullups.label);
+  if (!run.ok) issues.push(run.label);
+  if (!times.ok) issues.push(times.label);
+  if (!goal) issues.push("цель");
+
+  if (issues.length) {
+    toast(`Заполни корректно: ${issues.join(", ")}`);
+    return null;
+  }
+
+  return {
+    bench: bench.value,
+    pullups: pullups.value,
+    run: run.value,
+    times: times.value,
+    goal,
+  };
 }
 
 async function loadTrainingProfile() {
@@ -470,8 +544,6 @@ async function loadTrainingProfile() {
     $("training-goal").value = p.goal || "";
     $("training-times").value = p.trainings_per_week || "";
     $("training-wishes").value = p.wishes || "";
-    $("training-dislikes").value = p.dislikes || "";
-    $("training-cannot").value = p.cannot_do || "";
     if (p.pharma === true) $("training-pharma").value = "yes";
     else if (p.pharma === false) $("training-pharma").value = "no";
     else $("training-pharma").value = "";
@@ -591,7 +663,7 @@ async function bootstrap() {
     for (const { field, id, planId } of targetFields) {
       const fieldId = prefix === "plan" ? planId : id;
       const el = document.getElementById(fieldId);
-      const value = Number(el?.value || 0);
+      const value = parseNumberInput(el?.value);
       await api("/api/targets/set", { field, value });
     }
     toast("Цели обновлены");
@@ -627,33 +699,34 @@ async function bootstrap() {
   }
 
   $("steps-save").addEventListener("click", async () => {
-    const steps = Number($("steps-value").value || 0);
+    const steps = parseNumberInput($("steps-value").value);
     await api("/api/steps/set", { steps });
     toast("Шаги записаны");
     await loadToday();
   });
 
   $("profile-save").addEventListener("click", async () => {
+    const profileValidated = validateProfileInputs();
+    const trainingValidated = validateTrainingInputs();
+    if (!profileValidated || !trainingValidated) return;
+
     const payload = {
       sex: $("profile-sex").value,
-      age: Number($("profile-age").value || 0),
-      height_cm: Number($("profile-height").value || 0),
-      weight_kg: Number($("profile-weight").value || 0),
-      training_years: Number($("profile-training-years").value || 0),
-      bodyfat_pct: Number($("profile-bodyfat").value || 0),
-      goal: $("profile-goal").value,
+      age: profileValidated.age,
+      height_cm: profileValidated.height,
+      weight_kg: profileValidated.weight,
+      training_years: parseNumberInput($("profile-training-years").value),
+      bodyfat_pct: profileValidated.bodyfat,
     };
     const trainingPayload = {
-      bench_kg: Number($("training-bench").value || 0),
-      pullups: Number($("training-pullups").value || 0),
-      run_km: Number($("training-run").value || 0),
+      bench_kg: trainingValidated.bench,
+      pullups: trainingValidated.pullups,
+      run_km: trainingValidated.run,
       injuries: $("training-injuries").value.trim(),
-      goal: $("training-goal").value,
+      goal: trainingValidated.goal,
       pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
-      trainings_per_week: Number($("training-times").value || 0),
+      trainings_per_week: trainingValidated.times,
       wishes: $("training-wishes").value.trim(),
-      dislikes: $("training-dislikes").value.trim(),
-      cannot_do: $("training-cannot").value.trim(),
     };
     await api("/api/profile/set", payload);
     await api("/api/training/profile/set", trainingPayload);
@@ -680,17 +753,18 @@ async function bootstrap() {
   const trainingGenerate = document.getElementById("training-generate");
   if (trainingGenerate) {
     trainingGenerate.addEventListener("click", async () => {
+      const trainingValidated = validateTrainingInputs();
+      if (!trainingValidated) return;
+
       const payload = {
-        bench_kg: Number($("training-bench").value || 0),
-        pullups: Number($("training-pullups").value || 0),
-        run_km: Number($("training-run").value || 0),
+        bench_kg: trainingValidated.bench,
+        pullups: trainingValidated.pullups,
+        run_km: trainingValidated.run,
         injuries: $("training-injuries").value.trim(),
-        goal: $("training-goal").value,
+        goal: trainingValidated.goal,
         pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
-        trainings_per_week: Number($("training-times").value || 0),
+        trainings_per_week: trainingValidated.times,
         wishes: $("training-wishes").value.trim(),
-        dislikes: $("training-dislikes").value.trim(),
-        cannot_do: $("training-cannot").value.trim(),
       };
       trainingGenerate.classList.add("loading");
       trainingGenerate.disabled = true;
