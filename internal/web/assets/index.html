@@ -114,15 +114,9 @@
 
       <section class="screen" id="screen-plan">
         <div class="card">
-          <div class="card-title">План на неделю</div>
-          <pre class="plan" id="plan-preview">—</pre>
-          <div id="plan-editor">
-            <textarea id="plan-text" placeholder="Формат: 1..7, каждый день с новой строки"></textarea>
-            <div class="row">
-              <button class="btn btn-accent" id="plan-save">Сохранить</button>
-              <button class="btn btn-outline" id="plan-reset">Сбросить</button>
-            </div>
-          </div>
+          <div class="card-title">Программа тренировок</div>
+          <div class="accordion" id="training-accordion"></div>
+          <pre class="plan" id="training-result">—</pre>
         </div>
         <div class="card">
           <div class="card-title">Дневные цели</div>
@@ -146,33 +140,6 @@
           <div class="row">
             <button class="btn btn-accent" id="plan-targets-save">Сохранить</button>
             <button class="btn btn-outline" id="plan-targets-refresh">Из профиля</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="screen" id="screen-targets">
-        <div class="card">
-          <div class="card-title">Дневные цели</div>
-          <div class="form-grid">
-            <label>Калории (ккал)
-              <input type="number" id="target-kcal">
-            </label>
-            <label>Белок (г)
-              <input type="number" id="target-protein">
-            </label>
-            <label>Жир (г)
-              <input type="number" id="target-fat">
-            </label>
-            <label>Углеводы (г)
-              <input type="number" id="target-carbs">
-            </label>
-            <label>Шаги
-              <input type="number" id="target-steps">
-            </label>
-          </div>
-          <div class="row">
-            <button class="btn btn-accent" id="targets-save">Сохранить</button>
-            <button class="btn btn-outline" id="targets-refresh">Из профиля</button>
           </div>
         </div>
       </section>
@@ -282,24 +249,15 @@
         </div>
       </section>
 
-      <section class="screen" id="screen-training">
-        <div class="card">
-          <div class="card-title">Программа тренировок</div>
-          <div class="accordion" id="training-accordion"></div>
-          <pre class="plan" id="training-result">—</pre>
-        </div>
-      </section>
     </main>
 
     <nav class="nav">
       <button class="nav-btn active" data-tab="today"><i data-lucide="home"></i><span>Сегодня</span></button>
       <button class="nav-btn" data-tab="meals"><i data-lucide="utensils"></i><span>Еда</span></button>
-      <button class="nav-btn" data-tab="plan"><i data-lucide="calendar"></i><span>План</span></button>
-      <button class="nav-btn" data-tab="targets"><i data-lucide="target"></i><span>Цели</span></button>
       <button class="nav-btn" data-tab="steps"><i data-lucide="footprints"></i><span>Шаги</span></button>
-      <button class="nav-btn" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>
-      <button class="nav-btn" data-tab="training"><i data-lucide="activity"></i><span>Тренинг</span></button>
       <button class="nav-btn" data-tab="stats"><i data-lucide="bar-chart-3"></i><span>Статистика</span></button>
+      <button class="nav-btn" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>
+      <button class="nav-btn" data-tab="plan"><i data-lucide="calendar"></i><span>План</span></button>
     </nav>
 
     <div class="toast" id="toast"></div>

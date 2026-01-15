@@ -139,10 +139,6 @@ textarea {
   resize: vertical;
 }
 
-#plan-text {
-  min-height: 220px;
-}
-
 button {
   border: none;
   font-family: inherit;

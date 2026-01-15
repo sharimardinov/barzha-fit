@@ -49,11 +49,9 @@ function setActiveScreen(name) {
   const titles = {
     today: "Сегодня",
     meals: "Еда",
-    plan: "План",
-    targets: "Цели",
     steps: "Шаги",
     profile: "Профиль",
-    training: "Тренинг",
+    plan: "План",
     stats: "Статистика",
     onboarding: "",
     "onboarding-done": "",
@@ -456,11 +454,6 @@ async function loadPlan() {
     const data = await api("/api/plan/get");
     state.planText = data.text || "";
     const parsed = parsePlan(state.planText);
-    const preview = $("plan-preview");
-    if (preview) preview.textContent = parsed.text || "—";
-    const editor = $("plan-editor");
-    if (editor) editor.style.display = parsed.structured ? "none" : "block";
-    $("plan-text").value = parsed.structured ? "" : state.planText;
     const trainingResult = $("training-result");
     if (parsed.weekPlan && parsed.weekPlan.length) {
       renderTrainingAccordion(parsed.weekPlan);
@@ -475,7 +468,6 @@ async function loadPlan() {
     }
   } catch (_) {
     state.planText = "";
-    $("plan-text").value = "";
     const trainingResult = $("training-result");
     if (trainingResult) trainingResult.textContent = "—";
   }
@@ -703,14 +695,10 @@ function initNav() {
         await loadPlan();
         await loadTargets();
       }
-      if (tab === "targets") await loadTargets();
       if (tab === "steps") await loadToday();
       if (tab === "profile") {
         await loadProfile();
         await loadTrainingProfile();
-      }
-      if (tab === "training") {
-        await loadPlan();
       }
       if (tab === "stats") {
         await loadStatsWeek();
@@ -788,41 +776,17 @@ async function bootstrap() {
     await loadToday();
   });
 
-  $("plan-save").addEventListener("click", async () => {
-    const text = $("plan-text").value.trim();
-    if (!text) return;
-    await api("/api/plan/set", { text });
-    state.planText = text;
-    toast("План сохранён");
-    await loadToday();
-  });
-
-  $("plan-reset").addEventListener("click", () => {
-    $("plan-text").value = state.planText || "";
-    toast("Сброшено");
-  });
-
   const saveTargets = async (prefix) => {
     for (const { field, id, planId } of targetFields) {
       const fieldId = prefix === "plan" ? planId : id;
       const el = document.getElementById(fieldId);
-      const value = parseNumberInput(el?.value);
+      if (!el) continue;
+      const value = parseNumberInput(el.value);
       await api("/api/targets/set", { field, value });
     }
     toast("Цели обновлены");
     await loadToday();
   };
-
-  $("targets-save").addEventListener("click", async () => {
-    await saveTargets("main");
-  });
-
-  $("targets-refresh").addEventListener("click", async () => {
-    await api("/api/targets/refresh");
-    await loadTargets();
-    toast("Пересчитано");
-    await loadToday();
-  });
 
   const planTargetsSave = document.getElementById("plan-targets-save");
   if (planTargetsSave) {
