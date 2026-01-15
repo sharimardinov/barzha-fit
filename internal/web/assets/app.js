@@ -334,7 +334,17 @@ function formatWeekPlan(items) {
 async function loadToday() {
   const data = await api("/api/today");
   state.today = data;
-  const parsed = parsePlan(data.plan || "");
+  let planText = state.planText;
+  if (!planText) {
+    try {
+      const plan = await api("/api/plan/get");
+      planText = plan.text || "";
+      state.planText = planText;
+    } catch (_) {
+      planText = "";
+    }
+  }
+  const parsed = parsePlan(planText || data.plan || "");
   const todayResult = $("today-training-result");
   if (parsed.weekPlan && parsed.weekPlan.length) {
     renderTrainingAccordion(parsed.weekPlan, "today-accordion");
@@ -733,6 +743,21 @@ async function bootstrap() {
         await loadToday();
       });
     }
+  }
+
+  const todayAddMeal = $("today-add-meal");
+  if (todayAddMeal) {
+    todayAddMeal.addEventListener("click", async () => {
+      setActiveTab("meals");
+      await loadMeals();
+    });
+  }
+  const todayAddSteps = $("today-add-steps");
+  if (todayAddSteps) {
+    todayAddSteps.addEventListener("click", async () => {
+      setActiveTab("steps");
+      await loadToday();
+    });
   }
 
   $("workout-done").addEventListener("click", async () => {
