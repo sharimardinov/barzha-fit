@@ -106,6 +106,7 @@ function formatWeekPlan(items) {
     const chunks = [];
     const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
     let counter = 0;
+    let hasExercises = false;
     groups.forEach((group) => {
       const groupName = String(group.muscle_group || "").trim();
       if (groupName) chunks.push(groupName);
@@ -113,6 +114,7 @@ function formatWeekPlan(items) {
       exercises.forEach((ex) => {
         const exName = String(ex.name || "").trim();
         if (!exName) return;
+        hasExercises = true;
         counter += 1;
         const sets = String(ex.sets || "").trim();
         const reps = String(ex.reps || "").trim();
@@ -128,13 +130,15 @@ function formatWeekPlan(items) {
       });
       if (exercises.length) chunks.push("");
     });
-    const activities = Array.isArray(dayItem.activities) ? dayItem.activities : [];
-    activities.forEach((act) => {
-      const text = String(act || "").trim();
-      if (!text) return;
-      counter += 1;
-      chunks.push(`${counter}. ${text}`);
-    });
+    if (!hasExercises) {
+      const activities = Array.isArray(dayItem.activities) ? dayItem.activities : [];
+      activities.forEach((act) => {
+        const text = String(act || "").trim();
+        if (!text) return;
+        counter += 1;
+        chunks.push(`${counter}. ${text}`);
+      });
+    }
     if (dayItem.notes) {
       const note = String(dayItem.notes || "").trim();
       if (note) chunks.push(note);

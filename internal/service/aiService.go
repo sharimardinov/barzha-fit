@@ -309,6 +309,7 @@ func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (stri
 — в каждом дне минимум 5 упражнений
 — упражнения обязательно нумерованные
 — сначала название дня, затем блоки мышц и упражнения
+— поле activities используй только для восстановительного/кардио дня, в остальных днях оставляй пустым
 
 Ответ верни строго в JSON формата:
 {
@@ -363,7 +364,7 @@ func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (stri
 												"notes":    map[string]any{"type": "string"},
 												"duration": map[string]any{"type": "string"},
 											},
-											"required":             []string{"name", "sets", "reps", "notes", "duration"},
+											"required":             []string{"name"},
 											"additionalProperties": false,
 										},
 									},
@@ -378,7 +379,7 @@ func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (stri
 						},
 						"notes": map[string]any{"type": "string"},
 					},
-					"required":             []string{"day", "name", "focus", "groups", "activities", "notes"},
+					"required":             []string{"day", "name"},
 					"additionalProperties": false,
 				},
 			},

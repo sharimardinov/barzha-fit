@@ -201,6 +201,7 @@ func formatTrainingDay(day trainingPlanDay) (string, int) {
 	b.WriteString("\n")
 
 	counter := 0
+	hasExercises := false
 	for _, group := range day.Groups {
 		groupName := strings.TrimSpace(group.MuscleGroup)
 		if groupName != "" {
@@ -212,6 +213,7 @@ func formatTrainingDay(day trainingPlanDay) (string, int) {
 			if name == "" {
 				continue
 			}
+			hasExercises = true
 			counter++
 			b.WriteString(strconv.Itoa(counter))
 			b.WriteString(". ")
@@ -244,7 +246,7 @@ func formatTrainingDay(day trainingPlanDay) (string, int) {
 		b.WriteString("\n")
 	}
 
-	if len(day.Activities) > 0 {
+	if !hasExercises && len(day.Activities) > 0 {
 		for _, act := range day.Activities {
 			act = strings.TrimSpace(act)
 			if act == "" {
