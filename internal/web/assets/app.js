@@ -96,6 +96,26 @@ function formatPlanForDisplay(plan) {
   }
 }
 
+function parsePlan(plan) {
+  const raw = String(plan || "").trim();
+  if (!raw.startsWith("{")) {
+    return { text: raw || "—", structured: false };
+  }
+  try {
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.week_plan) && data.week_plan.length >= 7) {
+      return { text: formatWeekPlan(data.week_plan), structured: true };
+    }
+    const days = Array.isArray(data.days) ? data.days : null;
+    if (days && days.length >= 7) {
+      return { text: formatPlanForDisplay(raw), structured: true };
+    }
+  } catch (_) {
+    return { text: raw || "—", structured: false };
+  }
+  return { text: raw || "—", structured: false };
+}
+
 function formatWeekPlan(items) {
   const lines = [];
   items.forEach((dayItem, idx) => {
@@ -245,9 +265,14 @@ async function loadPlan() {
   try {
     const data = await api("/api/plan/get");
     state.planText = data.text || "";
-    $("plan-text").value = state.planText;
+    const parsed = parsePlan(state.planText);
+    const preview = $("plan-preview");
+    if (preview) preview.textContent = parsed.text || "—";
+    const editor = $("plan-editor");
+    if (editor) editor.style.display = parsed.structured ? "none" : "block";
+    $("plan-text").value = parsed.structured ? "" : state.planText;
     const trainingResult = $("training-result");
-    if (trainingResult) trainingResult.textContent = formatPlanForDisplay(state.planText);
+    if (trainingResult) trainingResult.textContent = parsed.text || "—";
   } catch (_) {
     state.planText = "";
     $("plan-text").value = "";

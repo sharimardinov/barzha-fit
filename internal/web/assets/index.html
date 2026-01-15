@@ -126,10 +126,13 @@
       <section class="screen" id="screen-plan">
         <div class="card">
           <div class="card-title">План на неделю</div>
-          <textarea id="plan-text" placeholder="Формат: 1..7, каждый день с новой строки"></textarea>
-          <div class="row">
-            <button class="btn btn-accent" id="plan-save">Сохранить</button>
-            <button class="btn btn-outline" id="plan-reset">Сбросить</button>
+          <pre class="plan" id="plan-preview">—</pre>
+          <div id="plan-editor">
+            <textarea id="plan-text" placeholder="Формат: 1..7, каждый день с новой строки"></textarea>
+            <div class="row">
+              <button class="btn btn-accent" id="plan-save">Сохранить</button>
+              <button class="btn btn-outline" id="plan-reset">Сбросить</button>
+            </div>
           </div>
         </div>
         <div class="card">
