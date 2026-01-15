@@ -88,14 +88,33 @@ type trainingPlanExercise struct {
 	Duration string `json:"duration"`
 }
 
-func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
+func parseTrainingPlanPayload(plan string) (trainingPlanPayload, bool) {
 	raw := strings.TrimSpace(plan)
 	if raw == "" || (!strings.HasPrefix(raw, "{") && !strings.HasPrefix(raw, "[")) {
-		return TrainingPlan{}, false
+		return trainingPlanPayload{}, false
 	}
-
 	var payload trainingPlanPayload
 	if err := json.Unmarshal([]byte(sanitizeJSON(raw)), &payload); err != nil {
+		return trainingPlanPayload{}, false
+	}
+	return payload, true
+}
+
+func NormalizeTrainingPlan(plan string) (string, bool) {
+	payload, ok := parseTrainingPlanPayload(plan)
+	if !ok {
+		return "", false
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
+	payload, ok := parseTrainingPlanPayload(plan)
+	if !ok {
 		return TrainingPlan{}, false
 	}
 
@@ -195,8 +214,45 @@ func sanitizeJSON(raw string) string {
 		raw = raw[start : end+1]
 	}
 	raw = strings.TrimPrefix(raw, "\uFEFF")
+	raw = escapeJSONStrings(raw)
 	raw = regexp.MustCompile(`,\s*([}\]])`).ReplaceAllString(raw, "$1")
 	return raw
+}
+
+func escapeJSONStrings(raw string) string {
+	var b strings.Builder
+	b.Grow(len(raw))
+	inString := false
+	escape := false
+	for i := 0; i < len(raw); i++ {
+		ch := raw[i]
+		if escape {
+			b.WriteByte(ch)
+			escape = false
+			continue
+		}
+		if ch == '\\' && inString {
+			escape = true
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '"' {
+			inString = !inString
+			b.WriteByte(ch)
+			continue
+		}
+		if inString {
+			switch ch {
+			case '\n':
+				b.WriteString(`\n`)
+				continue
+			case '\r':
+				continue
+			}
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
 }
 
 func formatTrainingDay(day trainingPlanDay) (string, int) {

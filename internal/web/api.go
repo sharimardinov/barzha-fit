@@ -333,6 +333,9 @@ func (s *Server) handlePlanGet(w http.ResponseWriter, r *http.Request, auth auth
 		writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "plan_not_found"})
 		return
 	}
+	if normalized, ok := service.NormalizeTrainingPlan(planText); ok {
+		planText = normalized
+	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"text": planText}})
 }
 
@@ -522,6 +525,16 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 		})
 		return
 	}
+	normalized, ok := service.NormalizeTrainingPlan(planText)
+	if !ok {
+		writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
+			OK:    false,
+			Error: "training_plan_invalid",
+			Data:  map[string]any{"issues": []string{"invalid_json"}},
+		})
+		return
+	}
+	planText = normalized
 	if tp, ok := service.ParseTrainingPlan(planText); ok {
 		if issues := validateTrainingPlan(tp); len(issues) > 0 {
 			writeJSON(w, http.StatusUnprocessableEntity, apiResponse{

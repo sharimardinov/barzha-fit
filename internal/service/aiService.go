@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -454,9 +453,7 @@ func extractOutputText(out respOut) string {
 }
 
 func cleanJSON(raw string) string {
-	raw = strings.TrimPrefix(raw, "\uFEFF")
-	raw = regexp.MustCompile(`,(\s*[}\]])`).ReplaceAllString(raw, "$1")
-	raw = regexp.MustCompile(`,\s*\n\s*"`).ReplaceAllString(raw, ",\n\"")
+	raw = sanitizeJSON(raw)
 	return strings.TrimSpace(raw)
 }
 

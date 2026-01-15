@@ -202,10 +202,43 @@ function safeParseJSON(raw) {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   const sliced = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-  const cleaned = sliced
+  const cleaned = normalizeJSONString(sliced)
     .replace(/^\uFEFF/, "")
     .replace(/,\s*([}\]])/g, "$1");
   return JSON.parse(cleaned);
+}
+
+function normalizeJSONString(raw) {
+  let out = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (escape) {
+      out += ch;
+      escape = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      out += ch;
+      escape = true;
+      continue;
+    }
+    if (ch === "\"") {
+      inString = !inString;
+      out += ch;
+      continue;
+    }
+    if (inString && ch === "\n") {
+      out += "\\n";
+      continue;
+    }
+    if (inString && ch === "\r") {
+      continue;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 function formatWeekPlan(items) {
