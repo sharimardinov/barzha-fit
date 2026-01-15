@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ type AIService struct {
 	apiKey string
 	model  string
 	http   *http.Client
+	logPath string
 }
 
 func NewAIService() (*AIService, error) {
@@ -30,9 +32,14 @@ func NewAIService() (*AIService, error) {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	logPath := os.Getenv("AI_LOG_PATH")
+	if logPath == "" {
+		logPath = "logs/ai_training.log"
+	}
 	return &AIService{
 		apiKey: key,
 		model:  model,
+		logPath: logPath,
 		http: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -450,6 +457,8 @@ JSON следующей структуры:
 Профиль атлета:
 %s`, string(body))
 
+	a.appendAILog("REQUEST", prompt, "")
+
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -530,10 +539,37 @@ JSON следующей структуры:
 
 	rawText := extractOutputText(out)
 	if rawText == "" {
+		a.appendAILog("RESPONSE", "", "empty output_text")
 		return "", out, errors.New("openai: empty output_text")
 	}
 
+	a.appendAILog("RESPONSE", rawText, "")
 	return cleanJSON(rawText), out, nil
+}
+
+func (a *AIService) appendAILog(kind, payload, note string) {
+	if a.logPath == "" {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(a.logPath), 0o755); err != nil {
+		return
+	}
+	f, err := os.OpenFile(a.logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	ts := time.Now().Format(time.RFC3339)
+	if note != "" {
+		_, _ = fmt.Fprintf(f, "[%s] %s: %s\n", ts, kind, note)
+	} else {
+		_, _ = fmt.Fprintf(f, "[%s] %s:\n", ts, kind)
+	}
+	if payload != "" {
+		_, _ = fmt.Fprintln(f, payload)
+	}
+	_, _ = fmt.Fprintln(f, "-----")
 }
 
 func extractOutputText(out respOut) string {
