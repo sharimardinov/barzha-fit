@@ -51,6 +51,7 @@ type TrainingPlan struct {
 	Days           []string
 	Comment        string
 	ExerciseCounts []int
+	Types          []string
 }
 
 type trainingPlanPayload struct {
@@ -70,6 +71,7 @@ type trainingPlanDay struct {
 	Day        int                 `json:"day"`
 	Name       string              `json:"name"`
 	Focus      string              `json:"focus"`
+	Type       string              `json:"type"`
 	Groups     []trainingPlanGroup `json:"groups"`
 	Activities []string            `json:"activities"`
 	Notes      string              `json:"notes"`
@@ -127,11 +129,13 @@ func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
 
 	days := make([]string, 0, 7)
 	exCounts := make([]int, 0, 7)
+	types := make([]string, 0, 7)
 	if len(payload.Week) > 0 {
 		for _, day := range payload.Week {
 			text, count := formatTrainingDay(day)
 			days = append(days, text)
 			exCounts = append(exCounts, count)
+			types = append(types, strings.TrimSpace(day.Type))
 		}
 	} else if len(payload.Days) > 0 {
 		days = payload.Days
@@ -162,7 +166,7 @@ func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
 		exCounts = append(exCounts, 0)
 	}
 
-	return TrainingPlan{Days: days, Comment: strings.TrimSpace(payload.Comment), ExerciseCounts: exCounts}, true
+	return TrainingPlan{Days: days, Comment: strings.TrimSpace(payload.Comment), ExerciseCounts: exCounts, Types: types}, true
 }
 
 func FormatPlanForDisplay(plan string) (string, bool) {

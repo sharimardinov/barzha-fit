@@ -889,6 +889,21 @@ type trainingPrompt struct {
 	Pharma           string `json:"фармакология"`
 	TrainingsPerWeek int    `json:"тренировок_в_неделю"`
 	Preferences      string `json:"предпочтения"`
+	Normalized       struct {
+		TrainingDaysPerWeek int      `json:"training_days_per_week"`
+		Goal                string   `json:"goal"`
+		Equipment           string   `json:"equipment"`
+		Injuries            []string `json:"injuries"`
+		Experience          string   `json:"experience"`
+		MainLifts           struct {
+			BenchKG     int     `json:"bench_kg"`
+			PullupsReps int     `json:"pullups_reps"`
+			RunKM       float64 `json:"run_km"`
+		} `json:"main_lifts"`
+		Preferences struct {
+			Notes string `json:"notes"`
+		} `json:"preferences"`
+	} `json:"normalized"`
 }
 
 func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPrompt {
@@ -911,6 +926,25 @@ func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPr
 	if wishes == "" {
 		wishes = "пожеланий нет"
 	}
+	experience := "beginner"
+	switch {
+	case p.TrainingYears >= 4:
+		experience = "advanced"
+	case p.TrainingYears >= 1:
+		experience = "intermediate"
+	}
+
+	injuryList := make([]string, 0)
+	if injuries != "травм нет" {
+		for _, part := range strings.FieldsFunc(injuries, func(r rune) bool {
+			return r == ',' || r == ';'
+		}) {
+			item := strings.TrimSpace(part)
+			if item != "" {
+				injuryList = append(injuryList, item)
+			}
+		}
+	}
 
 	out := trainingPrompt{
 		Sex:              sex,
@@ -928,6 +962,15 @@ func buildTrainingPrompt(p domain.Profile, tp domain.TrainingProfile) trainingPr
 	out.Strength.BenchKG = tp.BenchKG
 	out.Strength.Pullups = tp.Pullups
 	out.Strength.RunKM = tp.RunKM
+	out.Normalized.TrainingDaysPerWeek = tp.TrainingsPerWeek
+	out.Normalized.Goal = tp.Goal
+	out.Normalized.Equipment = "unknown"
+	out.Normalized.Injuries = injuryList
+	out.Normalized.Experience = experience
+	out.Normalized.MainLifts.BenchKG = tp.BenchKG
+	out.Normalized.MainLifts.PullupsReps = tp.Pullups
+	out.Normalized.MainLifts.RunKM = tp.RunKM
+	out.Normalized.Preferences.Notes = wishes
 	return out
 }
 
@@ -1004,8 +1047,31 @@ func validateTrainingPlan(tp service.TrainingPlan) []string {
 		issues = append(issues, "days<7")
 	}
 	for i, day := range tp.Days {
+		isRestDay := func() bool {
+			if len(tp.Types) > i {
+				kind := strings.ToLower(strings.TrimSpace(tp.Types[i]))
+				if kind == "rest" {
+					return true
+				}
+				if kind == "train" {
+					return false
+				}
+			}
+			lowered := strings.ToLower(day)
+			if strings.Contains(lowered, "отдых") || strings.Contains(lowered, "rest") {
+				return true
+			}
+			if strings.Contains(lowered, "мобилит") || strings.Contains(lowered, "ходьба") {
+				return true
+			}
+			return false
+		}()
+
 		if len(tp.ExerciseCounts) > i && tp.ExerciseCounts[i] > 0 {
 			if tp.ExerciseCounts[i] < 5 {
+				if isRestDay && tp.ExerciseCounts[i] <= 2 {
+					continue
+				}
 				issues = append(issues, fmt.Sprintf("day_%d_exercises<5", i+1))
 			}
 			continue
@@ -1022,6 +1088,9 @@ func validateTrainingPlan(tp service.TrainingPlan) []string {
 			}
 		}
 		if count < 5 {
+			if isRestDay && count <= 2 {
+				continue
+			}
 			issues = append(issues, fmt.Sprintf("day_%d_exercises<5", i+1))
 		}
 	}
