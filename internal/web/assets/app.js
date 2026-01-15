@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   today: null,
   planText: "",
+  onboarding: false,
 };
 
 const targetFields = [
@@ -41,10 +42,7 @@ async function api(path, body = {}) {
   return data.data;
 }
 
-function setActiveTab(name) {
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tab === name);
-  });
+function setActiveScreen(name) {
   document.querySelectorAll(".screen").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `screen-${name}`);
   });
@@ -57,8 +55,19 @@ function setActiveTab(name) {
     profile: "Профиль",
     training: "Тренинг",
     stats: "Статистика",
+    onboarding: "",
+    "onboarding-done": "",
   };
-  $("screen-title").textContent = titles[name] || "Сегодня";
+  if ($("screen-title")) {
+    $("screen-title").textContent = titles[name] || "Сегодня";
+  }
+}
+
+function setActiveTab(name) {
+  document.querySelectorAll(".nav-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === name);
+  });
+  setActiveScreen(name);
 }
 
 function setProgress(id, current, target) {
@@ -492,18 +501,31 @@ function validateProfileInputs() {
   const height = parseNumberField("profile-height", "рост", { required: true, integer: true, min: 100, max: 250 });
   const weight = parseNumberField("profile-weight", "вес", { required: true, integer: false, min: 30, max: 300 });
   const bodyfat = parseNumberField("profile-bodyfat", "процент жира", { required: true, integer: false, min: 1, max: 100 });
+  const trainingYears = parseNumberField("profile-training-years", "стаж тренировок", {
+    required: true,
+    integer: true,
+    min: 1,
+    max: 80,
+  });
 
   if (!age.ok) issues.push(age.label);
   if (!height.ok) issues.push(height.label);
   if (!weight.ok) issues.push(weight.label);
   if (!bodyfat.ok) issues.push(bodyfat.label);
+  if (!trainingYears.ok) issues.push(trainingYears.label);
 
   if (issues.length) {
     toast(`Заполни корректно: ${issues.join(", ")}`);
     return null;
   }
 
-  return { age: age.value, height: height.value, weight: weight.value, bodyfat: bodyfat.value };
+  return {
+    age: age.value,
+    height: height.value,
+    weight: weight.value,
+    bodyfat: bodyfat.value,
+    trainingYears: trainingYears.value,
+  };
 }
 
 function validateTrainingInputs() {
@@ -513,12 +535,15 @@ function validateTrainingInputs() {
   const run = parseNumberField("training-run", "бег", { required: true, integer: false, min: 0, max: 300 });
   const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
   const goal = $("training-goal").value.trim();
+  const pharmaValue = $("training-pharma").value;
+  const pharma = pharmaValue === "yes" ? true : pharmaValue === "no" ? false : null;
 
   if (!bench.ok) issues.push(bench.label);
   if (!pullups.ok) issues.push(pullups.label);
   if (!run.ok) issues.push(run.label);
   if (!times.ok) issues.push(times.label);
   if (!goal) issues.push("цель");
+  if (pharma === null) issues.push("фармакология");
 
   if (issues.length) {
     toast(`Заполни корректно: ${issues.join(", ")}`);
@@ -531,7 +556,82 @@ function validateTrainingInputs() {
     run: run.value,
     times: times.value,
     goal,
+    pharma,
   };
+}
+
+function setOnboardingActive(active) {
+  state.onboarding = active;
+  document.body.classList.toggle("onboarding", active);
+}
+
+function isProfileComplete(p) {
+  return (
+    p &&
+    (p.sex === "m" || p.sex === "f") &&
+    p.age >= 14 &&
+    p.age <= 80 &&
+    p.height_cm >= 100 &&
+    p.height_cm <= 250 &&
+    p.weight_kg >= 30 &&
+    p.weight_kg <= 300 &&
+    p.bodyfat_pct >= 1 &&
+    p.bodyfat_pct <= 100 &&
+    p.training_years >= 1 &&
+    p.training_years <= 80
+  );
+}
+
+function isTrainingComplete(tp) {
+  return (
+    tp &&
+    tp.bench_kg >= 0 &&
+    tp.bench_kg <= 400 &&
+    tp.pullups >= 0 &&
+    tp.pullups <= 100 &&
+    tp.run_km >= 0 &&
+    tp.run_km <= 300 &&
+    tp.trainings_per_week >= 1 &&
+    tp.trainings_per_week <= 7 &&
+    typeof tp.goal === "string" &&
+    tp.goal.trim().length > 0 &&
+    tp.pharma !== null &&
+    tp.pharma !== undefined
+  );
+}
+
+async function ensureOnboarding() {
+  let profile = null;
+  try {
+    profile = await api("/api/profile/get");
+  } catch (err) {
+    if (err.message !== "profile_not_found") {
+      toast("Ошибка загрузки профиля");
+      return false;
+    }
+  }
+  let training = null;
+  try {
+    training = await api("/api/training/profile/get");
+  } catch (_) {
+    training = null;
+  }
+
+  if (!isProfileComplete(profile) || !isTrainingComplete(training)) {
+    setOnboardingActive(true);
+    setActiveScreen("onboarding");
+    return false;
+  }
+
+  setOnboardingActive(false);
+  return true;
+}
+
+async function runProfilePipeline() {
+  await api("/api/training/generate");
+  const activity = await api("/api/activity/estimate");
+  $("profile-activity").textContent = activity.activity_multiplier ? activity.activity_multiplier.toFixed(2) : "—";
+  await api("/api/targets/refresh");
 }
 
 async function loadTrainingProfile() {
@@ -615,6 +715,50 @@ async function bootstrap() {
   tg?.expand();
 
   initNav();
+
+  const onboardingReady = await ensureOnboarding();
+  if (!onboardingReady) {
+    const onboardingStart = $("onboarding-start");
+    if (onboardingStart) {
+      onboardingStart.addEventListener("click", async () => {
+        setActiveScreen("profile");
+        await loadProfile();
+        await loadTrainingProfile();
+      });
+    }
+    const onboardingGoToday = $("onboarding-go-today");
+    if (onboardingGoToday) {
+      onboardingGoToday.addEventListener("click", async () => {
+        setOnboardingActive(false);
+        setActiveTab("today");
+        await loadToday();
+        await loadMeals();
+        await loadStreak();
+      });
+    }
+  }
+
+  const todayOpenTraining = $("today-open-training");
+  if (todayOpenTraining) {
+    todayOpenTraining.addEventListener("click", async () => {
+      setActiveTab("training");
+      await loadPlan();
+    });
+  }
+  const todayAddMeal = $("today-add-meal");
+  if (todayAddMeal) {
+    todayAddMeal.addEventListener("click", async () => {
+      setActiveTab("meals");
+      await loadMeals();
+    });
+  }
+  const todayAddSteps = $("today-add-steps");
+  if (todayAddSteps) {
+    todayAddSteps.addEventListener("click", async () => {
+      setActiveTab("steps");
+      await loadToday();
+    });
+  }
 
   $("workout-done").addEventListener("click", async () => {
     await api("/api/workout/set", { status: "done" });
@@ -715,7 +859,7 @@ async function bootstrap() {
       age: profileValidated.age,
       height_cm: profileValidated.height,
       weight_kg: profileValidated.weight,
-      training_years: parseNumberInput($("profile-training-years").value),
+      training_years: profileValidated.trainingYears,
       bodyfat_pct: profileValidated.bodyfat,
     };
     const trainingPayload = {
@@ -724,80 +868,34 @@ async function bootstrap() {
       run_km: trainingValidated.run,
       injuries: $("training-injuries").value.trim(),
       goal: trainingValidated.goal,
-      pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
+      pharma: trainingValidated.pharma,
       trainings_per_week: trainingValidated.times,
       wishes: $("training-wishes").value.trim(),
     };
     await api("/api/profile/set", payload);
     await api("/api/training/profile/set", trainingPayload);
-    toast("Профиль сохранён");
+    try {
+      await runProfilePipeline();
+      await loadPlan();
+      await loadTargets();
+      await loadToday();
+      toast("Профиль сохранён");
+      if (state.onboarding) {
+        setActiveScreen("onboarding-done");
+      }
+    } catch (err) {
+      if (err.message === "missing_fields" && err.data?.fields?.length) {
+        toast(`Заполни: ${err.data.fields.join(", ")}`);
+        return;
+      }
+      if (err.message === "training_plan_invalid") {
+        const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
+        toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
+        return;
+      }
+      toast("Ошибка пересчёта");
+    }
   });
-
-  const activityCalc = document.getElementById("profile-activity-calc");
-  if (activityCalc) {
-    activityCalc.addEventListener("click", async () => {
-      try {
-        const p = await api("/api/activity/estimate");
-        $("profile-activity").textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
-        toast("Коэффициент рассчитан");
-      } catch (err) {
-        if (err.message === "plan_not_found") {
-          toast("Сначала заполни план тренировок");
-          return;
-        }
-        toast("Ошибка расчёта");
-      }
-    });
-  }
-
-  const trainingGenerate = document.getElementById("training-generate");
-  if (trainingGenerate) {
-    trainingGenerate.addEventListener("click", async () => {
-      const trainingValidated = validateTrainingInputs();
-      if (!trainingValidated) return;
-
-      const payload = {
-        bench_kg: trainingValidated.bench,
-        pullups: trainingValidated.pullups,
-        run_km: trainingValidated.run,
-        injuries: $("training-injuries").value.trim(),
-        goal: trainingValidated.goal,
-        pharma: $("training-pharma").value === "yes" ? true : $("training-pharma").value === "no" ? false : null,
-        trainings_per_week: trainingValidated.times,
-        wishes: $("training-wishes").value.trim(),
-      };
-      trainingGenerate.classList.add("loading");
-      trainingGenerate.disabled = true;
-      try {
-        await api("/api/training/profile/set", payload);
-        const res = await api("/api/training/generate");
-        const parsed = parsePlan(res.plan);
-        if (parsed.weekPlan && parsed.weekPlan.length) {
-          renderTrainingAccordion(parsed.weekPlan);
-          $("training-result").style.display = "none";
-        } else {
-          $("training-result").style.display = "block";
-          $("training-result").textContent = parsed.text || "—";
-        }
-        await loadPlan();
-        toast("План сохранён");
-      } catch (err) {
-        if (err.message === "missing_fields" && err.data?.fields?.length) {
-          toast(`Заполни: ${err.data.fields.join(", ")}`);
-          return;
-        }
-        if (err.message === "training_plan_invalid") {
-          const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
-          toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
-          return;
-        }
-        toast("Ошибка генерации");
-      } finally {
-        trainingGenerate.classList.remove("loading");
-        trainingGenerate.disabled = false;
-      }
-    });
-  }
 
   $("stats-week").addEventListener("click", async () => {
     toggleStatsView("week");
@@ -813,6 +911,12 @@ async function bootstrap() {
     await loadStreak();
   });
 
+  if (!onboardingReady) {
+    lucide?.createIcons();
+    return;
+  }
+
+  setActiveTab("today");
   await loadToday();
   await loadMeals();
   await loadStreak();

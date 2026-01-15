@@ -209,6 +209,50 @@ button {
   color: var(--muted);
 }
 
+.activity-hint {
+  margin: 6px 0 4px;
+}
+
+.onboarding .nav {
+  display: none;
+}
+
+.onboarding .screen-label {
+  display: none;
+}
+
+.onboarding-card {
+  text-align: center;
+  padding: 28px 20px;
+}
+
+.onboarding-brand {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.onboarding-step {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.onboarding-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.onboarding-list {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
 .list {
   display: grid;
   gap: 10px;

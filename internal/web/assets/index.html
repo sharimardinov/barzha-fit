@@ -15,10 +15,34 @@
         <div class="screen-label" id="screen-title">Сегодня</div>
       </header>
 
+      <section class="screen" id="screen-onboarding">
+        <div class="card onboarding-card">
+          <div class="onboarding-brand">BARZHA-FIT</div>
+          <div class="onboarding-step">Шаг 1 из 3</div>
+          <div class="onboarding-title">Заполни профиль</div>
+          <button class="btn btn-accent" id="onboarding-start">Начать</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-onboarding-done">
+        <div class="card onboarding-card">
+          <div class="onboarding-title">Профиль сохранён ✅</div>
+          <div class="onboarding-list">
+            <div>Программа тренировок создана</div>
+            <div>Коэффициент активности рассчитан</div>
+            <div>Цели рассчитаны</div>
+          </div>
+          <button class="btn btn-accent" id="onboarding-go-today">Перейти к сегодняшнему дню</button>
+        </div>
+      </section>
+
       <section class="screen active" id="screen-today">
         <div class="card">
           <div class="card-title">Тренировка дня</div>
           <pre class="plan" id="today-plan">—</pre>
+          <div class="row">
+            <button class="btn btn-outline" id="today-open-training">Открыть тренировку</button>
+          </div>
         </div>
 
         <div class="card">
@@ -68,6 +92,10 @@
               <span class="value" id="today-steps">—</span>
             </div>
             <div class="progress-bar"><div class="progress-fill" id="progress-steps"></div></div>
+          </div>
+          <div class="row">
+            <button class="btn btn-outline" id="today-add-meal">Добавить еду</button>
+            <button class="btn btn-outline" id="today-add-steps">Добавить шаги</button>
           </div>
         </div>
 
@@ -232,12 +260,11 @@
               <input type="number" step="0.1" id="profile-bodyfat">
             </label>
           </div>
-          <div class="row">
+          <div class="row activity-hint">
             <div class="muted">Коэффициент активности (расчёт): <span id="profile-activity">—</span></div>
           </div>
           <div class="row">
-            <button class="btn btn-outline" id="profile-activity-calc">Рассчитать коэффициент</button>
-            <button class="btn btn-accent" id="profile-save">Сохранить профиль</button>
+            <button class="btn btn-accent" id="profile-save">Готово</button>
           </div>
         </div>
         <div class="card">
@@ -298,12 +325,6 @@
       </section>
 
       <section class="screen" id="screen-training">
-        <div class="card">
-          <div class="card-title">Тренинг</div>
-          <div class="row">
-            <button class="btn btn-accent" id="training-generate">Сформировать программу тренировок</button>
-          </div>
-        </div>
         <div class="card">
           <div class="card-title">Программа тренировок</div>
           <div class="accordion" id="training-accordion"></div>
