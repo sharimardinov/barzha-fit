@@ -202,6 +202,34 @@ button {
   position: relative;
 }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-icon-svg {
+  width: 20px;
+  height: 20px;
+  stroke: #a1a1aa;
+  fill: none;
+  transition: transform 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover .btn-icon-svg {
+  transform: rotate(90deg);
+  fill: #27272a;
+  stroke: #27272a;
+}
+
+.btn-icon:active .btn-icon-svg {
+  transition-duration: 0s;
+  fill: #52525b;
+  stroke: #e4e4e7;
+}
+
 .btn-accent {
   background: var(--accent);
   color: var(--white);
