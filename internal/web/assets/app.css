@@ -251,24 +251,80 @@ button {
   pointer-events: none;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@keyframes swing {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+
+  25% {
+    transform: rotate(70deg);
+    animation-timing-function: ease-in;
+  }
+
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: linear;
+  }
+}
+
+@keyframes swing2 {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: linear;
+  }
+
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+
+  75% {
+    transform: rotate(-70deg);
+    animation-timing-function: ease-in;
   }
 }
 
 .btn-spinner {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  border: 2px solid var(--black);
-  border-top-color: transparent;
-  animation: spin 0.8s linear infinite;
+  --uib-size: 20px;
+  --uib-speed: 1.2s;
+  --uib-color: var(--accent);
+  position: relative;
   display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--uib-size);
+  height: var(--uib-size);
 }
 
 .btn-spinner.active {
-  display: inline-block;
+  display: inline-flex;
+}
+
+.btn-spinner .newtons-cradle__dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 25%;
+  transform-origin: center top;
+}
+
+.btn-spinner .newtons-cradle__dot::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 25%;
+  border-radius: 50%;
+  background-color: var(--uib-color);
+}
+
+.btn-spinner .newtons-cradle__dot:first-child {
+  animation: swing var(--uib-speed) linear infinite;
+}
+
+.btn-spinner .newtons-cradle__dot:last-child {
+  animation: swing2 var(--uib-speed) linear infinite;
 }
 
 .btn-ghost {
