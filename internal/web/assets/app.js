@@ -88,7 +88,7 @@ function formatPlanForDisplay(plan) {
       lines.push(`ДЕНЬ ${i + 1} — ${title}${body ? `\n${body}` : ""}`);
     }
     if (data.comment) {
-      lines.push(`Комментарий:\n${String(data.comment).trim()}`);
+      // Comment intentionally hidden in UI output.
     }
     return lines.join("\n\n");
   } catch (_) {

@@ -131,8 +131,7 @@ func FormatPlanForDisplay(plan string) (string, bool) {
 		}
 	}
 	if tp.Comment != "" {
-		b.WriteString("\n\nКомментарий:\n")
-		b.WriteString(tp.Comment)
+		// Comment intentionally hidden in UI output.
 	}
 	return b.String(), true
 }
