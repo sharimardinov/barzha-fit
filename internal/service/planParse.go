@@ -189,6 +189,11 @@ func splitPlanLines(text string) []string {
 }
 
 func sanitizeJSON(raw string) string {
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start >= 0 && end > start {
+		raw = raw[start : end+1]
+	}
 	raw = strings.TrimPrefix(raw, "\uFEFF")
 	raw = regexp.MustCompile(`,\s*([}\]])`).ReplaceAllString(raw, "$1")
 	return raw

@@ -199,7 +199,10 @@ function renderTrainingAccordion(items) {
 }
 
 function safeParseJSON(raw) {
-  const cleaned = raw
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  const sliced = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+  const cleaned = sliced
     .replace(/^\uFEFF/, "")
     .replace(/,\s*([}\]])/g, "$1");
   return JSON.parse(cleaned);
