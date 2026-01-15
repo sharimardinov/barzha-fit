@@ -24,6 +24,38 @@ function toast(message) {
   setTimeout(() => el.classList.remove("show"), 1800);
 }
 
+function setButtonLoading(btn, loading, label) {
+  if (!btn) return;
+  if (loading) {
+    if (!btn.dataset.label) {
+      btn.dataset.label = btn.textContent || "";
+    }
+    btn.classList.add("loading");
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    if (label) btn.textContent = label;
+    return;
+  }
+  btn.classList.remove("loading");
+  btn.disabled = false;
+  btn.removeAttribute("aria-busy");
+  if (btn.dataset.label) {
+    btn.textContent = btn.dataset.label;
+  }
+}
+
+function formatApiError(err, fallback) {
+  const code = err?.message || "";
+  if (code === "training_ai_unavailable") return "AI тренировок недоступен";
+  if (code === "activity_ai_unavailable") return "AI активности недоступен";
+  if (code === "training_generate_failed") return "Не удалось сгенерировать план";
+  if (code === "activity_estimate_failed") return "Не удалось пересчитать активность";
+  if (code === "plan_not_found") return "План не найден для пересчёта активности";
+  if (code === "training_profile_save_failed") return "Ошибка сохранения тренировочного профиля";
+  if (code === "profile_save_failed") return "Ошибка сохранения профиля";
+  return fallback;
+}
+
 async function api(path, body = {}) {
   const res = await fetch(path, {
     method: "POST",
@@ -861,9 +893,12 @@ async function bootstrap() {
         trainings_per_week: trainingValidated.times,
         wishes: $("training-wishes").value.trim(),
       };
-      await api("/api/profile/set", payload);
-      await api("/api/training/profile/set", trainingPayload);
+      setButtonLoading(profileSave, true, "Сохраняю и считаю...");
+      const activityEl = $("profile-activity");
+      if (activityEl) activityEl.textContent = "…";
       try {
+        await api("/api/profile/set", payload);
+        await api("/api/training/profile/set", trainingPayload);
         await runProfilePipeline();
         await loadPlan();
         await loadTargets();
@@ -882,7 +917,9 @@ async function bootstrap() {
           toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
           return;
         }
-        toast("Ошибка пересчёта");
+        toast(formatApiError(err, "Ошибка пересчёта"));
+      } finally {
+        setButtonLoading(profileSave, false);
       }
     });
   }
