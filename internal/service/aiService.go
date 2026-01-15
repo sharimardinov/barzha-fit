@@ -516,30 +516,36 @@ JSON следующей структуры:
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
+		a.appendAILog("RESPONSE_ERROR", "", fmt.Sprintf("request_failed: %v", err))
 		return "", nil, err
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+	bodyText := string(body)
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
+		a.appendAILog("RESPONSE_ERROR", bodyText, fmt.Sprintf("status=%d", resp.StatusCode))
 		return "", map[string]any{
 			"status": resp.StatusCode,
-			"body":   string(body),
-		}, fmt.Errorf("openai status=%d body=%s", resp.StatusCode, string(body))
+			"body":   bodyText,
+		}, fmt.Errorf("openai status=%d body=%s", resp.StatusCode, bodyText)
 	}
 
 	var out respOut
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.Unmarshal(body, &out); err != nil {
+		a.appendAILog("RESPONSE_ERROR", bodyText, fmt.Sprintf("decode_failed: %v", err))
 		return "", nil, err
 	}
 
 	if out.Error != nil {
+		a.appendAILog("RESPONSE_ERROR", bodyText, fmt.Sprintf("openai_error: %s", out.Error.Message))
 		return "", map[string]any{"error": out.Error}, fmt.Errorf("openai error: %s", out.Error.Message)
 	}
 
 	rawText := extractOutputText(out)
 	if rawText == "" {
-		a.appendAILog("RESPONSE", "", "empty output_text")
+		a.appendAILog("RESPONSE_ERROR", bodyText, "empty output_text")
 		return "", out, errors.New("openai: empty output_text")
 	}
 
