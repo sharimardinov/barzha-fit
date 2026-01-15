@@ -754,9 +754,8 @@ button {
   height: 44px;
   width: 44px;
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 3, 62, 0.22), rgba(255, 3, 62, 0.12));
-  border: 1px solid rgba(255, 3, 62, 0.35);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 3, 62, 0.12);
+  background: var(--accent);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
   opacity: 0;
   transform: translate(0, 0);
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -793,7 +792,7 @@ button {
 }
 
 .nav-btn.active {
-  color: var(--accent);
+  color: var(--white);
   font-weight: 700;
 }
 
