@@ -524,8 +524,8 @@ JSON следующей структуры:
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
-	bodyText := string(body)
+	respBody, _ := io.ReadAll(resp.Body)
+	bodyText := string(respBody)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		a.appendAILog("RESPONSE_ERROR", bodyText, fmt.Sprintf("status=%d", resp.StatusCode))
@@ -536,7 +536,7 @@ JSON следующей структуры:
 	}
 
 	var out respOut
-	if err := json.Unmarshal(body, &out); err != nil {
+	if err := json.Unmarshal(respBody, &out); err != nil {
 		a.appendAILog("RESPONSE_ERROR", bodyText, fmt.Sprintf("decode_failed: %v", err))
 		return "", nil, err
 	}
