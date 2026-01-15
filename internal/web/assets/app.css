@@ -276,13 +276,6 @@ button {
   text-align: left;
 }
 
-.onboarding-brand {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  margin-bottom: 10px;
-}
-
 .onboarding-step {
   font-size: 13px;
   color: var(--muted);
@@ -331,12 +324,25 @@ button {
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  background: var(--white);
 }
 
 .option-card.active {
   border-color: var(--accent);
-  background: rgba(70, 91, 255, 0.08);
+  background: rgba(255, 3, 62, 0.08);
   color: var(--accent);
+}
+
+.option-card.option-male.active {
+  background: var(--black);
+  border-color: var(--black);
+  color: var(--white);
+}
+
+.option-card.option-female.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
 }
 
 .wheel {
@@ -353,6 +359,7 @@ button {
   overflow-y: auto;
   scroll-snap-type: y mandatory;
   padding: 70px 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .wheel-item {
@@ -363,13 +370,15 @@ button {
   scroll-snap-align: center;
   font-size: 18px;
   color: var(--muted);
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.6;
 }
 
 .wheel-item.active {
   color: var(--black);
   font-weight: 700;
   transform: scale(1.06);
+  opacity: 1;
 }
 
 .wheel::before,
@@ -404,6 +413,44 @@ button {
   border-left: 0;
   border-right: 0;
   z-index: 1;
+}
+
+.wheel.horizontal {
+  height: 130px;
+}
+
+.wheel.horizontal .wheel-list {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding: 0 70px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wheel.horizontal .wheel-item {
+  width: 70px;
+  height: 80px;
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  font-size: 20px;
+}
+
+.wheel.horizontal .wheel-selector {
+  top: 10px;
+  bottom: 10px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  height: auto;
+  border: 0;
+  background: var(--border);
+}
+
+.wheel.side {
+  width: 140px;
 }
 
 .onboarding-list {

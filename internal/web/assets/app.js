@@ -65,9 +65,9 @@ function buildWheelValues(min, max, step) {
   return values;
 }
 
-function createWheel(values, initial, onChange) {
+function createWheel(values, initial, onChange, axis = "y", extraClass = "") {
   const wheel = document.createElement("div");
-  wheel.className = "wheel";
+  wheel.className = `wheel ${extraClass}`.trim();
   const list = document.createElement("div");
   list.className = "wheel-list";
   const selector = document.createElement("div");
@@ -81,12 +81,13 @@ function createWheel(values, initial, onChange) {
     list.appendChild(item);
   });
 
-  const itemHeight = 40;
+  const itemSize = axis === "x" ? 70 : 40;
   let currentValue = null;
   let ticking = false;
 
   const syncActive = () => {
-    const idx = Math.min(values.length - 1, Math.max(0, Math.round(list.scrollTop / itemHeight)));
+    const scrollPos = axis === "x" ? list.scrollLeft : list.scrollTop;
+    const idx = Math.min(values.length - 1, Math.max(0, Math.round(scrollPos / itemSize)));
     const children = list.children;
     for (let i = 0; i < children.length; i += 1) {
       children[i].classList.toggle("active", i === idx);
@@ -112,7 +113,11 @@ function createWheel(values, initial, onChange) {
     if (!item) return;
     const idx = values.indexOf(item.dataset.value || "");
     if (idx >= 0) {
-      list.scrollTo({ top: idx * itemHeight, behavior: "smooth" });
+      if (axis === "x") {
+        list.scrollTo({ left: idx * itemSize, behavior: "smooth" });
+      } else {
+        list.scrollTo({ top: idx * itemSize, behavior: "smooth" });
+      }
     }
   });
 
@@ -120,7 +125,11 @@ function createWheel(values, initial, onChange) {
   wheel.appendChild(selector);
 
   const initialIndex = Math.max(0, values.indexOf(initial));
-  list.scrollTop = initialIndex * itemHeight;
+  if (axis === "x") {
+    list.scrollLeft = initialIndex * itemSize;
+  } else {
+    list.scrollTop = initialIndex * itemSize;
+  }
   requestAnimationFrame(syncActive);
 
   return wheel;
@@ -775,7 +784,26 @@ async function saveProfileFlow(payload, trainingPayload, button) {
   try {
     await api("/api/profile/set", payload);
     await api("/api/training/profile/set", trainingPayload);
-    await runProfilePipeline();
+    let pipelineOk = false;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        await runProfilePipeline();
+        pipelineOk = true;
+        break;
+      } catch (err) {
+        if (err.message === "training_plan_invalid" && attempt < 3) {
+          continue;
+        }
+        if (err.message === "training_plan_invalid") {
+          toast("План кривой. Нажми ещё раз.");
+          return false;
+        }
+        throw err;
+      }
+    }
+    if (!pipelineOk) {
+      return false;
+    }
     await loadPlan();
     await loadTargets();
     await loadToday();
@@ -786,11 +814,6 @@ async function saveProfileFlow(payload, trainingPayload, button) {
   } catch (err) {
     if (err.message === "missing_fields" && err.data?.fields?.length) {
       toast(`Заполни: ${err.data.fields.join(", ")}`);
-      return false;
-    }
-    if (err.message === "training_plan_invalid") {
-      const issues = Array.isArray(err.data?.issues) ? err.data.issues.join(", ") : "";
-      toast(issues ? `План кривой: ${issues}` : "План без упражнений/повторов. Перегенерируй.");
       return false;
     }
     toast(formatApiError(err, "Ошибка пересчёта"));
@@ -884,11 +907,11 @@ function initOnboardingWizard() {
     {
       id: "age",
       title: "Сколько тебе лет?",
-      type: "wheel",
+      type: "input",
+      inputType: "number",
       min: 14,
       max: 80,
-      step: 1,
-      unit: "лет",
+      placeholder: "Например: 28",
       help: "Возраст влияет на восстановление и объём.",
       required: true,
     },
@@ -906,7 +929,7 @@ function initOnboardingWizard() {
     {
       id: "weight",
       title: "Твой вес",
-      type: "wheel",
+      type: "wheel-horizontal",
       min: 30,
       max: 300,
       step: 0.5,
@@ -917,11 +940,14 @@ function initOnboardingWizard() {
     {
       id: "trainingYears",
       title: "Стаж тренировок",
-      type: "wheel",
-      min: 1,
-      max: 80,
-      step: 1,
-      unit: "лет",
+      type: "options",
+      options: [
+        { value: 1, label: "1" },
+        { value: 2, label: "2" },
+        { value: 3, label: "3" },
+        { value: 4, label: "4" },
+        { value: 5, label: "5+" },
+      ],
       help: "Определяет уровень и подбор упражнений.",
       required: true,
     },
@@ -935,15 +961,16 @@ function initOnboardingWizard() {
       unit: "%",
       help: "Для точных целей по весу и форме.",
       required: true,
+      variant: "side",
     },
     {
       id: "bench",
       title: "Жим лёжа",
-      type: "wheel",
+      type: "input",
+      inputType: "number",
       min: 0,
       max: 400,
-      step: 1,
-      unit: "кг",
+      placeholder: "Например: 80",
       help: "Понимаем силу верхнего тела.",
       required: true,
     },
@@ -961,7 +988,7 @@ function initOnboardingWizard() {
     {
       id: "run",
       title: "Бег",
-      type: "wheel",
+      type: "wheel-horizontal",
       min: 0,
       max: 100,
       step: 0.5,
@@ -1053,7 +1080,7 @@ function initOnboardingWizard() {
     const step = steps[stepIndex];
     progressEl.textContent = `Шаг ${stepIndex + 1} из ${steps.length}`;
     titleEl.textContent = step.title;
-    descEl.textContent = step.type === "wheel"
+    descEl.textContent = step.type === "wheel" || step.type === "wheel-horizontal"
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
       : step.type === "options"
         ? "Выбери один вариант"
@@ -1067,7 +1094,10 @@ function initOnboardingWizard() {
       step.options.forEach((opt) => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "option-card";
+        let className = "option-card";
+        if (step.id === "sex" && opt.value === "m") className += " option-male";
+        if (step.id === "sex" && opt.value === "f") className += " option-female";
+        btn.className = className;
         btn.textContent = opt.label;
         btn.classList.toggle("active", data[step.id] === opt.value);
         btn.addEventListener("click", () => {
@@ -1079,14 +1109,34 @@ function initOnboardingWizard() {
       bodyEl.appendChild(list);
     }
 
-    if (step.type === "wheel") {
+    if (step.type === "wheel" || step.type === "wheel-horizontal") {
       const values = buildWheelValues(step.min, step.max, step.step);
       const initial = formatWheelValue(step, data[step.id]);
       if (data[step.id] === undefined) {
         setValue(step, initial);
       }
-      const wheel = createWheel(values, initial, (value) => setValue(step, value));
+      const axis = step.type === "wheel-horizontal" ? "x" : "y";
+      const extraClass = step.type === "wheel-horizontal"
+        ? "horizontal"
+        : step.variant === "side"
+          ? "side"
+          : "";
+      const wheel = createWheel(values, initial, (value) => setValue(step, value), axis, extraClass);
       bodyEl.appendChild(wheel);
+    }
+
+    if (step.type === "input") {
+      const field = document.createElement("input");
+      field.type = step.inputType || "text";
+      field.inputMode = field.type === "number" ? "decimal" : "text";
+      if (step.min !== undefined) field.min = String(step.min);
+      if (step.max !== undefined) field.max = String(step.max);
+      field.value = data[step.id] || "";
+      field.placeholder = step.placeholder || "";
+      field.addEventListener("input", () => {
+        data[step.id] = field.value;
+      });
+      bodyEl.appendChild(field);
     }
 
     if (step.type === "textarea") {
@@ -1110,9 +1160,25 @@ function initOnboardingWizard() {
       toast("Выбери вариант");
       return false;
     }
-    if (step.type === "wheel" && (value === undefined || value === null || Number.isNaN(value))) {
+    if ((step.type === "wheel" || step.type === "wheel-horizontal") && (value === undefined || value === null || Number.isNaN(value))) {
       toast("Выбери значение");
       return false;
+    }
+    if (step.type === "input") {
+      const numeric = Number(String(value || "").replace(/,/g, "."));
+      if (!Number.isFinite(numeric)) {
+        toast("Введи число");
+        return false;
+      }
+      if (step.min !== undefined && numeric < step.min) {
+        toast(`Минимум ${step.min}`);
+        return false;
+      }
+      if (step.max !== undefined && numeric > step.max) {
+        toast(`Максимум ${step.max}`);
+        return false;
+      }
+      data[step.id] = numeric;
     }
     if (step.type === "textarea" && String(value || "").trim() === "") {
       toast("Заполни поле");
