@@ -453,7 +453,7 @@ async function loadProfile() {
     $("profile-weight").value = p.weight_kg || "";
     $("profile-training-years").value = p.training_years || "";
     $("profile-bodyfat").value = p.bodyfat_pct || "";
-    $("profile-activity").value = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "";
+    $("profile-activity").textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
   } catch (_) {
     $("profile-sex").value = "";
   }
@@ -738,7 +738,7 @@ async function bootstrap() {
     activityCalc.addEventListener("click", async () => {
       try {
         const p = await api("/api/activity/estimate");
-        $("profile-activity").value = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "";
+        $("profile-activity").textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
         toast("Коэффициент рассчитан");
       } catch (err) {
         if (err.message === "plan_not_found") {
