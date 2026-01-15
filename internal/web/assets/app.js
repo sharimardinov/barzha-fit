@@ -896,11 +896,9 @@ function initOnboardingWizard() {
     {
       id: "sex",
       title: "Твой пол",
-      type: "options",
-      options: [
-        { value: "m", label: "Мужской" },
-        { value: "f", label: "Женский" },
-      ],
+      type: "input",
+      inputType: "text",
+      placeholder: "м / ж",
       help: "Нужно для корректных норм и нагрузки.",
       required: true,
     },
@@ -918,50 +916,48 @@ function initOnboardingWizard() {
     {
       id: "height",
       title: "Твой рост",
-      type: "wheel",
+      type: "input",
+      inputType: "number",
       min: 100,
       max: 250,
-      step: 1,
-      unit: "см",
+      placeholder: "Например: 175",
       help: "Используем для расчёта калорий и целей.",
       required: true,
     },
     {
       id: "weight",
       title: "Твой вес",
-      type: "wheel-horizontal",
+      type: "wheel",
       min: 30,
       max: 300,
       step: 0.5,
       unit: "кг",
+      variant: "side",
+      defaultValue: 70,
       help: "Нужен для расчёта нагрузки и калорий.",
       required: true,
     },
     {
       id: "trainingYears",
       title: "Стаж тренировок",
-      type: "options",
-      options: [
-        { value: 1, label: "1" },
-        { value: 2, label: "2" },
-        { value: 3, label: "3" },
-        { value: 4, label: "4" },
-        { value: 5, label: "5+" },
-      ],
+      type: "input",
+      inputType: "number",
+      min: 1,
+      max: 80,
+      placeholder: "Например: 3",
       help: "Определяет уровень и подбор упражнений.",
       required: true,
     },
     {
       id: "bodyfat",
       title: "Процент жира",
-      type: "wheel",
+      type: "input",
+      inputType: "number",
       min: 1,
       max: 100,
-      step: 0.5,
-      unit: "%",
+      placeholder: "Например: 18",
       help: "Для точных целей по весу и форме.",
       required: true,
-      variant: "side",
     },
     {
       id: "bench",
@@ -977,22 +973,22 @@ function initOnboardingWizard() {
     {
       id: "pullups",
       title: "Подтягивания",
-      type: "wheel",
+      type: "input",
+      inputType: "number",
       min: 0,
       max: 100,
-      step: 1,
-      unit: "раз",
+      placeholder: "Например: 8",
       help: "Оценка тяговой силы.",
       required: true,
     },
     {
       id: "run",
       title: "Бег",
-      type: "wheel-horizontal",
+      type: "input",
+      inputType: "number",
       min: 0,
       max: 100,
-      step: 0.5,
-      unit: "км",
+      placeholder: "Например: 5",
       help: "Помогает оценить выносливость.",
       required: true,
     },
@@ -1015,22 +1011,20 @@ function initOnboardingWizard() {
     {
       id: "pharma",
       title: "Фармакология",
-      type: "options",
-      options: [
-        { value: true, label: "Да" },
-        { value: false, label: "Нет" },
-      ],
+      type: "input",
+      inputType: "text",
+      placeholder: "да / нет",
       help: "Влияет на восстановление и объём.",
       required: true,
     },
     {
       id: "trainingsPerWeek",
       title: "Тренировок в неделю",
-      type: "wheel",
+      type: "input",
+      inputType: "number",
       min: 1,
       max: 7,
-      step: 1,
-      unit: "раз",
+      placeholder: "Например: 4",
       help: "Формируем недельную структуру.",
       required: true,
     },
@@ -1084,7 +1078,7 @@ function initOnboardingWizard() {
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
       : step.type === "options"
         ? "Выбери один вариант"
-        : "Можно написать коротко";
+        : "Введи значение";
     helpEl.textContent = step.help || "";
     bodyEl.innerHTML = "";
 
@@ -1165,20 +1159,53 @@ function initOnboardingWizard() {
       return false;
     }
     if (step.type === "input") {
-      const numeric = Number(String(value || "").replace(/,/g, "."));
-      if (!Number.isFinite(numeric)) {
-        toast("Введи число");
+      const raw = String(value || "").trim();
+      if (!raw) {
+        toast("Заполни поле");
         return false;
       }
-      if (step.min !== undefined && numeric < step.min) {
-        toast(`Минимум ${step.min}`);
-        return false;
+      if (step.inputType === "number") {
+        const numeric = Number(raw.replace(/,/g, "."));
+        if (!Number.isFinite(numeric)) {
+          toast("Введи число");
+          return false;
+        }
+        if (step.min !== undefined && numeric < step.min) {
+          toast(`Минимум ${step.min}`);
+          return false;
+        }
+        if (step.max !== undefined && numeric > step.max) {
+          toast(`Максимум ${step.max}`);
+          return false;
+        }
+        data[step.id] = numeric;
+      } else {
+        if (step.id === "sex") {
+          const normalized = raw.toLowerCase();
+          if (["м", "m", "male", "муж", "мужской"].includes(normalized)) {
+            data[step.id] = "m";
+          } else if (["ж", "f", "female", "жен", "женский"].includes(normalized)) {
+            data[step.id] = "f";
+          } else {
+            toast("Введи м или ж");
+            return false;
+          }
+          return true;
+        }
+        if (step.id === "pharma") {
+          const normalized = raw.toLowerCase();
+          if (["да", "yes", "y", "true", "1"].includes(normalized)) {
+            data[step.id] = true;
+          } else if (["нет", "no", "n", "false", "0"].includes(normalized)) {
+            data[step.id] = false;
+          } else {
+            toast("Введи да или нет");
+            return false;
+          }
+          return true;
+        }
+        data[step.id] = raw;
       }
-      if (step.max !== undefined && numeric > step.max) {
-        toast(`Максимум ${step.max}`);
-        return false;
-      }
-      data[step.id] = numeric;
     }
     if (step.type === "textarea" && String(value || "").trim() === "") {
       toast("Заполни поле");
