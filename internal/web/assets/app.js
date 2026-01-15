@@ -534,6 +534,8 @@ async function bootstrap() {
         dislikes: $("training-dislikes").value.trim(),
         cannot_do: $("training-cannot").value.trim(),
       };
+      trainingGenerate.classList.add("loading");
+      trainingGenerate.disabled = true;
       try {
         await api("/api/training/profile/set", payload);
         const res = await api("/api/training/generate");
@@ -550,6 +552,9 @@ async function bootstrap() {
           return;
         }
         toast("Ошибка генерации");
+      } finally {
+        trainingGenerate.classList.remove("loading");
+        trainingGenerate.disabled = false;
       }
     });
   }

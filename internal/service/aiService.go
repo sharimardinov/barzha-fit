@@ -34,7 +34,7 @@ func NewAIService() (*AIService, error) {
 		apiKey: key,
 		model:  model,
 		http: &http.Client{
-			Timeout: 25 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 	}, nil
 }
