@@ -305,27 +305,19 @@ func (a *AIService) GenerateTrainingPlan(ctx context.Context, profile any) (stri
 — учитывать травмы
 — сочетать силу и гипертрофию
 — не включать разминку и растяжку, если это не критично
-— в каждом упражнении укажи подходы и повторения в формате 4x6–8
-— в каждом дне минимум 5 упражнений
-— упражнения обязательно нумерованные
-— сначала название дня, затем блоки мышц и упражнения
-— поле activities используй только для восстановительного/кардио дня, в остальных днях оставляй пустым
-— если поле не подходит (notes, duration, activities, focus), заполни пустой строкой или пустым списком
+— каждый пункт в items: "Упражнение — 4x6-8 (опциональные заметки)"
+— в каждом дне минимум 5 пунктов в items
+— никаких переносов строк внутри строк
 
 Ответ верни строго в JSON.
 Не копируй пример из инструкции — используй только структуру.
 
 Структура:
-week_plan: массив из 7 дней.
-day: 1..7
-name: название дня
-focus: акцент дня (может быть пустая строка)
-groups: массив мышечных групп (может быть пустой массив только в кардио/восстановительные дни)
-  muscle_group: название группы
-  exercises: список упражнений
-    name, sets, reps, notes, duration (если не нужно — пустая строка)
-activities: список активностей (используй только для кардио/восстановления, иначе пустой список)
-notes: строка (если не нужно — пустая строка)
+week_plan: массив из 7 дней
+  day: 1..7
+  name: название дня
+  focus: акцент дня (может быть пустая строка)
+  items: массив строк, каждая строка — одно упражнение/активность
 comment: строка (пустая строка)
 
 Профиль атлета:
@@ -344,39 +336,13 @@ comment: строка (пустая строка)
 						"day":   map[string]any{"type": "integer", "minimum": 1, "maximum": 7},
 						"name":  map[string]any{"type": "string"},
 						"focus": map[string]any{"type": "string"},
-						"groups": map[string]any{
-							"type": "array",
-							"items": map[string]any{
-								"type": "object",
-								"properties": map[string]any{
-									"muscle_group": map[string]any{"type": "string"},
-									"exercises": map[string]any{
-										"type": "array",
-										"items": map[string]any{
-											"type": "object",
-											"properties": map[string]any{
-												"name":     map[string]any{"type": "string"},
-												"sets":     map[string]any{"type": "string"},
-												"reps":     map[string]any{"type": "string"},
-												"notes":    map[string]any{"type": "string"},
-												"duration": map[string]any{"type": "string"},
-											},
-											"required":             []string{"name", "sets", "reps", "notes", "duration"},
-											"additionalProperties": false,
-										},
-									},
-								},
-								"required":             []string{"muscle_group", "exercises"},
-								"additionalProperties": false,
-							},
+						"items": map[string]any{
+							"type":     "array",
+							"minItems": 5,
+							"items":    map[string]any{"type": "string"},
 						},
-						"activities": map[string]any{
-							"type":  "array",
-							"items": map[string]any{"type": "string"},
-						},
-						"notes": map[string]any{"type": "string"},
 					},
-					"required":             []string{"day", "name", "focus", "groups", "activities", "notes"},
+					"required":             []string{"day", "name", "focus", "items"},
 					"additionalProperties": false,
 				},
 			},

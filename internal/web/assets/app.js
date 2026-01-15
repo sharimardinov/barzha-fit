@@ -140,9 +140,25 @@ function renderTrainingAccordion(items) {
     const body = document.createElement("div");
     body.className = "accordion-body";
 
-    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
     let hasExercises = false;
     let counter = 0;
+    const items = Array.isArray(dayItem.items) ? dayItem.items : [];
+    if (items.length) {
+      const list = document.createElement("ol");
+      list.className = "accordion-list";
+      items.forEach((entry) => {
+        const text = String(entry || "").trim();
+        if (!text) return;
+        hasExercises = true;
+        counter += 1;
+        const li = document.createElement("li");
+        li.textContent = text;
+        list.appendChild(li);
+      });
+      if (list.children.length) body.appendChild(list);
+    }
+
+    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
     groups.forEach((group) => {
       const groupName = String(group.muscle_group || "").trim();
       if (groupName) {
@@ -249,9 +265,21 @@ function formatWeekPlan(items) {
     const focus = String(dayItem.focus || "").trim();
     const title = focus ? `${name} (${focus})` : name;
     const chunks = [];
-    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
     let counter = 0;
     let hasExercises = false;
+    const items = Array.isArray(dayItem.items) ? dayItem.items : [];
+    if (items.length) {
+      items.forEach((entry) => {
+        const text = String(entry || "").trim();
+        if (!text) return;
+        hasExercises = true;
+        counter += 1;
+        chunks.push(`${counter}. ${text}`);
+      });
+      chunks.push("");
+    }
+
+    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
     groups.forEach((group) => {
       const groupName = String(group.muscle_group || "").trim();
       if (groupName) chunks.push(groupName);

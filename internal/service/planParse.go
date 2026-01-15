@@ -73,6 +73,7 @@ type trainingPlanDay struct {
 	Groups     []trainingPlanGroup `json:"groups"`
 	Activities []string            `json:"activities"`
 	Notes      string              `json:"notes"`
+	Items      []string            `json:"items"`
 }
 
 type trainingPlanGroup struct {
@@ -268,6 +269,21 @@ func formatTrainingDay(day trainingPlanDay) (string, int) {
 	b.WriteString("\n")
 
 	counter := 0
+	if len(day.Items) > 0 {
+		for _, item := range day.Items {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			counter++
+			b.WriteString(strconv.Itoa(counter))
+			b.WriteString(". ")
+			b.WriteString(item)
+			b.WriteString("\n")
+		}
+		return strings.TrimSpace(b.String()), counter
+	}
+
 	hasExercises := false
 	for _, group := range day.Groups {
 		groupName := strings.TrimSpace(group.MuscleGroup)
