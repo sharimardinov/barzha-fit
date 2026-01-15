@@ -511,6 +511,7 @@ button {
 .plan-actions {
   align-items: center;
   gap: 12px;
+  margin-top: 12px;
 }
 
 .plan-actions .btn {
