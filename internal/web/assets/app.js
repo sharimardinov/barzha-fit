@@ -609,13 +609,11 @@ async function loadToday() {
   setMetricValue("today-protein", `${data.protein} / ${data.targets.protein}`, data.icons.protein);
   setMetricValue("today-fat", `${data.fat} / ${data.targets.fat}`, data.icons.fat);
   setMetricValue("today-carbs", `${data.carbs} / ${data.targets.carbs}`, data.icons.carbs);
-  setMetricValue("today-steps", `${data.steps} / ${data.targets.steps}`, data.icons.steps);
 
   setProgress("progress-kcal", data.kcal, data.targets.kcal);
   setProgress("progress-protein", data.protein, data.targets.protein);
   setProgress("progress-fat", data.fat, data.targets.fat);
   setProgress("progress-carbs", data.carbs, data.targets.carbs);
-  setProgress("progress-steps", data.steps, data.targets.steps);
 
   $("steps-summary").textContent = `${data.steps} / ${data.targets.steps}`;
   setProgress("progress-steps-screen", data.steps, data.targets.steps);
@@ -1609,12 +1607,14 @@ async function bootstrap() {
 
   if (!onboardingReady) {
     lucide?.createIcons();
+    requestAnimationFrame(updateNavHighlight);
     return;
   }
 
   setActiveTab("today");
   await loadToday();
   lucide?.createIcons();
+  requestAnimationFrame(updateNavHighlight);
 }
 
 function toggleStatsView(view) {
