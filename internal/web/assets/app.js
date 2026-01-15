@@ -140,7 +140,7 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     toggle.type = "button";
     toggle.className = "accordion-toggle";
     const label = document.createElement("span");
-    label.textContent = `ДЕНЬ ${dayNum || "—"} — ${title}`;
+    label.textContent = `${title}`;
     toggle.appendChild(label);
     toggle.addEventListener("click", () => item.classList.toggle("open"));
 
@@ -324,7 +324,7 @@ function formatWeekPlan(items) {
       if (note) chunks.push(note);
     }
     const body = chunks.filter((line) => line !== "").join("\n");
-    lines.push(`ДЕНЬ ${dayNum} — ${title}${body ? `\n${body}` : ""}`);
+    lines.push(`${title}${body ? `\n${body}` : ""}`);
   });
   return lines.join("\n\n");
 }
