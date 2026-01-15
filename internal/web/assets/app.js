@@ -74,11 +74,11 @@ function formatPlanForDisplay(plan) {
   if (!raw.startsWith("{")) return raw || "—";
   try {
     const data = JSON.parse(raw);
-    if (Array.isArray(data.week_plan) && data.week_plan.length >= 7) {
+    if (Array.isArray(data.week_plan)) {
       return formatWeekPlan(data.week_plan);
     }
     const days = Array.isArray(data.days) ? data.days : null;
-    if (!days || days.length < 7) return raw;
+    if (!days || days.length === 0) return raw;
     const lines = [];
     for (let i = 0; i < 7; i += 1) {
       const rawDay = String(days[i] || "").replace(/\r\n/g, "\n");
@@ -107,7 +107,7 @@ function parsePlan(plan) {
       return { text: formatWeekPlan(data.week_plan), structured: true };
     }
     const days = Array.isArray(data.days) ? data.days : null;
-    if (days && days.length >= 7) {
+    if (days && days.length) {
       return { text: formatPlanForDisplay(raw), structured: true };
     }
   } catch (_) {
