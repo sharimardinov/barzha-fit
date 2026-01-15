@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -521,6 +522,16 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 		})
 		return
 	}
+	if tp, ok := service.ParseTrainingPlan(planText); ok {
+		if issues := validateTrainingPlan(tp); len(issues) > 0 {
+			writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
+				OK:    false,
+				Error: "training_plan_invalid",
+				Data:  map[string]any{"issues": issues},
+			})
+			return
+		}
+	}
 
 	if err := s.plan.Save(ctx, auth.User.ID, planText); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
@@ -971,6 +982,53 @@ func trimLimit(value string, max int) string {
 		return string(runes[:max])
 	}
 	return value
+}
+
+var exerciseLineRe = regexp.MustCompile(`(?i)\b\d+\s*[xх]\s*\d+`)
+
+func validateTrainingPlan(tp service.TrainingPlan) []string {
+	issues := make([]string, 0)
+	if len(tp.Days) < 7 {
+		issues = append(issues, "days<7")
+	}
+	for i, day := range tp.Days {
+		if len(tp.ExerciseCounts) > i && tp.ExerciseCounts[i] > 0 {
+			if tp.ExerciseCounts[i] < 5 {
+				issues = append(issues, fmt.Sprintf("day_%d_exercises<5", i+1))
+			}
+			continue
+		}
+		lines := splitPlanLines(day)
+		if len(lines) < 2 {
+			issues = append(issues, fmt.Sprintf("day_%d_no_body", i+1))
+			continue
+		}
+		count := 0
+		for _, line := range lines[1:] {
+			if exerciseLineRe.MatchString(line) {
+				count++
+			}
+		}
+		if count < 5 {
+			issues = append(issues, fmt.Sprintf("day_%d_exercises<5", i+1))
+		}
+	}
+	return issues
+}
+
+func splitPlanLines(text string) []string {
+	raw := strings.ReplaceAll(text, "\r\n", "\n")
+	lines := strings.Split(raw, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		clean := strings.TrimSpace(line)
+		clean = strings.Trim(clean, "*_")
+		if clean == "" {
+			continue
+		}
+		out = append(out, clean)
+	}
+	return out
 }
 
 func mealsToDTO(items []db.Meal) []mealDTO {

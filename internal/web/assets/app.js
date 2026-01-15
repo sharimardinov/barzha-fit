@@ -74,6 +74,9 @@ function formatPlanForDisplay(plan) {
   if (!raw.startsWith("{")) return raw || "—";
   try {
     const data = JSON.parse(raw);
+    if (Array.isArray(data.week_plan) && data.week_plan.length >= 7) {
+      return formatWeekPlan(data.week_plan);
+    }
     const days = Array.isArray(data.days) ? data.days : null;
     if (!days || days.length < 7) return raw;
     const lines = [];
@@ -87,13 +90,59 @@ function formatPlanForDisplay(plan) {
       const body = dayLines.length > 1 ? dayLines.slice(1).join("\n") : "";
       lines.push(`ДЕНЬ ${i + 1} — ${title}${body ? `\n${body}` : ""}`);
     }
-    if (data.comment) {
-      // Comment intentionally hidden in UI output.
-    }
     return lines.join("\n\n");
   } catch (_) {
     return raw || "—";
   }
+}
+
+function formatWeekPlan(items) {
+  const lines = [];
+  items.forEach((dayItem, idx) => {
+    const dayNum = Number(dayItem.day || idx + 1);
+    const name = String(dayItem.name || "—").trim();
+    const focus = String(dayItem.focus || "").trim();
+    const title = focus ? `${name} (${focus})` : name;
+    const chunks = [];
+    const groups = Array.isArray(dayItem.groups) ? dayItem.groups : [];
+    let counter = 0;
+    groups.forEach((group) => {
+      const groupName = String(group.muscle_group || "").trim();
+      if (groupName) chunks.push(groupName);
+      const exercises = Array.isArray(group.exercises) ? group.exercises : [];
+      exercises.forEach((ex) => {
+        const exName = String(ex.name || "").trim();
+        if (!exName) return;
+        counter += 1;
+        const sets = String(ex.sets || "").trim();
+        const reps = String(ex.reps || "").trim();
+        const duration = String(ex.duration || "").trim();
+        const notes = String(ex.notes || "").trim();
+        let tail = "";
+        if (duration) tail = duration;
+        else if (sets || reps) tail = `${sets}${sets && reps ? "x" : ""}${reps}`;
+        let line = `${counter}. ${exName}`;
+        if (tail) line += ` — ${tail}`;
+        if (notes) line += ` (${notes})`;
+        chunks.push(line);
+      });
+      if (exercises.length) chunks.push("");
+    });
+    const activities = Array.isArray(dayItem.activities) ? dayItem.activities : [];
+    activities.forEach((act) => {
+      const text = String(act || "").trim();
+      if (!text) return;
+      counter += 1;
+      chunks.push(`${counter}. ${text}`);
+    });
+    if (dayItem.notes) {
+      const note = String(dayItem.notes || "").trim();
+      if (note) chunks.push(note);
+    }
+    const body = chunks.filter((line) => line !== "").join("\n");
+    lines.push(`ДЕНЬ ${dayNum} — ${title}${body ? `\n${body}` : ""}`);
+  });
+  return lines.join("\n\n");
 }
 
 async function loadToday() {
@@ -465,6 +514,10 @@ async function bootstrap() {
       } catch (err) {
         if (err.message === "missing_fields" && err.data?.fields?.length) {
           toast(`Заполни: ${err.data.fields.join(", ")}`);
+          return;
+        }
+        if (err.message === "training_plan_invalid") {
+          toast("План без упражнений/повторов. Перегенерируй.");
           return;
         }
         toast("Ошибка генерации");

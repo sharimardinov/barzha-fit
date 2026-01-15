@@ -48,20 +48,44 @@ func SplitPlanByDays(plan string) map[int]string {
 }
 
 type TrainingPlan struct {
-	Days    []string
-	Comment string
+	Days           []string
+	Comment        string
+	ExerciseCounts []int
 }
 
 type trainingPlanPayload struct {
-	Days    []string `json:"days"`
-	Comment string   `json:"comment"`
-	Day1    string   `json:"day1"`
-	Day2    string   `json:"day2"`
-	Day3    string   `json:"day3"`
-	Day4    string   `json:"day4"`
-	Day5    string   `json:"day5"`
-	Day6    string   `json:"day6"`
-	Day7    string   `json:"day7"`
+	Days    []string          `json:"days"`
+	Comment string            `json:"comment"`
+	Day1    string            `json:"day1"`
+	Day2    string            `json:"day2"`
+	Day3    string            `json:"day3"`
+	Day4    string            `json:"day4"`
+	Day5    string            `json:"day5"`
+	Day6    string            `json:"day6"`
+	Day7    string            `json:"day7"`
+	Week    []trainingPlanDay `json:"week_plan"`
+}
+
+type trainingPlanDay struct {
+	Day        int                 `json:"day"`
+	Name       string              `json:"name"`
+	Focus      string              `json:"focus"`
+	Groups     []trainingPlanGroup `json:"groups"`
+	Activities []string            `json:"activities"`
+	Notes      string              `json:"notes"`
+}
+
+type trainingPlanGroup struct {
+	MuscleGroup string                 `json:"muscle_group"`
+	Exercises   []trainingPlanExercise `json:"exercises"`
+}
+
+type trainingPlanExercise struct {
+	Name     string `json:"name"`
+	Sets     string `json:"sets"`
+	Reps     string `json:"reps"`
+	Notes    string `json:"notes"`
+	Duration string `json:"duration"`
 }
 
 func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
@@ -76,7 +100,14 @@ func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
 	}
 
 	days := make([]string, 0, 7)
-	if len(payload.Days) > 0 {
+	exCounts := make([]int, 0, 7)
+	if len(payload.Week) > 0 {
+		for _, day := range payload.Week {
+			text, count := formatTrainingDay(day)
+			days = append(days, text)
+			exCounts = append(exCounts, count)
+		}
+	} else if len(payload.Days) > 0 {
 		days = payload.Days
 	} else {
 		days = []string{
@@ -98,8 +129,14 @@ func ParseTrainingPlan(plan string) (TrainingPlan, bool) {
 	if len(days) > 7 {
 		days = days[:7]
 	}
+	if len(exCounts) > 7 {
+		exCounts = exCounts[:7]
+	}
+	for len(exCounts) < len(days) {
+		exCounts = append(exCounts, 0)
+	}
 
-	return TrainingPlan{Days: days, Comment: strings.TrimSpace(payload.Comment)}, true
+	return TrainingPlan{Days: days, Comment: strings.TrimSpace(payload.Comment), ExerciseCounts: exCounts}, true
 }
 
 func FormatPlanForDisplay(plan string) (string, bool) {
@@ -149,4 +186,82 @@ func splitPlanLines(text string) []string {
 		out = append(out, clean)
 	}
 	return out
+}
+
+func formatTrainingDay(day trainingPlanDay) (string, int) {
+	var b strings.Builder
+	title := strings.TrimSpace(day.Name)
+	if title == "" {
+		title = "—"
+	}
+	if strings.TrimSpace(day.Focus) != "" {
+		title = title + " (" + strings.TrimSpace(day.Focus) + ")"
+	}
+	b.WriteString(title)
+	b.WriteString("\n")
+
+	counter := 0
+	for _, group := range day.Groups {
+		groupName := strings.TrimSpace(group.MuscleGroup)
+		if groupName != "" {
+			b.WriteString(groupName)
+			b.WriteString("\n")
+		}
+		for _, ex := range group.Exercises {
+			name := strings.TrimSpace(ex.Name)
+			if name == "" {
+				continue
+			}
+			counter++
+			b.WriteString(strconv.Itoa(counter))
+			b.WriteString(". ")
+			b.WriteString(name)
+			sets := strings.TrimSpace(ex.Sets)
+			reps := strings.TrimSpace(ex.Reps)
+			if sets != "" || reps != "" || ex.Duration != "" {
+				b.WriteString(" — ")
+			}
+			if ex.Duration != "" {
+				b.WriteString(strings.TrimSpace(ex.Duration))
+			} else {
+				if sets != "" {
+					b.WriteString(sets)
+				}
+				if reps != "" {
+					if sets != "" {
+						b.WriteString("x")
+					}
+					b.WriteString(reps)
+				}
+			}
+			if strings.TrimSpace(ex.Notes) != "" {
+				b.WriteString(" (")
+				b.WriteString(strings.TrimSpace(ex.Notes))
+				b.WriteString(")")
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(day.Activities) > 0 {
+		for _, act := range day.Activities {
+			act = strings.TrimSpace(act)
+			if act == "" {
+				continue
+			}
+			counter++
+			b.WriteString(strconv.Itoa(counter))
+			b.WriteString(". ")
+			b.WriteString(act)
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if strings.TrimSpace(day.Notes) != "" {
+		b.WriteString(strings.TrimSpace(day.Notes))
+	}
+
+	return strings.TrimSpace(b.String()), counter
 }
