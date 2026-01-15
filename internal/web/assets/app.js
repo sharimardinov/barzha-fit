@@ -125,8 +125,8 @@ function parsePlan(plan) {
   return { text: raw || "—", structured: false };
 }
 
-function renderTrainingAccordion(items) {
-  const container = $("training-accordion");
+function renderTrainingAccordion(items, containerId = "training-accordion") {
+  const container = $(containerId);
   if (!container) return;
   container.innerHTML = "";
   items.forEach((dayItem) => {
@@ -334,7 +334,19 @@ function formatWeekPlan(items) {
 async function loadToday() {
   const data = await api("/api/today");
   state.today = data;
-  $("today-plan").textContent = data.plan || "—";
+  const parsed = parsePlan(data.plan || "");
+  const todayResult = $("today-training-result");
+  if (parsed.weekPlan && parsed.weekPlan.length) {
+    renderTrainingAccordion(parsed.weekPlan, "today-accordion");
+    if (todayResult) todayResult.style.display = "none";
+  } else {
+    if (todayResult) {
+      todayResult.style.display = "block";
+      todayResult.textContent = parsed.text || "—";
+    }
+    const container = $("today-accordion");
+    if (container) container.innerHTML = "";
+  }
   $("today-workout").textContent = data.workoutIcon || "—";
   $("today-kcal").textContent = `${data.kcal} / ${data.targets.kcal} ${data.icons.kcal}`;
   $("today-protein").textContent = `${data.protein} / ${data.targets.protein} ${data.icons.protein}`;
@@ -662,17 +674,6 @@ async function loadStatsMonth() {
   renderMonthCalendars(data);
 }
 
-async function loadStreak() {
-  const data = await api("/api/streak");
-  $("streak-workout").textContent = data.workoutStreak;
-  $("streak-meal").textContent = data.mealStreak;
-  const max = 7;
-  const pct = Math.min((data.mealStreak / max) * 100, 100);
-  $("streak-meal-progress").textContent = `${data.mealStreak} / ${max} дней`;
-  const bar = $("streak-meal-bar");
-  if (bar) bar.style.width = `${pct}%`;
-}
-
 function initNav() {
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -680,8 +681,6 @@ function initNav() {
       setActiveTab(tab);
       if (tab === "today") {
         await loadToday();
-        await loadMeals();
-        await loadStreak();
       }
       if (tab === "meals") await loadMeals();
       if (tab === "plan") {
@@ -732,32 +731,8 @@ async function bootstrap() {
         setOnboardingActive(false);
         setActiveTab("today");
         await loadToday();
-        await loadMeals();
-        await loadStreak();
       });
     }
-  }
-
-  const todayOpenTraining = $("today-open-training");
-  if (todayOpenTraining) {
-    todayOpenTraining.addEventListener("click", async () => {
-      setActiveTab("training");
-      await loadPlan();
-    });
-  }
-  const todayAddMeal = $("today-add-meal");
-  if (todayAddMeal) {
-    todayAddMeal.addEventListener("click", async () => {
-      setActiveTab("meals");
-      await loadMeals();
-    });
-  }
-  const todayAddSteps = $("today-add-steps");
-  if (todayAddSteps) {
-    todayAddSteps.addEventListener("click", async () => {
-      setActiveTab("steps");
-      await loadToday();
-    });
   }
 
   $("workout-done").addEventListener("click", async () => {
@@ -778,13 +753,6 @@ async function bootstrap() {
     const data = await api("/api/meal/add", { text });
     toast(data.aiError ? "AI упал, текст сохранён" : "Еда добавлена");
     $("meal-text").value = "";
-    await loadMeals();
-    await loadToday();
-  });
-
-  $("meal-undo").addEventListener("click", async () => {
-    const res = await api("/api/meal/undo");
-    toast(res.deleted ? "Удалено" : "Нечего удалять");
     await loadMeals();
     await loadToday();
   });
@@ -907,10 +875,6 @@ async function bootstrap() {
     await loadStatsMonth();
   });
 
-  $("streak-refresh").addEventListener("click", async () => {
-    await loadStreak();
-  });
-
   if (!onboardingReady) {
     lucide?.createIcons();
     return;
@@ -918,8 +882,6 @@ async function bootstrap() {
 
   setActiveTab("today");
   await loadToday();
-  await loadMeals();
-  await loadStreak();
   lucide?.createIcons();
 }
 

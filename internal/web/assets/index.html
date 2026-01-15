@@ -39,13 +39,8 @@
       <section class="screen active" id="screen-today">
         <div class="card">
           <div class="card-title">Тренировка дня</div>
-          <pre class="plan" id="today-plan">—</pre>
-          <div class="row">
-            <button class="btn btn-outline" id="today-open-training">Открыть тренировку</button>
-          </div>
-        </div>
-
-        <div class="card">
+          <div class="accordion" id="today-accordion"></div>
+          <pre class="plan" id="today-training-result">—</pre>
           <div class="card-title row">
             <span>Статус</span>
             <span class="status-pill" id="today-workout">—</span>
@@ -93,44 +88,6 @@
             </div>
             <div class="progress-bar"><div class="progress-fill" id="progress-steps"></div></div>
           </div>
-          <div class="row">
-            <button class="btn btn-outline" id="today-add-meal">Добавить еду</button>
-            <button class="btn btn-outline" id="today-add-steps">Добавить шаги</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">Серии</div>
-          <div class="streak-grid">
-            <div class="streak-item">
-              <span>Тренировки подряд</span>
-              <strong id="streak-workout">—</strong>
-            </div>
-            <div class="streak-item">
-              <span>Еда подряд</span>
-              <strong id="streak-meal">—</strong>
-            </div>
-            <div class="progress-item">
-              <div class="progress-head">
-                <span>Прогресс серии питания</span>
-                <span class="value" id="streak-meal-progress">—</span>
-              </div>
-              <div class="progress-bar"><div class="progress-fill" id="streak-meal-bar"></div></div>
-            </div>
-          </div>
-          <button class="btn btn-accent" id="streak-refresh">Обновить</button>
-        </div>
-
-        <div class="card">
-          <div class="card-title row">
-            <span>Еда сегодня</span>
-            <button class="btn btn-ghost" id="meal-undo">Удалить</button>
-          </div>
-          <div class="totals" id="meal-today-total">
-            <span id="meal-total-kcal-today">0 ккал</span>
-            <span id="meal-total-macros-today">Б 0 • Ж 0 • У 0</span>
-          </div>
-          <div class="list" id="meal-list-today"></div>
         </div>
       </section>
 
