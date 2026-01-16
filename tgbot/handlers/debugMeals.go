@@ -1,55 +1,40 @@
 package handlers
 
 import (
-	"barzhafit/backend/storage/db"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"barzhafit/backend/service"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DebugMeals struct {
 	api *tgbotapi.BotAPI
-	db  *pgxpool.Pool
+	nut *service.NutritionService
 }
 
-func NewDebugMeals(api *tgbotapi.BotAPI, db *pgxpool.Pool) *DebugMeals {
-	return &DebugMeals{api: api, db: db}
+func NewDebugMeals(api *tgbotapi.BotAPI, nut *service.NutritionService) *DebugMeals {
+	return &DebugMeals{api: api, nut: nut}
 }
 
 func (h *DebugMeals) Handle(m *tgbotapi.Message) {
 	ctx := context.Background()
 	chatID := m.Chat.ID
 
-	rows, err := h.db.Query(ctx, `
-		select id, eaten_at, text, kcal, protein_g, fat_g, carbs_g,
-		       eaten_at AT TIME ZONE 'UTC' as eaten_at_utc
-		from meals
-		where chat_id=$1
-		order by id desc
-		limit 10
-	`, chatID)
+	items, err := h.nut.ListRecent(ctx, chatID, 10)
 	if err != nil {
 		_, _ = h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Ошибка: %v", err)))
 		return
 	}
-	defer rows.Close()
 
-	var items []db.Meal
-	var timestamps []string
-	for rows.Next() {
-		var m db.Meal
-		var eatenAtUTC time.Time
-		if err := rows.Scan(&m.ID, &m.EatenAt, &m.Text, &m.Kcal, &m.ProteinG, &m.FatG, &m.CarbsG, &eatenAtUTC); err != nil {
-			continue
-		}
-		items = append(items, m)
+	timestamps := make([]string, 0, len(items))
+	for _, item := range items {
 		timestamps = append(timestamps, fmt.Sprintf("Local: %s\nUTC: %s",
-			m.EatenAt.Format("2006-01-02 15:04:05 MST"),
-			eatenAtUTC.Format("2006-01-02 15:04:05 MST")))
+			item.EatenAt.Format("2006-01-02 15:04:05 MST"),
+			item.EatenAt.UTC().Format("2006-01-02 15:04:05 MST")))
 	}
 
 	if len(items) == 0 {

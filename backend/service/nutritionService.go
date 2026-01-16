@@ -1,12 +1,13 @@
 package service
 
 import (
-	"barzhafit/backend/storage/db"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"barzhafit/backend/storage/db"
 )
 
 var (
@@ -15,11 +16,21 @@ var (
 )
 
 type NutritionService struct {
-	meals *db.MealRepo
-	ai    *AIService
+	meals MealStorage
+	ai    *NutritionAI
 }
 
-func NewNutritionService(meals *db.MealRepo, ai *AIService) *NutritionService {
+type MealStorage interface {
+	Add(ctx context.Context, m *db.Meal, aiRaw any) error
+	DeleteLast(ctx context.Context, chatID int64) (bool, error)
+	DeleteByID(ctx context.Context, chatID int64, id int64) (bool, error)
+	ListByDay(ctx context.Context, chatID int64, from, to time.Time) ([]db.Meal, error)
+	ListRecent(ctx context.Context, chatID int64, limit int) ([]db.Meal, error)
+	SumByDay(ctx context.Context, chatID int64, from, to time.Time) (kcal, p, f, c int, err error)
+	SumByRangeDaily(ctx context.Context, chatID int64, from, to time.Time, tz string) (map[string]db.DayNutrition, error)
+}
+
+func NewNutritionService(meals MealStorage, ai *NutritionAI) *NutritionService {
 	return &NutritionService{meals: meals, ai: ai}
 }
 

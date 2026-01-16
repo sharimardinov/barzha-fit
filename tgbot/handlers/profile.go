@@ -20,7 +20,7 @@ type Profile struct {
 	profile *service.ProfileService
 	targets *service.TargetsService
 	plan    *service.PlanService
-	ai      *service.AIService
+	ai      *service.ActivityAI
 }
 
 func NewProfile(
@@ -30,7 +30,7 @@ func NewProfile(
 	profile *service.ProfileService,
 	targets *service.TargetsService,
 	plan *service.PlanService,
-	ai *service.AIService,
+	ai *service.ActivityAI,
 ) *Profile {
 	return &Profile{
 		api:     api,

@@ -28,7 +28,7 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	aiSvc, err := service.NewAIService()
+	aiClient, err := service.NewAIClient()
 	if err != nil {
 		return nil, err
 	}
@@ -67,14 +67,16 @@ func New() (*App, error) {
 
 	// nutrition
 	mealRepo := db.NewMealRepo(pool)
-	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
+	nutAI := service.NewNutritionAI(aiClient)
+	nutSvc := service.NewNutritionService(mealRepo, nutAI)
 
 	// steps
 	stepsRepo := db.NewStepsRepo(pool)
 	stepsSvc := service.NewStepsService(stepsRepo)
 
 	// ИСПРАВЛЕНО: добавлены profileSvc, targetsSvc, pool
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, aiSvc, pool)
+	activityAI := service.NewActivityAI(aiClient)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, activityAI)
 
 	return &App{cfg: cfg, bot: b, db: pool}, nil
 }

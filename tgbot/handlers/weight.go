@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"barzhafit/backend/domain"
-	"barzhafit/backend/service"
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
+
+	"barzhafit/backend/domain"
+	"barzhafit/backend/input"
+	"barzhafit/backend/service"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -30,7 +31,7 @@ func (h *Weight) Handle(m *tgbotapi.Message) {
 		return
 	}
 
-	weight, ok := parseWeight(args)
+	weight, ok := input.ParseWeight(args)
 	if !ok {
 		h.api.Send(tgbotapi.NewMessage(chatID, "Введи вес в кг, например 82.5"))
 		return
@@ -48,12 +49,4 @@ func (h *Weight) Handle(m *tgbotapi.Message) {
 	}
 
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Вес обновлён: %.1f кг. Если нужно — /targetsrefresh", p.WeightKG)))
-}
-
-func parseWeight(s string) (float64, bool) {
-	v, err := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(s), ",", "."), 64)
-	if err != nil || v < 20 || v > 400 {
-		return 0, false
-	}
-	return v, true
 }

@@ -69,19 +69,24 @@ func main() {
 	trainingProfileRepo := db.NewTrainingProfileRepo(pool)
 	trainingProfileSvc := service.NewTrainingProfileService(trainingProfileRepo)
 
-	aiSvc, err := service.NewAIService()
+	aiClient, err := service.NewAIClient()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	mealRepo := db.NewMealRepo(pool)
-	nutSvc := service.NewNutritionService(mealRepo, aiSvc)
+	nutAI := service.NewNutritionAI(aiClient)
+	nutSvc := service.NewNutritionService(mealRepo, nutAI)
 
 	stepsRepo := db.NewStepsRepo(pool)
 	stepsSvc := service.NewStepsService(stepsRepo)
 
 	planView := service.NewPlanViewService(planSvc, nutSvc, stepsSvc, cfg.TZ)
 	statsView := service.NewStatsViewService(nutSvc, workoutSvc, stepsSvc, targetsSvc, cfg.TZ)
+
+	activityAI := service.NewActivityAI(aiClient)
+	trainingAI := service.NewTrainingPlanAI(aiClient)
+	reflectionAI := service.NewReflectionAI(aiClient)
 
 	if *morning {
 		if err := runMorning(ctx, api, planSvc, workoutSvc, botUsersSvc, cfg.TZ); err != nil {
@@ -105,7 +110,7 @@ func main() {
 	}
 
 	if *weekly {
-		if err := runWeekly(ctx, api, botUsersSvc, nutSvc, workoutSvc, targetsSvc, aiSvc, cfg.TZ); err != nil {
+		if err := runWeekly(ctx, api, botUsersSvc, nutSvc, workoutSvc, targetsSvc, reflectionAI, cfg.TZ); err != nil {
 			log.Fatalf("weekly failed: %v", err)
 		}
 		return
@@ -118,7 +123,7 @@ func main() {
 		return
 	}
 
-	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, aiSvc, pool)
+	b := bot.New(api, planSvc, workoutSvc, botUsersSvc, cfg.TZ, profileSvc, targetsSvc, nutSvc, stepsSvc, activityAI)
 	webServer := tgapp.NewServer(tgapp.Deps{
 		Addr:      cfg.WebAddr,
 		BotToken:  cfg.BotToken,
@@ -130,7 +135,8 @@ func main() {
 		Steps:     stepsSvc,
 		Profile:   profileSvc,
 		Training:  trainingProfileSvc,
-		AI:        aiSvc,
+		Activity:  activityAI,
+		TrainingAI: trainingAI,
 		PlanView:  planView,
 		StatsView: statsView,
 	})
@@ -300,7 +306,7 @@ func runEvening(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUse
 	return nil
 }
 
-func runWeekly(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersService, nut *service.NutritionService, workout *service.WorkoutService, targets *service.TargetsService, ai *service.AIService, tz string) error {
+func runWeekly(ctx context.Context, api *tgbotapi.BotAPI, users *service.BotUsersService, nut *service.NutritionService, workout *service.WorkoutService, targets *service.TargetsService, ai *service.ReflectionAI, tz string) error {
 	loc := util.MustLocation(tz)
 	now := util.NowIn(loc)
 	weekday := util.Weekday1to7(now)

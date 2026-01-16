@@ -5,17 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
 	"barzhafit/backend/domain"
+	"barzhafit/backend/input"
 	"barzhafit/backend/service"
 	"barzhafit/backend/util"
 	"barzhafit/tgbot/handlers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Bot struct {
@@ -30,12 +29,11 @@ type Bot struct {
 	targets   *service.TargetsService
 	nutrition *service.NutritionService
 	steps     *service.StepsService
-	ai        *service.AIService
+	ai        *service.ActivityAI
 	callbacks *CallbackService
 	planView  *service.PlanViewService
 	statsView *service.StatsViewService
 	drafts    *service.ProfileDraftStore
-	db        *pgxpool.Pool
 }
 
 func New(
@@ -48,8 +46,7 @@ func New(
 	targets *service.TargetsService,
 	nutrition *service.NutritionService,
 	steps *service.StepsService,
-	ai *service.AIService,
-	db *pgxpool.Pool,
+	ai *service.ActivityAI,
 ) *Bot {
 	planView := service.NewPlanViewService(plan, nutrition, steps, tz)
 	statsView := service.NewStatsViewService(nutrition, workout, steps, targets, tz)
@@ -71,7 +68,6 @@ func New(
 		planView:  planView,
 		statsView: statsView,
 		drafts:    service.NewProfileDraftStore(),
-		db:        db,
 	}
 	b.registerRoutes()
 	return b
@@ -93,7 +89,7 @@ func (b *Bot) registerRoutes() {
 	streak := handlers.NewStreak(b.api, b.workout, b.nutrition, b.tz)
 	hard := handlers.NewHard(b.api, b.users)
 	weight := handlers.NewWeight(b.api, b.state, b.profile)
-	debug := handlers.NewDebugMeals(b.api, b.db)
+	debug := handlers.NewDebugMeals(b.api, b.nutrition)
 
 	b.router.Handle("/start", start.Handle)
 	b.router.Handle("/help", help.Handle)
@@ -241,7 +237,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return true
 
 	case domain.StateWaitProfileHeight:
-		height, ok := parseIntInRange(strings.TrimSpace(m.Text), 50, 260)
+		height, ok := input.ParseIntInRange(strings.TrimSpace(m.Text), 50, 260)
 		if !ok {
 			b.reply(chatID, "Введи рост в см, например 180")
 			return true
@@ -258,7 +254,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return true
 
 	case domain.StateWaitProfileWeight:
-		weight, ok := parseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
+		weight, ok := input.ParseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
 		if !ok {
 			b.reply(chatID, "Введи вес в кг, например 82.5.")
 			return true
@@ -275,7 +271,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return true
 
 	case domain.StateWaitProfileBodyFat:
-		bf, ok := parseFloatInRange(strings.TrimSpace(m.Text), 3, 80)
+		bf, ok := input.ParseFloatInRange(strings.TrimSpace(m.Text), 3, 80)
 		if !ok {
 			b.reply(chatID, "Введи процент жира, например 15.")
 			return true
@@ -292,7 +288,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return true
 
 	case domain.StateWaitStepsCount:
-		steps, ok := parseIntInRange(strings.TrimSpace(m.Text), 0, 100000)
+		steps, ok := input.ParseIntInRange(strings.TrimSpace(m.Text), 0, 100000)
 		if !ok {
 			b.reply(chatID, "Напиши количество шагов числом, например 8500")
 			return true
@@ -309,7 +305,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return true
 
 	case domain.StateWaitWeightUpdate:
-		weight, ok := parseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
+		weight, ok := input.ParseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
 		if !ok {
 			b.reply(chatID, "Введи вес в кг, например 82.5")
 			return true
@@ -328,7 +324,7 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		return true
 
 	case domain.StateWaitProfileAge:
-		age, ok := parseIntInRange(strings.TrimSpace(m.Text), 10, 100)
+		age, ok := input.ParseIntInRange(strings.TrimSpace(m.Text), 10, 100)
 		if !ok {
 			b.reply(chatID, "Введи возраст, например 30")
 			return true
@@ -425,29 +421,6 @@ func (b *Bot) handleState(m *tgbotapi.Message) bool {
 		b.state.Clear(chatID)
 		return false
 	}
-}
-
-func parseIntInRange(s string, min, max int) (int, bool) {
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, false
-	}
-	if v < min || v > max {
-		return 0, false
-	}
-	return v, true
-}
-
-func parseFloatInRange(s string, min, max float64) (float64, bool) {
-	s = strings.ReplaceAll(s, ",", ".")
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	if v < min || v > max {
-		return 0, false
-	}
-	return v, true
 }
 
 func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {

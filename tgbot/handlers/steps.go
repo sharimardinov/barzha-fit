@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"barzhafit/backend/domain"
-	"barzhafit/backend/service"
-	"barzhafit/backend/util"
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
+
+	"barzhafit/backend/domain"
+	"barzhafit/backend/input"
+	"barzhafit/backend/service"
+	"barzhafit/backend/util"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -32,7 +33,7 @@ func (h *Steps) Handle(m *tgbotapi.Message) {
 		return
 	}
 
-	steps, ok := parseSteps(args)
+	steps, ok := input.ParseSteps(args)
 	if !ok {
 		h.api.Send(tgbotapi.NewMessage(chatID, "Напиши количество шагов числом, например 8500"))
 		return
@@ -47,12 +48,4 @@ func (h *Steps) Handle(m *tgbotapi.Message) {
 	}
 
 	h.api.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Ок, записал: %d шагов", steps)))
-}
-
-func parseSteps(s string) (int, bool) {
-	v, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil || v < 0 || v > 100000 {
-		return 0, false
-	}
-	return v, true
 }
