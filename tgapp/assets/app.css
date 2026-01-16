@@ -160,6 +160,19 @@ body {
   padding: 10px;
 }
 
+.option-list.sex-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.option-card.sex-option {
+  min-height: 96px;
+  font-size: 2rem;
+  font-weight: 800;
+  border-radius: 24px;
+}
+
 @media (max-width: 700px) {
   .tabs {
     transform: scale(0.9);
@@ -297,6 +310,7 @@ select {
   font-size: 16px;
   background: var(--white);
   color: var(--black);
+  caret-color: var(--black);
 }
 
 textarea {
@@ -1034,6 +1048,12 @@ button {
 
 .toast.show {
   opacity: 1;
+}
+
+.toast.anchored {
+  left: auto;
+  bottom: auto;
+  transform: none;
 }
 .tabs.profile-goal-tabs {
   width: 100%;

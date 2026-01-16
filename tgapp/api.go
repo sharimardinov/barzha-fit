@@ -425,7 +425,7 @@ func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth a
 	if payload.Goal != "" {
 		p.Goal = payload.Goal
 	}
-	if payload.TrainingYears > 0 {
+	if payload.TrainingYears >= 0 {
 		p.TrainingYears = payload.TrainingYears
 	}
 
@@ -547,8 +547,9 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 			issues = []string{"invalid_json"}
 		} else {
 			planText = normalizeTrainingPlanTypes(normalized)
-			if tp, ok := service.ParseTrainingPlan(planText); ok {
-				issues = validateTrainingPlan(tp)
+			if tpPlan, ok := service.ParseTrainingPlan(planText); ok {
+				issues = validateTrainingPlan(tpPlan)
+				issues = append(issues, validateTrainingPlanWithProfile(tpPlan, tp.TrainingsPerWeek, tp.Injuries, tp.Wishes)...)
 				if payloadIssues := validateTrainingPlanPayload(planText); len(payloadIssues) > 0 {
 					issues = append(issues, payloadIssues...)
 				}
@@ -919,7 +920,7 @@ func missingTrainingFields(p domain.Profile, tp domain.TrainingProfile, hasProfi
 	if !hasProfile || p.BodyFatPct < 1 || p.BodyFatPct > 100 {
 		missing = append(missing, "процент_жира")
 	}
-	if !hasProfile || p.TrainingYears <= 0 {
+	if !hasProfile || p.TrainingYears < 0 {
 		missing = append(missing, "стаж_тренировок_лет")
 	}
 	if !hasTraining || tp.BenchKG < 0 || tp.BenchKG > 400 {
@@ -1309,6 +1310,77 @@ func validateTrainingPlan(tp service.TrainingPlan) []string {
 		}
 	}
 	return issues
+}
+
+func validateTrainingPlanWithProfile(tp service.TrainingPlan, desiredDays int, injuries, wishes string) []string {
+	issues := make([]string, 0)
+	if desiredDays >= 1 && desiredDays <= 7 {
+		trainDays := countTrainDays(tp)
+		if trainDays != desiredDays {
+			issues = append(issues, fmt.Sprintf("train_days_%d_expected_%d", trainDays, desiredDays))
+		}
+	}
+
+	notes := strings.ToLower(strings.TrimSpace(injuries + " " + wishes))
+	if needsBackCare(notes) {
+		planText := strings.ToLower(strings.Join(tp.Days, "\n"))
+		for _, term := range []string{
+			"приседания со штангой",
+			"приседания со штангой в смите",
+			"становая",
+			"мертвая тяга",
+			"румынская тяга",
+			"тяга штанги в наклоне",
+		} {
+			if strings.Contains(planText, term) {
+				issues = append(issues, "back_loads")
+				break
+			}
+		}
+	}
+
+	return issues
+}
+
+func countTrainDays(tp service.TrainingPlan) int {
+	count := 0
+	for i, day := range tp.Days {
+		kind := ""
+		if len(tp.Types) > i {
+			kind = strings.ToLower(strings.TrimSpace(tp.Types[i]))
+		}
+		if kind == "train" {
+			count++
+			continue
+		}
+		if kind == "rest" {
+			continue
+		}
+		if len(tp.ExerciseCounts) > i && tp.ExerciseCounts[i] > 2 {
+			count++
+			continue
+		}
+		low := strings.ToLower(day)
+		if strings.Contains(low, "отдых") || strings.Contains(low, "rest") || strings.Contains(low, "мобилит") || strings.Contains(low, "ходьба") {
+			continue
+		}
+		if strings.TrimSpace(day) != "" {
+			count++
+		}
+	}
+	return count
+}
+
+func needsBackCare(text string) bool {
+	if text == "" {
+		return false
+	}
+	for _, term := range []string{"поясн", "спин", "грыж", "межпозвон", "sciat", "back"} {
+		if strings.Contains(text, term) {
+			return true
+		}
+	}
+	return false
 }
 
 func splitPlanLines(text string) []string {

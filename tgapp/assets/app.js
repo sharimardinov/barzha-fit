@@ -19,10 +19,37 @@ const targetFields = [
   { field: "steps", id: "target-steps", planId: "plan-target-steps" },
 ];
 
-function toast(message) {
+function toast(message, anchor) {
   const el = $("toast");
   el.textContent = message;
   el.classList.add("show");
+
+  if (anchor instanceof Element) {
+    el.classList.add("anchored");
+    requestAnimationFrame(() => {
+      const rect = anchor.getBoundingClientRect();
+      const toastRect = el.getBoundingClientRect();
+      const padding = 12;
+      let left = rect.right + padding;
+      if (left+toastRect.width > window.innerWidth - padding) {
+        left = rect.left - toastRect.width - padding;
+      }
+      left = Math.max(padding, Math.min(left, window.innerWidth - toastRect.width - padding));
+      let top = rect.top + rect.height / 2 - toastRect.height / 2;
+      top = Math.max(padding, Math.min(top, window.innerHeight - toastRect.height - padding));
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+      el.style.bottom = "";
+      el.style.transform = "none";
+    });
+  } else {
+    el.classList.remove("anchored");
+    el.style.left = "50%";
+    el.style.top = "";
+    el.style.bottom = "150px";
+    el.style.transform = "translateX(-50%)";
+  }
+
   setTimeout(() => el.classList.remove("show"), 1800);
 }
 
@@ -762,11 +789,11 @@ async function loadProfile() {
   try {
     const p = await api("/api/profile/get");
     $("profile-sex").value = p.sex || "";
-    $("profile-age").value = p.age || "";
-    $("profile-height").value = p.height_cm || "";
-    $("profile-weight").value = p.weight_kg || "";
-    $("profile-training-years").value = p.training_years || "";
-    $("profile-bodyfat").value = p.bodyfat_pct || "";
+    $("profile-age").value = p.age ?? "";
+    $("profile-height").value = p.height_cm ?? "";
+    $("profile-weight").value = p.weight_kg ?? "";
+    $("profile-training-years").value = p.training_years ?? "";
+    $("profile-bodyfat").value = p.bodyfat_pct ?? "";
     setGoalTabs(p.goal || "balance");
     $("profile-activity").textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
   } catch (_) {
@@ -851,7 +878,7 @@ function validateProfileInputs() {
   const trainingYears = parseNumberField("profile-training-years", "стаж тренировок", {
     required: true,
     integer: true,
-    min: 1,
+    min: 0,
     max: 80,
   });
   const goalType = getGoalTypeFromTabs();
@@ -929,7 +956,7 @@ function isProfileComplete(p) {
     p.weight_kg <= 300 &&
     p.bodyfat_pct >= 1 &&
     p.bodyfat_pct <= 100 &&
-    p.training_years >= 1 &&
+    p.training_years >= 0 &&
     p.training_years <= 80
   );
 }
@@ -1112,10 +1139,10 @@ function initOnboardingWizard() {
     {
       id: "sex",
       title: "Твой пол",
-      type: "sex-tabs",
+      type: "sex-buttons",
       options: [
-        { value: "m", label: "М", icon: "bi-gender-male" },
-        { value: "f", label: "Ж", icon: "bi-gender-female" },
+        { value: "m", label: "М" },
+        { value: "f", label: "Ж" },
       ],
       help: "Нужно для корректных норм и нагрузки.",
       required: true,
@@ -1158,9 +1185,9 @@ function initOnboardingWizard() {
       title: "Стаж тренировок (лет)",
       type: "input",
       inputType: "number",
-      min: 1,
+      min: 0,
       max: 80,
-      placeholder: "Например: 3",
+      placeholder: "Например: 0",
       help: "Определяет уровень и подбор упражнений.",
       required: true,
     },
@@ -1301,7 +1328,7 @@ function initOnboardingWizard() {
     titleEl.textContent = step.title;
     descEl.textContent = step.type === "wheel" || step.type === "wheel-horizontal"
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
-      : step.type === "options" || step.type === "goal-combo" || step.type === "sex-tabs"
+      : step.type === "options" || step.type === "goal-combo" || step.type === "sex-buttons"
         ? "Выбери один вариант"
         : "Введи значение";
     helpEl.textContent = step.help || "";
@@ -1328,40 +1355,22 @@ function initOnboardingWizard() {
       bodyEl.appendChild(list);
     }
 
-    if (step.type === "sex-tabs") {
-      const container = document.createElement("div");
-      container.className = "tabs-container";
-      const tabs = document.createElement("div");
-      tabs.className = "tabs sex-tabs";
-      step.options.forEach((opt, index) => {
-        const input = document.createElement("input");
-        input.type = "radio";
-        input.name = "onboarding-sex-tabs";
-        input.id = `onboarding-sex-${index}`;
-        input.value = opt.value;
-        input.checked = data[step.id] === opt.value;
-        const label = document.createElement("label");
-        label.className = "tab";
-        label.setAttribute("for", input.id);
-        label.innerHTML = `<i class="bi ${opt.icon}" aria-hidden="true"></i>`;
-        input.addEventListener("change", () => {
+    if (step.type === "sex-buttons") {
+      const list = document.createElement("div");
+      list.className = "option-list sex-options";
+      step.options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "option-card sex-option";
+        btn.textContent = opt.label;
+        btn.classList.toggle("active", data[step.id] === opt.value);
+        btn.addEventListener("click", () => {
           data[step.id] = opt.value;
+          renderStep();
         });
-        tabs.appendChild(input);
-        tabs.appendChild(label);
+        list.appendChild(btn);
       });
-      const glider = document.createElement("span");
-      glider.className = "glider";
-      tabs.appendChild(glider);
-      const updateGlider = () => {
-        const idx = step.options.findIndex((opt) => opt.value === data[step.id]);
-        const index = idx >= 0 ? idx : 0;
-        glider.style.transform = `translateY(${index * 100}%)`;
-      };
-      updateGlider();
-      tabs.addEventListener("change", updateGlider);
-      container.appendChild(tabs);
-      bodyEl.appendChild(container);
+      bodyEl.appendChild(list);
     }
 
     if (step.type === "goal-combo") {
@@ -1466,7 +1475,7 @@ function initOnboardingWizard() {
       toast("Выбери цель");
       return false;
     }
-    if (step.type === "sex-tabs" && (value === undefined || value === null || value === "")) {
+    if (step.type === "sex-buttons" && (value === undefined || value === null || value === "")) {
       toast("Выбери вариант");
       return false;
     }
@@ -1736,7 +1745,7 @@ async function bootstrap() {
     planTargetsRefresh.addEventListener("click", async () => {
       await api("/api/targets/refresh");
       await loadTargets();
-      toast("Пересчитано");
+      toast("Пересчитано", planTargetsRefresh);
       await loadToday();
     });
   }
