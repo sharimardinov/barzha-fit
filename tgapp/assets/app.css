@@ -497,6 +497,16 @@ button {
   background: var(--white);
 }
 
+.option-card.accent-fill {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
+}
+
+.option-card.accent-fill.active {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+
 .option-card.active {
   border-color: var(--accent);
   background: rgba(255, 3, 62, 0.08);

@@ -356,6 +356,84 @@ function convertManualPlanToJSON(text) {
   return JSON.stringify({ week_plan: weekPlan, comment: "" });
 }
 
+function buildWeekPlanTemplate(defaultItem = "") {
+  const weekPlan = [];
+  for (let day = 1; day <= 7; day += 1) {
+    weekPlan.push({
+      day,
+      name: `День ${day}`,
+      focus: "",
+      type: "rest",
+      items: defaultItem ? [defaultItem] : [],
+    });
+  }
+  return weekPlan;
+}
+
+function buildEmptyWeekPlan() {
+  return buildWeekPlanTemplate("Отдых");
+}
+
+function normalizeWeekPlanForSave(weekPlan) {
+  const out = [];
+  for (let i = 0; i < 7; i += 1) {
+    const src = weekPlan?.[i] || {};
+    const focus = String(src.focus || "").trim();
+    const items = Array.isArray(src.items)
+      ? src.items.map((line) => String(line || "").trim()).filter(Boolean)
+      : [];
+    const lowered = items.join(" ").toLowerCase();
+    const hasRestWord = /(выходн|отдых|rest|off)/i.test(lowered);
+    const isRest = hasRestWord || items.length === 0;
+    out.push({
+      day: i + 1,
+      name: `День ${i + 1}`,
+      focus,
+      type: isRest ? "rest" : "train",
+      items: items.length ? items : ["Отдых"],
+    });
+  }
+  return out;
+}
+
+function renderPlanEditor(container, weekPlan, onChange) {
+  container.innerHTML = "";
+  weekPlan.forEach((day, index) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "training-day-editor";
+    wrapper.dataset.index = String(index);
+
+    const title = document.createElement("div");
+    title.className = "muted";
+    title.textContent = `День ${index + 1}`;
+    wrapper.appendChild(title);
+
+    const focusInput = document.createElement("input");
+    focusInput.type = "text";
+    focusInput.placeholder = "Фокус (можно пусто)";
+    focusInput.value = String(day.focus || "").trim();
+    focusInput.addEventListener("input", () => {
+      day.focus = focusInput.value.trim();
+      if (onChange) onChange(weekPlan);
+    });
+    wrapper.appendChild(focusInput);
+
+    const itemsArea = document.createElement("textarea");
+    itemsArea.placeholder = "Упражнения, по одному на строку";
+    itemsArea.value = Array.isArray(day.items) ? day.items.join("\n") : "";
+    itemsArea.addEventListener("input", () => {
+      day.items = itemsArea.value
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (onChange) onChange(weekPlan);
+    });
+    wrapper.appendChild(itemsArea);
+
+    container.appendChild(wrapper);
+  });
+}
+
 function renderTrainingAccordion(items, containerId = "training-accordion") {
   const container = $(containerId);
   if (!container) return;
@@ -835,6 +913,17 @@ async function loadPlan() {
       renderTrainingAccordion(parsed.weekPlan);
       if (trainingResult) trainingResult.style.display = "none";
     } else {
+      const rawPlan = String(state.planText || "").trim();
+      if (rawPlan) {
+        state.planPayload = { week_plan: buildEmptyWeekPlan(), comment: "" };
+        state.planStructured = true;
+        renderTrainingEditor(state.planPayload);
+        setPlanEditMode(true);
+        if (trainingResult) trainingResult.style.display = "none";
+        const container = $("training-accordion");
+        if (container) container.innerHTML = "";
+        return;
+      }
       if (trainingResult) {
         trainingResult.style.display = "block";
         trainingResult.textContent = parsed.text || "—";
@@ -1120,7 +1209,7 @@ async function saveProfileFlow(payload, trainingPayload, button, opts = {}) {
 
     await loadTargets();
     await loadToday();
-    toast("Профиль сохранён");
+    toast("Профиль сохранён", button);
     if (state.onboarding) {
       setActiveScreen("onboarding-done");
     }
@@ -1384,11 +1473,10 @@ function initOnboardingWizard() {
       when: (d) => d.planMode !== "manual",
     },
     {
-      id: "planText",
-      title: "Вставь план",
-      type: "textarea",
-      placeholder: "Формат: 1..7, каждый день с новой строки. Например:\n1\nЖим 10/10/10\nТяга 10/10/10\n\n2\nВыходной",
-      help: "Мы сами конвертируем формат 1..7 в JSON для аккордеонов.",
+      id: "planWeek",
+      title: "Заполни план на неделю",
+      type: "plan-editor",
+      help: "Нужно заполнить все 7 дней. Если отдых — просто напиши 'Отдых'.",
       required: true,
       when: (d) => d.planMode === "manual",
     },
@@ -1439,7 +1527,9 @@ function initOnboardingWizard() {
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
       : step.type === "options" || step.type === "goal-combo" || step.type === "sex-buttons"
         ? "Выбери один вариант"
-        : "Введи значение";
+        : step.type === "plan-editor"
+          ? "Заполни план на 7 дней"
+          : "Введи значение";
     helpEl.textContent = step.help || "";
     bodyEl.innerHTML = "";
 
@@ -1452,6 +1542,7 @@ function initOnboardingWizard() {
         let className = "option-card";
         if (step.id === "sex" && opt.value === "m") className += " option-male";
         if (step.id === "sex" && opt.value === "f") className += " option-female";
+        if (step.id === "planMode") className += " accent-fill";
         btn.className = className;
         btn.textContent = opt.label;
         btn.classList.toggle("active", data[step.id] === opt.value);
@@ -1569,6 +1660,18 @@ function initOnboardingWizard() {
       bodyEl.appendChild(field);
     }
 
+    if (step.type === "plan-editor") {
+      if (!Array.isArray(data[step.id]) || data[step.id].length !== 7) {
+        data[step.id] = buildWeekPlanTemplate();
+      }
+      const editor = document.createElement("div");
+      editor.className = "training-editor active";
+      renderPlanEditor(editor, data[step.id], (updated) => {
+        data[step.id] = updated;
+      });
+      bodyEl.appendChild(editor);
+    }
+
     backBtn.style.visibility = stepIndex === 0 ? "hidden" : "visible";
     nextBtn.textContent = stepIndex === visibleSteps.length - 1 ? "Готово" : "Далее";
   };
@@ -1645,6 +1748,23 @@ function initOnboardingWizard() {
       toast("Заполни поле");
       return false;
     }
+    if (step.type === "plan-editor") {
+      const weekPlan = Array.isArray(value) ? value : [];
+      if (weekPlan.length !== 7) {
+        toast("Заполни все 7 дней (можно писать отдых)");
+        return false;
+      }
+      for (const day of weekPlan) {
+        const items = Array.isArray(day.items)
+          ? day.items.map((line) => String(line || "").trim()).filter(Boolean)
+          : [];
+        if (items.length === 0) {
+          toast("Заполни все 7 дней (можно писать отдых)");
+          return false;
+        }
+      }
+      return true;
+    }
     return true;
   };
 
@@ -1670,8 +1790,10 @@ function initOnboardingWizard() {
       wishes: String(data.wishes || "").trim(),
     };
     const planMode = data.planMode === "manual" ? "manual" : "ai";
-    const planText = typeof data.planText === "string" ? data.planText.trim() : "";
-    const normalizedPlan = planMode === "manual" ? convertManualPlanToJSON(planText) : planText;
+    const planWeek = Array.isArray(data.planWeek) ? data.planWeek : null;
+    const normalizedPlan = planMode === "manual"
+      ? JSON.stringify({ week_plan: normalizeWeekPlanForSave(planWeek), comment: "" })
+      : "";
     await saveProfileFlow(payload, trainingPayload, nextBtn, { planMode, planText: normalizedPlan });
   };
 
