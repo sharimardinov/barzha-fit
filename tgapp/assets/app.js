@@ -1217,12 +1217,25 @@ function initOnboardingWizard() {
       required: false,
     },
     {
-      id: "goal",
+      id: "goalType",
       title: "Твоя цель",
-      type: "textarea",
-      placeholder: "Коротко: цель и фокус",
-      help: "Определяет акцент программы.",
+      type: "goal-tabs",
+      options: [
+        { value: "balance", label: "BAL" },
+        { value: "cut", label: "CUT" },
+        { value: "bulk", label: "BULK" },
+      ],
+      defaultValue: "balance",
+      help: "Влияет на цели по калориям.",
       required: true,
+    },
+    {
+      id: "goalNotes",
+      title: "Дополнительно",
+      type: "textarea",
+      placeholder: "Например: подсушиться, больше спины, меньше кардио",
+      help: "Эти детали попадут в тренировочный план.",
+      required: false,
     },
     {
       id: "pharma",
@@ -1321,6 +1334,45 @@ function initOnboardingWizard() {
       bodyEl.appendChild(list);
     }
 
+    if (step.type === "goal-tabs") {
+      if (data[step.id] === undefined && step.defaultValue !== undefined) {
+        data[step.id] = step.defaultValue;
+      }
+      const container = document.createElement("div");
+      container.className = "tabs-container";
+      const tabs = document.createElement("div");
+      tabs.className = "tabs";
+      step.options.forEach((opt, index) => {
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "onboarding-goal-tabs";
+        input.id = `onboarding-goal-${index}`;
+        input.value = opt.value;
+        input.checked = data[step.id] === opt.value;
+        const label = document.createElement("label");
+        label.className = "tab";
+        label.setAttribute("for", input.id);
+        label.textContent = opt.label;
+        input.addEventListener("change", () => {
+          data[step.id] = opt.value;
+        });
+        tabs.appendChild(input);
+        tabs.appendChild(label);
+      });
+      const glider = document.createElement("span");
+      glider.className = "glider";
+      tabs.appendChild(glider);
+      const updateGlider = () => {
+        const idx = step.options.findIndex((opt) => opt.value === data[step.id]);
+        const index = idx >= 0 ? idx : 0;
+        glider.style.transform = `translateX(${index * 100}%)`;
+      };
+      updateGlider();
+      tabs.addEventListener("change", updateGlider);
+      container.appendChild(tabs);
+      bodyEl.appendChild(container);
+    }
+
     if (step.type === "wheel" || step.type === "wheel-horizontal") {
       const values = buildWheelValues(step.min, step.max, step.step);
       const initial = formatWheelValue(step, data[step.id]);
@@ -1370,6 +1422,10 @@ function initOnboardingWizard() {
     if (!step.required) return true;
     if (step.type === "options" && (value === undefined || value === null || value === "")) {
       toast("Выбери вариант");
+      return false;
+    }
+    if (step.type === "goal-tabs" && (value === undefined || value === null || value === "")) {
+      toast("Выбери цель");
       return false;
     }
     if ((step.type === "wheel" || step.type === "wheel-horizontal") && (value === undefined || value === null || Number.isNaN(value))) {
@@ -1425,7 +1481,7 @@ function initOnboardingWizard() {
         data[step.id] = raw;
       }
     }
-    if (step.type === "textarea" && String(value || "").trim() === "") {
+    if (step.type === "textarea" && step.required && String(value || "").trim() === "") {
       toast("Заполни поле");
       return false;
     }
@@ -1440,13 +1496,15 @@ function initOnboardingWizard() {
       weight_kg: Number(data.weight || 0),
       training_years: Number(data.trainingYears || 0),
       bodyfat_pct: Number(data.bodyfat || 0),
+      goal: normalizeGoalType(data.goalType || ""),
     };
+    const trainingGoal = buildTrainingGoalText(data.goalType, data.goalNotes);
     const trainingPayload = {
       bench_kg: Number(data.bench || 0),
       pullups: Number(data.pullups || 0),
       run_km: Number(data.run || 0),
       injuries: String(data.injuries || "").trim(),
-      goal: String(data.goal || "").trim(),
+      goal: trainingGoal,
       pharma: data.pharma,
       trainings_per_week: Number(data.trainingsPerWeek || 0),
       wishes: String(data.wishes || "").trim(),
