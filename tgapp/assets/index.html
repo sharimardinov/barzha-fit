@@ -211,6 +211,19 @@
             </label>
           </div>
           <div class="form-grid">
+            <label>Цель
+              <div class="tabs-container" id="profile-goal">
+                <div class="tabs">
+                  <input type="radio" id="goal-balance" name="goal-tabs" value="balance" checked>
+                  <label class="tab" for="goal-balance">BAL</label>
+                  <input type="radio" id="goal-cut" name="goal-tabs" value="cut">
+                  <label class="tab" for="goal-cut">CUT</label>
+                  <input type="radio" id="goal-bulk" name="goal-tabs" value="bulk">
+                  <label class="tab" for="goal-bulk">BULK</label>
+                  <span class="glider"></span>
+                </div>
+              </div>
+            </label>
             <label>Жим лёжа (кг)
               <input type="number" id="training-bench">
             </label>
@@ -223,8 +236,8 @@
             <label>Травмы
               <textarea id="training-injuries" placeholder="Например: грыжа L5-S1"></textarea>
             </label>
-            <label>Цель
-              <textarea id="training-goal" maxlength="200" placeholder="Коротко: цель и фокус"></textarea>
+            <label>Дополнительно
+              <textarea id="training-goal-notes" maxlength="200" placeholder="Например: подсушиться, больше спины, меньше кардио"></textarea>
             </label>
             <label>Фармакология
               <select id="training-pharma">

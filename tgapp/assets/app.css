@@ -61,6 +61,78 @@ body {
   font-weight: 600;
 }
 
+.tabs-container {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.tabs {
+  display: flex;
+  position: relative;
+  background-color: var(--white);
+  box-shadow: 0 0 1px 0 rgba(255, 3, 62, 0.15), 0 6px 12px 0 rgba(255, 3, 62, 0.15);
+  padding: 6px;
+  border-radius: 999px;
+  gap: 4px;
+}
+
+.tabs * {
+  z-index: 2;
+}
+
+.tabs input[type="radio"] {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  width: 64px;
+  font-size: 0.78rem;
+  color: var(--black);
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease-in;
+  letter-spacing: 0.02em;
+}
+
+.tabs input[type="radio"]:checked + label {
+  color: var(--white);
+}
+
+.tabs input[id="goal-balance"]:checked ~ .glider {
+  transform: translateX(0);
+}
+
+.tabs input[id="goal-cut"]:checked ~ .glider {
+  transform: translateX(100%);
+}
+
+.tabs input[id="goal-bulk"]:checked ~ .glider {
+  transform: translateX(200%);
+}
+
+.glider {
+  position: absolute;
+  display: flex;
+  height: 30px;
+  width: 64px;
+  background-color: var(--accent);
+  z-index: 1;
+  border-radius: 999px;
+  transition: 0.25s ease-out;
+}
+
+@media (max-width: 700px) {
+  .tabs {
+    transform: scale(0.9);
+    transform-origin: left center;
+  }
+}
+
 .card {
   background: var(--white);
   border: 1px solid var(--border);

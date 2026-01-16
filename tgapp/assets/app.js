@@ -767,14 +767,56 @@ async function loadProfile() {
     $("profile-weight").value = p.weight_kg || "";
     $("profile-training-years").value = p.training_years || "";
     $("profile-bodyfat").value = p.bodyfat_pct || "";
+    setGoalTabs(p.goal || "balance");
     $("profile-activity").textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
   } catch (_) {
     $("profile-sex").value = "";
+    setGoalTabs("balance");
   }
 }
 
 function normalizeNumberInput(value) {
   return String(value || "").replace(/,/g, ".").replace(/\s+/g, "");
+}
+
+function normalizeGoalType(value) {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "cut" || v === "bulk" || v === "balance") return v;
+  return "";
+}
+
+function getGoalTypeFromTabs() {
+  const checked = document.querySelector('input[name="goal-tabs"]:checked');
+  return normalizeGoalType(checked ? checked.value : "");
+}
+
+function setGoalTabs(value) {
+  const v = normalizeGoalType(value) || "balance";
+  const input = document.querySelector(`input[name="goal-tabs"][value="${v}"]`);
+  if (input) input.checked = true;
+}
+
+function splitGoalText(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return { type: "", notes: "" };
+  const lowered = raw.toLowerCase();
+  for (const type of ["cut", "bulk", "balance"]) {
+    if (lowered.startsWith(type)) {
+      const rest = raw.slice(type.length).trim();
+      const notes = rest.replace(/^[:\-–—]\s*/, "");
+      return { type, notes };
+    }
+  }
+  return { type: "", notes: raw };
+}
+
+function buildTrainingGoalText(goalType, notes) {
+  const type = normalizeGoalType(goalType);
+  const extra = String(notes || "").trim();
+  if (!type && !extra) return "";
+  if (!extra) return type;
+  if (!type) return extra;
+  return `${type} — ${extra}`;
 }
 
 function parseNumberInput(value) {
@@ -812,12 +854,14 @@ function validateProfileInputs() {
     min: 1,
     max: 80,
   });
+  const goalType = getGoalTypeFromTabs();
 
   if (!age.ok) issues.push(age.label);
   if (!height.ok) issues.push(height.label);
   if (!weight.ok) issues.push(weight.label);
   if (!bodyfat.ok) issues.push(bodyfat.label);
   if (!trainingYears.ok) issues.push(trainingYears.label);
+  if (!goalType) issues.push("цель");
 
   if (issues.length) {
     toast(`Заполни корректно: ${issues.join(", ")}`);
@@ -830,6 +874,7 @@ function validateProfileInputs() {
     weight: weight.value,
     bodyfat: bodyfat.value,
     trainingYears: trainingYears.value,
+    goalType,
   };
 }
 
@@ -839,7 +884,8 @@ function validateTrainingInputs() {
   const pullups = parseNumberField("training-pullups", "подтягивания", { required: true, integer: true, min: 0, max: 100 });
   const run = parseNumberField("training-run", "бег", { required: true, integer: false, min: 0, max: 300 });
   const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
-  const goal = $("training-goal").value.trim();
+  const goalType = getGoalTypeFromTabs();
+  const goalNotes = $("training-goal-notes").value.trim();
   const pharmaValue = $("training-pharma").value;
   const pharma = pharmaValue === "yes" ? true : pharmaValue === "no" ? false : null;
 
@@ -847,7 +893,7 @@ function validateTrainingInputs() {
   if (!pullups.ok) issues.push(pullups.label);
   if (!run.ok) issues.push(run.label);
   if (!times.ok) issues.push(times.label);
-  if (!goal) issues.push("цель");
+  if (!goalType) issues.push("цель");
   if (pharma === null) issues.push("фармакология");
 
   if (issues.length) {
@@ -860,7 +906,8 @@ function validateTrainingInputs() {
     pullups: pullups.value,
     run: run.value,
     times: times.value,
-    goal,
+    goalType,
+    goalNotes,
     pharma,
   };
 }
@@ -993,7 +1040,13 @@ async function loadTrainingProfile() {
     $("training-pullups").value = p.pullups || "";
     $("training-run").value = p.run_km || "";
     $("training-injuries").value = p.injuries || "";
-    $("training-goal").value = p.goal || "";
+    const parsed = splitGoalText(p.goal || "");
+    if (parsed.type) {
+      setGoalTabs(parsed.type);
+      $("training-goal-notes").value = parsed.notes;
+    } else {
+      $("training-goal-notes").value = p.goal || "";
+    }
     $("training-times").value = p.trainings_per_week || "";
     $("training-wishes").value = p.wishes || "";
     if (p.pharma === true) $("training-pharma").value = "yes";
@@ -1612,13 +1665,15 @@ async function bootstrap() {
         weight_kg: profileValidated.weight,
         training_years: profileValidated.trainingYears,
         bodyfat_pct: profileValidated.bodyfat,
+        goal: profileValidated.goalType,
       };
+      const trainingGoal = buildTrainingGoalText(trainingValidated.goalType, trainingValidated.goalNotes);
       const trainingPayload = {
         bench_kg: trainingValidated.bench,
         pullups: trainingValidated.pullups,
         run_km: trainingValidated.run,
         injuries: $("training-injuries").value.trim(),
-        goal: trainingValidated.goal,
+        goal: trainingGoal,
         pharma: trainingValidated.pharma,
         trainings_per_week: trainingValidated.times,
         wishes: $("training-wishes").value.trim(),

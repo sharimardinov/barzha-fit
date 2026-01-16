@@ -15,7 +15,6 @@ func ExtractCalories(text string) int {
 		n, _ := strconv.Atoi(g[1])
 		sum += n
 	}
-	// ещё мягкий режим: если написал "450" одной цифрой без ккал — не считаем (чтобы не ловить веса)
 	return sum
 }
 
