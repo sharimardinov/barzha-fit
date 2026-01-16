@@ -9,7 +9,7 @@ import (
 
 	"barzhafit/backend/service"
 	"barzhafit/backend/util"
-	"barzhafit/bot/telegram"
+	"barzhafit/tgbot/telegram"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )

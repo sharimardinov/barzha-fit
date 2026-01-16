@@ -14,7 +14,7 @@ import (
 	"barzhafit/backend/service"
 	"barzhafit/backend/storage/db"
 	"barzhafit/backend/util"
-	"barzhafit/bot"
+	"barzhafit/tgbot"
 	"barzhafit/tgapp"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"

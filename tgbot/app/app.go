@@ -7,7 +7,7 @@ import (
 	"barzhafit/backend/config"
 	"barzhafit/backend/service"
 	"barzhafit/backend/storage/db"
-	"barzhafit/bot"
+	"barzhafit/tgbot"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )

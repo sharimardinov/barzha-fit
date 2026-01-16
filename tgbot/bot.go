@@ -12,7 +12,7 @@ import (
 	"barzhafit/backend/domain"
 	"barzhafit/backend/service"
 	"barzhafit/backend/util"
-	"barzhafit/bot/handlers"
+	"barzhafit/tgbot/handlers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

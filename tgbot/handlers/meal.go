@@ -4,7 +4,7 @@ import (
 	"barzhafit/backend/domain"
 	"barzhafit/backend/service"
 	"barzhafit/backend/util"
-	"barzhafit/bot/telegram"
+	"barzhafit/tgbot/telegram"
 	"context"
 	"errors"
 	"fmt"

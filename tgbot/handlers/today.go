@@ -3,7 +3,7 @@ package handlers
 import (
 	"barzhafit/backend/service"
 	"barzhafit/backend/util"
-	"barzhafit/bot/telegram"
+	"barzhafit/tgbot/telegram"
 	"context"
 	"fmt"
 	"strings"
