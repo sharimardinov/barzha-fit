@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -30,6 +31,12 @@ func NewAIClient() (*AIClient, error) {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	timeout := 60 * time.Second
+	if raw := os.Getenv("AI_TIMEOUT_SEC"); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+			timeout = time.Duration(v) * time.Second
+		}
+	}
 	logPath := os.Getenv("AI_LOG_PATH")
 	if logPath == "" {
 		logPath = "logs/ai_training.log"
@@ -39,7 +46,7 @@ func NewAIClient() (*AIClient, error) {
 		model:   model,
 		logPath: logPath,
 		http: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: timeout,
 		},
 	}, nil
 }

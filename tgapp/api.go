@@ -534,6 +534,10 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 	for attempt := 0; attempt < 3; attempt++ {
 		planText, raw, err = s.trainingAI.GenerateTrainingPlan(ctx, payload)
 		if err != nil {
+			if isTransientAIError(err) && attempt < 2 {
+				log.Printf("training generate retry: chat_id=%d attempt=%d err=%v", auth.User.ID, attempt+1, err)
+				continue
+			}
 			log.Printf("training generate failed: chat_id=%d err=%v", auth.User.ID, err)
 			writeJSON(w, http.StatusInternalServerError, apiResponse{
 				OK:    false,
@@ -584,6 +588,22 @@ func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, 
 	}
 
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"plan": planText}})
+}
+
+func isTransientAIError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "context deadline exceeded") {
+		return true
+	}
+	for _, code := range []string{"status=429", "status=500", "status=502", "status=503", "status=504"} {
+		if strings.Contains(msg, code) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {

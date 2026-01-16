@@ -1087,6 +1087,7 @@ async function saveProfileFlow(payload, trainingPayload, button, opts = {}) {
   if (activityEl) activityEl.textContent = "…";
   try {
     await api("/api/profile/set", payload);
+    await api("/api/targets/refresh");
     if (opts.planMode === "ai") {
       await api("/api/training/profile/set", trainingPayload);
       let pipelineOk = false;
