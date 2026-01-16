@@ -31,7 +31,7 @@ body {
 
 @media (max-width: 720px) {
   .app {
-    padding-top: calc(60px + env(safe-area-inset-top) + 60px);
+    padding-top: calc(60px + env(safe-area-inset-top) + 45px);
   }
 }
 
