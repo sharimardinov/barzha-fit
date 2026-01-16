@@ -89,25 +89,36 @@ body {
   align-items: center;
   justify-content: center;
   height: 30px;
-  width: 64px;
-  font-size: 0.78rem;
+  width: 92px;
+  font-size: 0.75rem;
   color: var(--black);
   font-weight: 600;
   border-radius: 999px;
   cursor: pointer;
   transition: color 0.2s ease-in;
   letter-spacing: 0.02em;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.tab:active {
+  background: transparent;
+}
+
+.tabs input[type="radio"]:focus + label {
+  outline: none;
 }
 
 .tabs input[type="radio"]:checked + label {
   color: var(--white);
 }
 
-.tabs input[id="goal-balance"]:checked ~ .glider {
+.tabs input[id="goal-cut"]:checked ~ .glider {
   transform: translateX(0);
 }
 
-.tabs input[id="goal-cut"]:checked ~ .glider {
+.tabs input[id="goal-balance"]:checked ~ .glider {
   transform: translateX(100%);
 }
 
@@ -119,17 +130,37 @@ body {
   position: absolute;
   display: flex;
   height: 30px;
-  width: 64px;
+  width: 92px;
   background-color: var(--accent);
   z-index: 1;
   border-radius: 999px;
   transition: 0.25s ease-out;
 }
 
+.tabs.sex-tabs .tab {
+  width: 140px;
+  height: 44px;
+  font-size: 1rem;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.tabs.sex-tabs .glider {
+  width: 140px;
+  height: 44px;
+}
+
+.tabs.sex-tabs .tab i {
+  font-size: 1.05rem;
+}
+
 @media (max-width: 700px) {
   .tabs {
     transform: scale(0.9);
     transform-origin: left center;
+  }
+  .tabs.sex-tabs {
+    transform: scale(0.85);
   }
 }
 

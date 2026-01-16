@@ -1112,10 +1112,10 @@ function initOnboardingWizard() {
     {
       id: "sex",
       title: "Твой пол",
-      type: "options",
+      type: "sex-tabs",
       options: [
-        { value: "m", label: "Мужской" },
-        { value: "f", label: "Женский" },
+        { value: "m", label: "М", icon: "bi-gender-male" },
+        { value: "f", label: "Ж", icon: "bi-gender-female" },
       ],
       help: "Нужно для корректных норм и нагрузки.",
       required: true,
@@ -1219,23 +1219,17 @@ function initOnboardingWizard() {
     {
       id: "goalType",
       title: "Твоя цель",
-      type: "goal-tabs",
+      type: "goal-combo",
       options: [
-        { value: "balance", label: "BAL" },
-        { value: "cut", label: "CUT" },
-        { value: "bulk", label: "BULK" },
+        { value: "cut", label: "CUT\u00A0\u00A0" },
+        { value: "balance", label: "BALANCE\u00A0\u00A0" },
+        { value: "bulk", label: "BULK\u00A0\u00A0" },
       ],
       defaultValue: "balance",
-      help: "Влияет на цели по калориям.",
+      notesId: "goalNotes",
+      notesPlaceholder: "Например: подсушиться, больше спины, меньше кардио",
+      help: "Выбери цель и допиши фокус, если нужно.",
       required: true,
-    },
-    {
-      id: "goalNotes",
-      title: "Дополнительно",
-      type: "textarea",
-      placeholder: "Например: подсушиться, больше спины, меньше кардио",
-      help: "Эти детали попадут в тренировочный план.",
-      required: false,
     },
     {
       id: "pharma",
@@ -1307,7 +1301,7 @@ function initOnboardingWizard() {
     titleEl.textContent = step.title;
     descEl.textContent = step.type === "wheel" || step.type === "wheel-horizontal"
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
-      : step.type === "options"
+      : step.type === "options" || step.type === "goal-combo" || step.type === "sex-tabs"
         ? "Выбери один вариант"
         : "Введи значение";
     helpEl.textContent = step.help || "";
@@ -1334,7 +1328,43 @@ function initOnboardingWizard() {
       bodyEl.appendChild(list);
     }
 
-    if (step.type === "goal-tabs") {
+    if (step.type === "sex-tabs") {
+      const container = document.createElement("div");
+      container.className = "tabs-container";
+      const tabs = document.createElement("div");
+      tabs.className = "tabs sex-tabs";
+      step.options.forEach((opt, index) => {
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "onboarding-sex-tabs";
+        input.id = `onboarding-sex-${index}`;
+        input.value = opt.value;
+        input.checked = data[step.id] === opt.value;
+        const label = document.createElement("label");
+        label.className = "tab";
+        label.setAttribute("for", input.id);
+        label.innerHTML = `<i class="bi ${opt.icon}" aria-hidden="true"></i>${opt.label}`;
+        input.addEventListener("change", () => {
+          data[step.id] = opt.value;
+        });
+        tabs.appendChild(input);
+        tabs.appendChild(label);
+      });
+      const glider = document.createElement("span");
+      glider.className = "glider";
+      tabs.appendChild(glider);
+      const updateGlider = () => {
+        const idx = step.options.findIndex((opt) => opt.value === data[step.id]);
+        const index = idx >= 0 ? idx : 0;
+        glider.style.transform = `translateX(${index * 100}%)`;
+      };
+      updateGlider();
+      tabs.addEventListener("change", updateGlider);
+      container.appendChild(tabs);
+      bodyEl.appendChild(container);
+    }
+
+    if (step.type === "goal-combo") {
       if (data[step.id] === undefined && step.defaultValue !== undefined) {
         data[step.id] = step.defaultValue;
       }
@@ -1371,6 +1401,14 @@ function initOnboardingWizard() {
       tabs.addEventListener("change", updateGlider);
       container.appendChild(tabs);
       bodyEl.appendChild(container);
+
+      const field = document.createElement("textarea");
+      field.placeholder = step.notesPlaceholder || "";
+      field.value = data[step.notesId] || "";
+      field.addEventListener("input", () => {
+        data[step.notesId] = field.value;
+      });
+      bodyEl.appendChild(field);
     }
 
     if (step.type === "wheel" || step.type === "wheel-horizontal") {
@@ -1424,8 +1462,12 @@ function initOnboardingWizard() {
       toast("Выбери вариант");
       return false;
     }
-    if (step.type === "goal-tabs" && (value === undefined || value === null || value === "")) {
+    if (step.type === "goal-combo" && (value === undefined || value === null || value === "")) {
       toast("Выбери цель");
+      return false;
+    }
+    if (step.type === "sex-tabs" && (value === undefined || value === null || value === "")) {
+      toast("Выбери вариант");
       return false;
     }
     if ((step.type === "wheel" || step.type === "wheel-horizontal") && (value === undefined || value === null || Number.isNaN(value))) {
