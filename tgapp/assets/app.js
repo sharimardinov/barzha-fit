@@ -303,10 +303,45 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     burger.className = "burger";
     burger.innerHTML = "<span></span><span></span><span></span>";
     toggle.appendChild(burger);
-    toggle.addEventListener("click", () => item.classList.toggle("open"));
+    const syncHeight = () => {
+      if (item.classList.contains("open")) {
+        body.style.height = `${body.scrollHeight}px`;
+      }
+    };
+
+    const openItem = () => {
+      item.classList.add("open");
+      body.style.height = "0px";
+      const target = body.scrollHeight;
+      body.style.height = `${target}px`;
+    };
+
+    const closeItem = () => {
+      const current = body.scrollHeight;
+      body.style.height = `${current}px`;
+      requestAnimationFrame(() => {
+        body.style.height = "0px";
+      });
+      item.classList.remove("open");
+    };
+
+    toggle.addEventListener("click", () => {
+      if (item.classList.contains("open")) {
+        closeItem();
+      } else {
+        openItem();
+      }
+    });
 
     const body = document.createElement("div");
     body.className = "accordion-body";
+    body.style.height = "0px";
+    body.addEventListener("transitionend", (event) => {
+      if (event.propertyName !== "height") return;
+      if (item.classList.contains("open")) {
+        body.style.height = "auto";
+      }
+    });
 
     let hasExercises = false;
     let counter = 0;
@@ -379,6 +414,8 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     item.appendChild(toggle);
     item.appendChild(body);
     container.appendChild(item);
+
+    syncHeight();
   });
 }
 

@@ -1,6 +1,11 @@
-package service
+package tests
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"barzhafit/backend/service"
+)
 
 func TestParseTrainingPlanWeekPlan(t *testing.T) {
 	plan := `{"week_plan":[` +
@@ -13,7 +18,7 @@ func TestParseTrainingPlanWeekPlan(t *testing.T) {
 		`{"day":7,"name":"Day 7","focus":"G","type":"rest","items":["Rest"]}` +
 		`],"comment":""}`
 
-	tp, ok := ParseTrainingPlan(plan)
+	tp, ok := service.ParseTrainingPlan(plan)
 	if !ok {
 		t.Fatal("ParseTrainingPlan failed for week_plan JSON")
 	}
@@ -39,11 +44,22 @@ func TestSplitPlanByDaysFromJSON(t *testing.T) {
 		`{"day":7,"name":"Day 7","focus":"G","type":"rest","items":["Rest"]}` +
 		`],"comment":""}`
 
-	days := SplitPlanByDays(plan)
+	days := service.SplitPlanByDays(plan)
 	if len(days) != 7 {
 		t.Fatalf("expected 7 days, got %d", len(days))
 	}
 	if days[1] == "" || days[7] == "" {
 		t.Fatal("expected non-empty day blocks")
+	}
+}
+
+func TestFormatPlanForDisplay(t *testing.T) {
+	plan := `{"days":["Day A","Day B","Day C","Day D","Day E","Day F","Day G"],"comment":""}`
+	text, ok := service.FormatPlanForDisplay(plan)
+	if !ok {
+		t.Fatal("FormatPlanForDisplay failed")
+	}
+	if !strings.Contains(text, "ДЕНЬ 1") || !strings.Contains(text, "ДЕНЬ 7") {
+		t.Fatalf("unexpected display output: %q", text)
 	}
 }
