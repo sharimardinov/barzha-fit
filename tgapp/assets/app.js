@@ -288,6 +288,74 @@ function parsePlan(plan) {
   return { text: raw || "—", structured: false };
 }
 
+function parsePlainPlanToWeekPlan(text) {
+  const lines = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
+  const days = [];
+  let currentDay = null;
+  let currentItems = [];
+
+  const flushDay = () => {
+    if (!currentDay) return;
+    const items = currentItems.map((v) => v.trim()).filter(Boolean);
+    const lowered = items.join(" ").toLowerCase();
+    const hasRestWord = /(выходн|отдых|rest|off)/i.test(lowered);
+    const isRest = hasRestWord || items.length <= 2;
+    const dayEntry = {
+      day: currentDay,
+      name: `День ${currentDay}`,
+      focus: "",
+      type: isRest ? "rest" : "train",
+      items: items.length ? items : ["Отдых"],
+    };
+    days.push(dayEntry);
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^(?:день\s*)?([1-7])\s*$/i);
+    if (match) {
+      flushDay();
+      currentDay = Number(match[1]);
+      currentItems = [];
+      continue;
+    }
+    if (currentDay) {
+      currentItems.push(trimmed);
+    }
+  }
+  flushDay();
+
+  if (!days.length) return null;
+
+  const byDay = new Map(days.map((d) => [d.day, d]));
+  const weekPlan = [];
+  for (let d = 1; d <= 7; d += 1) {
+    if (byDay.has(d)) {
+      weekPlan.push(byDay.get(d));
+    } else {
+      weekPlan.push({
+        day: d,
+        name: `День ${d}`,
+        focus: "",
+        type: "rest",
+        items: ["Отдых"],
+      });
+    }
+  }
+  return weekPlan;
+}
+
+function convertManualPlanToJSON(text) {
+  const raw = String(text || "").trim();
+  if (!raw || raw.startsWith("{")) return raw;
+  const weekPlan = parsePlainPlanToWeekPlan(raw);
+  if (!weekPlan) return raw;
+  return JSON.stringify({ week_plan: weekPlan, comment: "" });
+}
+
 function renderTrainingAccordion(items, containerId = "training-accordion") {
   const container = $(containerId);
   if (!container) return;
@@ -1318,8 +1386,8 @@ function initOnboardingWizard() {
       id: "planText",
       title: "Вставь план",
       type: "textarea",
-      placeholder: "Формат: JSON с week_plan или текст по дням 1..7",
-      help: "План должен быть распознаваемым.",
+      placeholder: "Формат: 1..7, каждый день с новой строки. Например:\n1\nЖим 10/10/10\nТяга 10/10/10\n\n2\nВыходной",
+      help: "Мы сами конвертируем формат 1..7 в JSON для аккордеонов.",
       required: true,
       when: (d) => d.planMode === "manual",
     },
@@ -1602,7 +1670,8 @@ function initOnboardingWizard() {
     };
     const planMode = data.planMode === "manual" ? "manual" : "ai";
     const planText = typeof data.planText === "string" ? data.planText.trim() : "";
-    await saveProfileFlow(payload, trainingPayload, nextBtn, { planMode, planText });
+    const normalizedPlan = planMode === "manual" ? convertManualPlanToJSON(planText) : planText;
+    await saveProfileFlow(payload, trainingPayload, nextBtn, { planMode, planText: normalizedPlan });
   };
 
   backBtn.addEventListener("click", () => {
