@@ -1,5 +1,5 @@
 APP_NAME=fitness-bot
-CMD_PATH=./cmd/bot/main.go
+CMD_PATH=./bot/cmd/bot/main.go
 BIN_DIR=bin
 
 .PHONY: run build clean dev
@@ -16,4 +16,3 @@ dev:
 
 clean:
 	rm -rf $(BIN_DIR)
-
