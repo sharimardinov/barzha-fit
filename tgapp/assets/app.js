@@ -995,8 +995,15 @@ async function ensureOnboarding() {
   } catch (_) {
     training = null;
   }
+  let hasPlan = false;
+  try {
+    const plan = await api("/api/plan/get");
+    hasPlan = typeof plan.text === "string" && plan.text.trim().length > 0;
+  } catch (_) {
+    hasPlan = false;
+  }
 
-  if (!isProfileComplete(profile) || !isTrainingComplete(training)) {
+  if (!isProfileComplete(profile) || (!isTrainingComplete(training) && !hasPlan)) {
     setOnboardingActive(true);
     setActiveScreen("onboarding");
     return false;
@@ -1006,41 +1013,42 @@ async function ensureOnboarding() {
   return true;
 }
 
-async function runProfilePipeline() {
-  await api("/api/training/generate");
-  const activity = await api("/api/activity/estimate");
-  $("profile-activity").textContent = activity.activity_multiplier ? activity.activity_multiplier.toFixed(2) : "—";
-  await api("/api/targets/refresh");
-}
-
-async function saveProfileFlow(payload, trainingPayload, button) {
-  setButtonLoading(button, true, "Сохраняю и считаю...");
+async function saveProfileFlow(payload, trainingPayload, button, opts = {}) {
+  setButtonLoading(button, true, "Сохраняю...");
   const activityEl = $("profile-activity");
   if (activityEl) activityEl.textContent = "…";
   try {
     await api("/api/profile/set", payload);
-    await api("/api/training/profile/set", trainingPayload);
-    let pipelineOk = false;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        await runProfilePipeline();
-        pipelineOk = true;
-        break;
-      } catch (err) {
-        if (err.message === "training_plan_invalid" && attempt < 3) {
-          continue;
+    if (opts.planMode === "ai") {
+      await api("/api/training/profile/set", trainingPayload);
+      let pipelineOk = false;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          await api("/api/training/generate");
+          pipelineOk = true;
+          break;
+        } catch (err) {
+          if (err.message === "training_plan_invalid" && attempt < 3) {
+            continue;
+          }
+          if (err.message === "training_plan_invalid") {
+            toast("План кривой. Нажми ещё раз.");
+            return false;
+          }
+          throw err;
         }
-        if (err.message === "training_plan_invalid") {
-          toast("План кривой. Нажми ещё раз.");
-          return false;
-        }
-        throw err;
       }
+      if (!pipelineOk) {
+        return false;
+      }
+      await loadPlan();
+    } else if (opts.planMode === "manual" && typeof opts.planText === "string") {
+      await api("/api/plan/set", { text: opts.planText });
+      await loadPlan();
+    } else if (opts.planMode === "ai-profile") {
+      await api("/api/training/profile/set", trainingPayload);
     }
-    if (!pipelineOk) {
-      return false;
-    }
-    await loadPlan();
+
     await loadTargets();
     await loadToday();
     toast("Профиль сохранён");
@@ -1203,6 +1211,17 @@ function initOnboardingWizard() {
       required: true,
     },
     {
+      id: "planMode",
+      title: "Как получим план?",
+      type: "options",
+      options: [
+        { value: "ai", label: "Сгенерировать автоматически" },
+        { value: "manual", label: "Вставить вручную" },
+      ],
+      help: "Можно доверить AI или вставить свой план.",
+      required: true,
+    },
+    {
       id: "bench",
       title: "Жим лёжа (кг)",
       type: "input",
@@ -1212,6 +1231,7 @@ function initOnboardingWizard() {
       placeholder: "Например: 80",
       help: "Понимаем силу верхнего тела.",
       required: true,
+      when: (d) => d.planMode !== "manual",
     },
     {
       id: "pullups",
@@ -1223,6 +1243,7 @@ function initOnboardingWizard() {
       placeholder: "Например: 8",
       help: "Оценка тяговой силы.",
       required: true,
+      when: (d) => d.planMode !== "manual",
     },
     {
       id: "run",
@@ -1234,6 +1255,7 @@ function initOnboardingWizard() {
       placeholder: "Например: 5",
       help: "Помогает оценить выносливость.",
       required: true,
+      when: (d) => d.planMode !== "manual",
     },
     {
       id: "injuries",
@@ -1242,6 +1264,7 @@ function initOnboardingWizard() {
       placeholder: "Например: грыжа L5-S1",
       help: "Чтобы исключить рискованные упражнения.",
       required: false,
+      when: (d) => d.planMode !== "manual",
     },
     {
       id: "goalType",
@@ -1268,6 +1291,7 @@ function initOnboardingWizard() {
       ],
       help: "Влияет на восстановление и объём.",
       required: true,
+      when: (d) => d.planMode !== "manual",
     },
     {
       id: "trainingsPerWeek",
@@ -1279,6 +1303,7 @@ function initOnboardingWizard() {
       placeholder: "Например: 4",
       help: "Формируем недельную структуру.",
       required: true,
+      when: (d) => d.planMode !== "manual",
     },
     {
       id: "wishes",
@@ -1287,6 +1312,16 @@ function initOnboardingWizard() {
       placeholder: "Например: больше спины, не люблю бег",
       help: "Учтём предпочтения и ограничения.",
       required: false,
+      when: (d) => d.planMode !== "manual",
+    },
+    {
+      id: "planText",
+      title: "Вставь план",
+      type: "textarea",
+      placeholder: "Формат: JSON с week_plan или текст по дням 1..7",
+      help: "План должен быть распознаваемым.",
+      required: true,
+      when: (d) => d.planMode === "manual",
     },
   ];
 
@@ -1322,9 +1357,14 @@ function initOnboardingWizard() {
     data[step.id] = raw;
   };
 
+  const getVisibleSteps = () => steps.filter((s) => !s.when || s.when(data));
+
   const renderStep = () => {
-    const step = steps[stepIndex];
-    progressEl.textContent = `Шаг ${stepIndex + 1} из ${steps.length}`;
+    const visibleSteps = getVisibleSteps();
+    if (stepIndex < 0) stepIndex = 0;
+    if (stepIndex >= visibleSteps.length) stepIndex = visibleSteps.length - 1;
+    const step = visibleSteps[stepIndex];
+    progressEl.textContent = `Шаг ${stepIndex + 1} из ${visibleSteps.length}`;
     titleEl.textContent = step.title;
     descEl.textContent = step.type === "wheel" || step.type === "wheel-horizontal"
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
@@ -1461,7 +1501,7 @@ function initOnboardingWizard() {
     }
 
     backBtn.style.visibility = stepIndex === 0 ? "hidden" : "visible";
-    nextBtn.textContent = stepIndex === steps.length - 1 ? "Готово" : "Далее";
+    nextBtn.textContent = stepIndex === visibleSteps.length - 1 ? "Готово" : "Далее";
   };
 
   const validateStep = (step) => {
@@ -1556,11 +1596,13 @@ function initOnboardingWizard() {
       run_km: Number(data.run || 0),
       injuries: String(data.injuries || "").trim(),
       goal: trainingGoal,
-      pharma: data.pharma,
+      pharma: data.pharma ?? null,
       trainings_per_week: Number(data.trainingsPerWeek || 0),
       wishes: String(data.wishes || "").trim(),
     };
-    await saveProfileFlow(payload, trainingPayload, nextBtn);
+    const planMode = data.planMode === "manual" ? "manual" : "ai";
+    const planText = typeof data.planText === "string" ? data.planText.trim() : "";
+    await saveProfileFlow(payload, trainingPayload, nextBtn, { planMode, planText });
   };
 
   backBtn.addEventListener("click", () => {
@@ -1570,9 +1612,10 @@ function initOnboardingWizard() {
   });
 
   nextBtn.addEventListener("click", async () => {
-    const step = steps[stepIndex];
+    const visibleSteps = getVisibleSteps();
+    const step = visibleSteps[stepIndex];
     if (!validateStep(step)) return;
-    if (stepIndex === steps.length - 1) {
+    if (stepIndex === visibleSteps.length - 1) {
       await submitOnboarding();
       return;
     }
@@ -1787,7 +1830,7 @@ async function bootstrap() {
         trainings_per_week: trainingValidated.times,
         wishes: $("training-wishes").value.trim(),
       };
-      await saveProfileFlow(payload, trainingPayload, profileSave);
+      await saveProfileFlow(payload, trainingPayload, profileSave, { planMode: "ai-profile" });
     });
   }
 

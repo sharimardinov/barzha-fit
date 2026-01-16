@@ -1319,6 +1319,9 @@ func validateTrainingPlanWithProfile(tp service.TrainingPlan, desiredDays int, i
 		if trainDays != desiredDays {
 			issues = append(issues, fmt.Sprintf("train_days_%d_expected_%d", trainDays, desiredDays))
 		}
+		if desiredDays <= 5 && hasTrainStreak(tp, 3) {
+			issues = append(issues, "train_streak>2")
+		}
 	}
 
 	notes := strings.ToLower(strings.TrimSpace(injuries + " " + wishes))
@@ -1340,6 +1343,39 @@ func validateTrainingPlanWithProfile(tp service.TrainingPlan, desiredDays int, i
 	}
 
 	return issues
+}
+
+func hasTrainStreak(tp service.TrainingPlan, maxAllowed int) bool {
+	streak := 0
+	for i, day := range tp.Days {
+		isTrain := false
+		if len(tp.Types) > i {
+			kind := strings.ToLower(strings.TrimSpace(tp.Types[i]))
+			if kind == "train" {
+				isTrain = true
+			} else if kind == "rest" {
+				isTrain = false
+			}
+		} else if len(tp.ExerciseCounts) > i && tp.ExerciseCounts[i] > 2 {
+			isTrain = true
+		} else {
+			low := strings.ToLower(day)
+			if strings.Contains(low, "отдых") || strings.Contains(low, "rest") || strings.Contains(low, "мобилит") || strings.Contains(low, "ходьба") {
+				isTrain = false
+			} else if strings.TrimSpace(day) != "" {
+				isTrain = true
+			}
+		}
+		if isTrain {
+			streak++
+			if streak >= maxAllowed {
+				return true
+			}
+		} else {
+			streak = 0
+		}
+	}
+	return false
 }
 
 func countTrainDays(tp service.TrainingPlan) int {
