@@ -350,7 +350,10 @@ func (s *Server) handlePlanSet(w http.ResponseWriter, r *http.Request, auth auth
 	if normalized, ok := service.NormalizeTrainingPlan(payload.Text); ok {
 		payload.Text = normalizeTrainingPlanTypes(normalized)
 		if tp, ok := service.ParseTrainingPlan(payload.Text); ok {
-			issues := validateTrainingPlan(tp)
+			issues := make([]string, 0)
+			if !hasWeekPlanPayload(payload.Text) {
+				issues = validateTrainingPlan(tp)
+			}
 			if payloadIssues := validateTrainingPlanPayload(payload.Text); len(payloadIssues) > 0 {
 				issues = append(issues, payloadIssues...)
 			}
@@ -1226,6 +1229,18 @@ func validateTrainingPlanPayload(planText string) []string {
 		}
 	}
 	return issues
+}
+
+func hasWeekPlanPayload(planText string) bool {
+	raw := strings.TrimSpace(planText)
+	if raw == "" || !strings.HasPrefix(raw, "{") {
+		return false
+	}
+	var payload trainingPlanPayload
+	if err := json.Unmarshal([]byte(service.SanitizeJSON(raw)), &payload); err != nil {
+		return strings.Contains(raw, "\"week_plan\"")
+	}
+	return len(payload.Week) > 0
 }
 
 func normalizeTrainingPlanTypes(planText string) string {
