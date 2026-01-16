@@ -70,7 +70,6 @@ body {
   display: flex;
   position: relative;
   background-color: var(--white);
-  box-shadow: 0 0 1px 0 rgba(255, 3, 62, 0.15), 0 6px 12px 0 rgba(255, 3, 62, 0.15);
   padding: 6px;
   border-radius: 999px;
   gap: 4px;
@@ -138,20 +137,27 @@ body {
 }
 
 .tabs.sex-tabs .tab {
-  width: 140px;
-  height: 44px;
-  font-size: 1rem;
+  width: 180px;
+  height: 64px;
+  font-size: 1.6rem;
   font-weight: 700;
-  gap: 10px;
 }
 
 .tabs.sex-tabs .glider {
-  width: 140px;
-  height: 44px;
+  width: 180px;
+  height: 64px;
 }
 
 .tabs.sex-tabs .tab i {
-  font-size: 1.05rem;
+  font-size: 2rem;
+}
+
+.tabs.sex-tabs {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
 }
 
 @media (max-width: 700px) {
@@ -288,7 +294,7 @@ select {
   border: 1px solid var(--border);
   padding: 12px 14px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   background: var(--white);
   color: var(--black);
 }
@@ -1028,4 +1034,19 @@ button {
 
 .toast.show {
   opacity: 1;
+}
+.tabs.profile-goal-tabs {
+  width: 100%;
+  gap: 0;
+  padding: 4px;
+  background: #f2f2f2;
+}
+
+.tabs.profile-goal-tabs .tab {
+  width: 100%;
+  flex: 1;
+}
+
+.tabs.profile-goal-tabs .glider {
+  width: calc(33.333% - 8px);
 }

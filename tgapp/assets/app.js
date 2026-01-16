@@ -1343,7 +1343,7 @@ function initOnboardingWizard() {
         const label = document.createElement("label");
         label.className = "tab";
         label.setAttribute("for", input.id);
-        label.innerHTML = `<i class="bi ${opt.icon}" aria-hidden="true"></i>${opt.label}`;
+        label.innerHTML = `<i class="bi ${opt.icon}" aria-hidden="true"></i>`;
         input.addEventListener("change", () => {
           data[step.id] = opt.value;
         });
@@ -1356,7 +1356,7 @@ function initOnboardingWizard() {
       const updateGlider = () => {
         const idx = step.options.findIndex((opt) => opt.value === data[step.id]);
         const index = idx >= 0 ? idx : 0;
-        glider.style.transform = `translateX(${index * 100}%)`;
+        glider.style.transform = `translateY(${index * 100}%)`;
       };
       updateGlider();
       tabs.addEventListener("change", updateGlider);

@@ -27,30 +27,13 @@ func (r *Router) Dispatch(m *tgbotapi.Message) bool {
 	}
 	text := strings.TrimSpace(m.Text)
 	if !strings.HasPrefix(text, "/") {
-		switch text {
-		case "📅 План на сегодня":
-			text = "/today"
-		case "🍽 Добавить еду":
-			text = "/setmeal"
-		case "👟 Добавить шаги":
-			text = "/setstep"
-		case "📊 Статистика недели":
-			text = "/stats"
-		default:
-			return false
-		}
+		return false
 	}
 
 	cmd := strings.Split(text, " ")[0]
 	log.Printf("CMD chatID=%d cmd=%s args=%q", m.Chat.ID, cmd, strings.TrimSpace(m.CommandArguments()))
 	h, ok := r.handlers[cmd]
 	if !ok {
-		if strings.HasPrefix(cmd, "/stats") {
-			if h, ok := r.handlers["/stats"]; ok {
-				h(m)
-				return true
-			}
-		}
 		return false
 	}
 	h(m)

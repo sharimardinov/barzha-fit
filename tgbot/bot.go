@@ -75,42 +75,7 @@ func New(
 
 func (b *Bot) registerRoutes() {
 	start := handlers.NewStart(b.api, b.users)
-	help := handlers.NewHelp(b.api)
-	meal := handlers.NewMeal(b.api, b.state, b.nutrition, b.tz)
-	plan := handlers.NewPlan(b.api, b.state, b.plan, b.tz)
-	morning := handlers.NewMorning(b.api, b.users)
-	today := handlers.NewToday(b.api, b.plan, b.workout, b.targets, b.nutrition, b.steps, b.tz)
-	profile := handlers.NewProfile(b.api, b.state, b.drafts, b.profile, b.targets, b.plan, b.ai)
-	targets := handlers.NewTargets(b.api, b.targets)
-	meals := handlers.NewMeals(b.api, b.nutrition, b.tz)
-	undo := handlers.NewUndo(b.api, b.nutrition)
-	stats := handlers.NewStats(b.api, b.statsView, b.tz)
-	steps := handlers.NewSteps(b.api, b.state, b.steps, b.tz)
-	streak := handlers.NewStreak(b.api, b.workout, b.nutrition, b.tz)
-	hard := handlers.NewHard(b.api, b.users)
-	weight := handlers.NewWeight(b.api, b.state, b.profile)
-	debug := handlers.NewDebugMeals(b.api, b.nutrition)
-
 	b.router.Handle("/start", start.Handle)
-	b.router.Handle("/help", help.Handle)
-	b.router.Handle("/today", today.Handle)
-	b.router.Handle("/setmeal", meal.Handle)
-	b.router.Handle("/plan", plan.Handle)
-	b.router.Handle("/setplan", plan.Handle)
-	b.router.Handle("/morning", morning.Handle)
-	b.router.Handle("/hard", hard.Handle)
-	b.router.Handle("/profile", profile.Handle)
-	b.router.Handle("/profileset", profile.Handle)
-	b.router.Handle("/weight", weight.Handle)
-	b.router.Handle("/targets", targets.Handle)
-	b.router.Handle("/targetsrefresh", targets.Handle)
-	b.router.Handle("/targetsset", targets.Handle)
-	b.router.Handle("/meals", meals.Handle)
-	b.router.Handle("/setstep", steps.Handle)
-	b.router.Handle("/undo", undo.Handle)
-	b.router.Handle("/streak", streak.Handle)
-	b.router.Handle("/stats", stats.Handle)
-	b.router.Handle("debugmeals", debug.Handle)
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -144,7 +109,7 @@ func (b *Bot) Run(ctx context.Context) error {
 			}
 
 			if upd.Message.IsCommand() {
-				b.reply(upd.Message.Chat.ID, "Не понял тебя родной /help")
+				b.reply(upd.Message.Chat.ID, "Открой приложение: https://t.me/"+b.api.Self.UserName+"?startapp")
 			}
 		}
 	}
