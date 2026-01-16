@@ -64,18 +64,45 @@ func CalcTargets(p domain.Profile) domain.Targets {
 		// balance: no change
 	}
 
-	// макросы: белок от сухой массы, жир от общей массы
+	// макросы: белок от сухой массы (если есть), жир от общей массы
 	proteinWeight := lbm
 	if proteinWeight <= 0 {
 		proteinWeight = p.WeightKG
 	}
-	protein := int(math.Round(2.0 * proteinWeight))
+	proteinRate := 1.8
+	switch p.Goal {
+	case "cut":
+		proteinRate = 2.2
+	case "bulk":
+		proteinRate = 1.8
+	default:
+		proteinRate = 1.8
+	}
+	if p.TrainingYears <= 0 && proteinRate > 1.6 {
+		proteinRate = 1.6
+	}
+	protein := int(math.Round(proteinRate * proteinWeight))
 
 	fatWeight := p.WeightKG
 	if fatWeight <= 0 {
 		fatWeight = lbm
 	}
-	fat := int(math.Round(0.9 * fatWeight))
+	fatRate := 0.9
+	switch p.Goal {
+	case "cut":
+		fatRate = 0.9
+	case "bulk":
+		fatRate = 1.05
+	default:
+		fatRate = 0.9
+	}
+	fat := int(math.Round(fatRate * fatWeight))
+	if fat < int(math.Round(0.6*fatWeight)) {
+		fat = int(math.Round(0.6 * fatWeight))
+	}
+	if fat < 40 {
+		fat = 40
+	}
 
 	// carbs = остаток
 	carbs := int(math.Round((float64(kcal) - float64(protein*4) - float64(fat*9)) / 4.0))
