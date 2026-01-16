@@ -26,13 +26,7 @@ body {
   max-width: 680px;
   margin: 0 auto;
   padding: 16px;
-  padding-top: calc(16px + env(safe-area-inset-top));
-}
-
-@media (max-width: 720px) {
-  .app {
-    padding-top: calc(16px + env(safe-area-inset-top) + 32px);
-  }
+  padding-top: calc(16px + env(safe-area-inset-top) + 40px);
 }
 
 .app-header {
