@@ -108,9 +108,7 @@ func (b *Bot) Run(ctx context.Context) error {
 				continue
 			}
 
-			if upd.Message.IsCommand() {
-				b.reply(upd.Message.Chat.ID, "Открой приложение: https://t.me/"+b.api.Self.UserName+"?startapp")
-			}
+			b.reply(upd.Message.Chat.ID, "Открой приложение: https://t.me/"+b.api.Self.UserName+"?startapp")
 		}
 	}
 }
