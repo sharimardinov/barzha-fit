@@ -782,7 +782,8 @@ button {
   color: var(--black);
   opacity: 0;
   transform: translateY(-6px);
-  transition: height 0.28s ease, opacity 0.2s ease, transform 0.2s ease, padding 0.2s ease;
+  transition: height 0.42s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.32s ease, transform 0.32s ease, padding 0.32s ease;
+  will-change: height, opacity, transform;
 }
 
 .accordion-item.open .accordion-body {
