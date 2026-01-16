@@ -122,7 +122,7 @@ body {
 }
 
 .tabs input[id="goal-bulk"]:checked ~ .glider {
-  transform: translateX(200%);
+  transform: translateX(230%);
 }
 
 .glider {
