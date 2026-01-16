@@ -303,22 +303,17 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     burger.className = "burger";
     burger.innerHTML = "<span></span><span></span><span></span>";
     toggle.appendChild(burger);
-    const syncHeight = () => {
-      if (item.classList.contains("open")) {
-        body.style.height = `${body.scrollHeight}px`;
-      }
-    };
-
-    const openItem = () => {
+    const openBody = () => {
       item.classList.add("open");
-      body.style.height = "0px";
-      const target = body.scrollHeight;
-      body.style.height = `${target}px`;
+      body.style.height = `${body.offsetHeight}px`;
+      requestAnimationFrame(() => {
+        const target = body.scrollHeight;
+        body.style.height = `${target}px`;
+      });
     };
 
-    const closeItem = () => {
-      const current = body.scrollHeight;
-      body.style.height = `${current}px`;
+    const closeBody = () => {
+      body.style.height = `${body.scrollHeight}px`;
       requestAnimationFrame(() => {
         body.style.height = "0px";
       });
@@ -327,9 +322,9 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
 
     toggle.addEventListener("click", () => {
       if (item.classList.contains("open")) {
-        closeItem();
+        closeBody();
       } else {
-        openItem();
+        openBody();
       }
     });
 
@@ -415,7 +410,9 @@ function renderTrainingAccordion(items, containerId = "training-accordion") {
     item.appendChild(body);
     container.appendChild(item);
 
-    syncHeight();
+    if (item.classList.contains("open")) {
+      body.style.height = "auto";
+    }
   });
 }
 
