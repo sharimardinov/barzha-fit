@@ -551,9 +551,22 @@ func (s *Server) handleTrainingProgramGenerate(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	planPayload, err := buildTrainingPlanPayload(program, payload.DaysPerWeek)
+	if err != nil {
+		log.Printf("training plan build failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_plan_build_failed"})
+		return
+	}
+	planTextRaw, err := json.Marshal(planPayload)
+	if err != nil {
+		log.Printf("training plan marshal failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_plan_build_failed"})
+		return
+	}
+	planText := string(planTextRaw)
 	text := service.FormatGeneratedProgram(program)
 	if s.plan != nil {
-		if err := s.plan.Save(ctx, auth.User.ID, text); err != nil {
+		if err := s.plan.Save(ctx, auth.User.ID, planText); err != nil {
 			log.Printf("training program plan save failed: chat_id=%d err=%v", auth.User.ID, err)
 			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
 			return
@@ -568,6 +581,114 @@ func (s *Server) handleTrainingProgramGenerate(w http.ResponseWriter, r *http.Re
 		Text:    text,
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
+}
+
+func buildTrainingPlanPayload(program domain.GeneratedProgram, daysPerWeek int) (trainingPlanPayload, error) {
+	slots, err := trainingDaySlots(daysPerWeek)
+	if err != nil {
+		return trainingPlanPayload{}, err
+	}
+	if len(program.Days) != len(slots) {
+		return trainingPlanPayload{}, fmt.Errorf("plan_days_mismatch")
+	}
+	slotSet := make(map[int]bool, len(slots))
+	for _, day := range slots {
+		slotSet[day] = true
+	}
+
+	week := make([]trainingPlanDay, 0, 7)
+	programIndex := 0
+	for dayNum := 1; dayNum <= 7; dayNum++ {
+		if !slotSet[dayNum] {
+			week = append(week, trainingPlanDay{
+				Day:   dayNum,
+				Name:  "Отдых",
+				Focus: "",
+				Type:  "rest",
+				Items: []string{"Отдых"},
+			})
+			continue
+		}
+
+		day := program.Days[programIndex]
+		programIndex++
+		items := make([]string, 0, len(day.Exercises))
+		for _, ex := range day.Exercises {
+			items = append(items, formatGeneratedExerciseLine(ex))
+		}
+		name := strings.TrimSpace(day.Name)
+		if name == "" {
+			name = fmt.Sprintf("День %d", dayNum)
+		}
+		week = append(week, trainingPlanDay{
+			Day:   dayNum,
+			Name:  name,
+			Focus: strings.TrimSpace(day.Focus),
+			Type:  "train",
+			Items: items,
+		})
+	}
+
+	return trainingPlanPayload{Week: week}, nil
+}
+
+func trainingDaySlots(daysPerWeek int) ([]int, error) {
+	switch daysPerWeek {
+	case 2:
+		return []int{1, 4}, nil
+	case 3:
+		return []int{1, 3, 5}, nil
+	case 4:
+		return []int{1, 2, 4, 5}, nil
+	case 5:
+		return []int{1, 2, 4, 5, 7}, nil
+	case 6:
+		return []int{1, 2, 3, 5, 6, 7}, nil
+	default:
+		return nil, fmt.Errorf("unsupported days_per_week")
+	}
+}
+
+func formatGeneratedExerciseLine(ex domain.GeneratedExercise) string {
+	line := fmt.Sprintf("%s — %dx%s", ex.Name, ex.Sets, ex.Reps)
+	extras := make([]string, 0, 4)
+	if strings.TrimSpace(ex.RPE) != "" {
+		extras = append(extras, "RPE "+strings.TrimSpace(ex.RPE))
+	}
+	if strings.TrimSpace(ex.Rest) != "" {
+		extras = append(extras, "Rest "+strings.TrimSpace(ex.Rest))
+	}
+	if strings.TrimSpace(ex.Percent1RM) != "" {
+		extras = append(extras, "%1RM "+strings.TrimSpace(ex.Percent1RM))
+	}
+	if tagLine := formatTagLine(ex.Tags); tagLine != "" {
+		extras = append(extras, tagLine)
+	}
+	if len(extras) > 0 {
+		line += " | " + strings.Join(extras, " | ")
+	}
+	return line
+}
+
+func formatTagLine(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	out := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		t := strings.TrimSpace(tag)
+		if t == "" {
+			continue
+		}
+		if !strings.HasPrefix(t, "#") {
+			t = "#" + t
+		}
+		out = append(out, t)
+	}
+	if len(out) == 0 {
+		return ""
+	}
+	return strings.Join(out, " ")
 }
 
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {
@@ -1103,14 +1224,17 @@ var allowedActivityPrefixes = []string{
 	"мобилити",
 }
 
+type trainingPlanDay struct {
+	Day   int      `json:"day"`
+	Name  string   `json:"name"`
+	Focus string   `json:"focus"`
+	Type  string   `json:"type"`
+	Items []string `json:"items"`
+}
+
 type trainingPlanPayload struct {
-	Week []struct {
-		Day   int      `json:"day"`
-		Name  string   `json:"name"`
-		Focus string   `json:"focus"`
-		Type  string   `json:"type"`
-		Items []string `json:"items"`
-	} `json:"week_plan"`
+	Week    []trainingPlanDay `json:"week_plan"`
+	Comment string            `json:"comment,omitempty"`
 }
 
 func normalizeExerciseName(value string) string {

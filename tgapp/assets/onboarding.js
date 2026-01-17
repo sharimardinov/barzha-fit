@@ -161,42 +161,6 @@ export async function initOnboardingWizard() {
       required: true,
     },
     {
-      id: "bench",
-      title: "Жим лёжа (кг)",
-      type: "input",
-      inputType: "number",
-      min: 0,
-      max: 400,
-      placeholder: "Например: 80",
-      help: "Понимаем силу верхнего тела.",
-      required: true,
-      when: (d) => (d.planMode || "manual") !== "manual",
-    },
-    {
-      id: "pullups",
-      title: "Подтягивания (количество)",
-      type: "input",
-      inputType: "number",
-      min: 0,
-      max: 100,
-      placeholder: "Например: 8",
-      help: "Оценка тяговой силы.",
-      required: true,
-      when: (d) => (d.planMode || "manual") !== "manual",
-    },
-    {
-      id: "run",
-      title: "Бег (сколько км сможешь пробежать)",
-      type: "input",
-      inputType: "number",
-      min: 0,
-      max: 100,
-      placeholder: "Например: 5",
-      help: "Помогает оценить выносливость.",
-      required: true,
-      when: (d) => (d.planMode || "manual") !== "manual",
-    },
-    {
       id: "injuries",
       title: "Травмы и ограничения",
       type: "multi-options",
@@ -224,15 +188,6 @@ export async function initOnboardingWizard() {
       big: true,
     },
     {
-      id: "wishes",
-      title: "Пожелания",
-      type: "textarea",
-      placeholder: "Например: больше спины, не люблю бег",
-      help: "Учтём предпочтения и ограничения.",
-      required: false,
-      when: (d) => (d.planMode || "manual") !== "manual",
-    },
-    {
       id: "trainingsPerWeek",
       title: "Тренировок в неделю",
       type: "input",
@@ -241,18 +196,6 @@ export async function initOnboardingWizard() {
       max: 6,
       placeholder: "Например: 4",
       help: "Формируем недельную структуру.",
-      required: true,
-      when: (d) => (d.planMode || "manual") !== "manual",
-    },
-    {
-      id: "pharma",
-      title: "Фармакология",
-      type: "options",
-      options: [
-        { value: true, label: "Да" },
-        { value: false, label: "Нет" },
-      ],
-      help: "Влияет на восстановление и объём.",
       required: true,
       when: (d) => (d.planMode || "manual") !== "manual",
     },
@@ -580,18 +523,6 @@ export async function initOnboardingWizard() {
           }
           return true;
         }
-        if (step.id === "pharma") {
-          const normalized = raw.toLowerCase();
-          if (["да", "yes", "y", "true", "1"].includes(normalized)) {
-            data[step.id] = true;
-          } else if (["нет", "no", "n", "false", "0"].includes(normalized)) {
-            data[step.id] = false;
-          } else {
-            toast("Введи да или нет");
-            return false;
-          }
-          return true;
-        }
         data[step.id] = raw;
       }
     }
@@ -644,14 +575,14 @@ export async function initOnboardingWizard() {
         .filter(Boolean);
     const injuries = injuriesList.join(", ");
     const trainingPayload = {
-      bench_kg: Number(data.bench || 0),
-      pullups: Number(data.pullups || 0),
-      run_km: Number(data.run || 0),
+      bench_kg: 0,
+      pullups: 0,
+      run_km: 0,
       injuries,
       goal: trainingGoal,
-      pharma: data.pharma ?? null,
+      pharma: false,
       trainings_per_week: Number(data.trainingsPerWeek || 0),
-      wishes: String(data.wishes || "").trim(),
+      wishes: "",
     };
     const planMode = data.planMode === "manual" ? "manual" : "ai";
     const planWeek = Array.isArray(data.planWeek) ? data.planWeek : null;
