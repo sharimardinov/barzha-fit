@@ -109,15 +109,18 @@ export function initOnboardingWizard() {
       required: true,
     },
     {
-      id: "trainingYears",
-      title: "Стаж тренировок (лет)",
-      type: "input",
-      inputType: "number",
-      min: 0,
-      max: 80,
-      placeholder: "Например: 0",
-      help: "Определяет уровень и подбор упражнений.",
+      id: "trainingStage",
+      title: "Твоя фаза",
+      type: "goal-combo",
+      options: [
+        { value: "core", label: "CORE" },
+        { value: "flow", label: "FLOW" },
+        { value: "peak", label: "PEAK" },
+      ],
+      defaultValue: "core",
+      help: "Выбери текущую фазу тренировок.",
       required: true,
+      showNotes: false,
     },
     {
       id: "bodyfat",
@@ -138,7 +141,7 @@ export function initOnboardingWizard() {
         { value: "ai", label: "Сгенерировать" },
         { value: "manual", label: "Вставить вручную" },
       ],
-      help: "Можно доверить AI или вставить свой план.",
+      help: "Генерация в разработке — используй ручной план.",
       required: true,
     },
     {
@@ -198,8 +201,10 @@ export function initOnboardingWizard() {
       defaultValue: "balance",
       notesId: "goalNotes",
       notesPlaceholder: "Например: подсушиться, больше спины, меньше кардио",
-      help: "Выбери цель и допиши фокус, если нужно.",
+      help: "Выбери цель.",
       required: true,
+      showNotes: false,
+      layout: "vertical",
     },
     {
       id: "pharma",
@@ -305,10 +310,14 @@ export function initOnboardingWizard() {
         if (step.id === "sex" && opt.value === "m") className += " option-male";
         if (step.id === "sex" && opt.value === "f") className += " option-female";
         if (step.id === "planMode") className += " accent-fill";
+        const disabled = step.id === "planMode" && opt.value === "ai";
+        if (disabled) className += " option-disabled";
         btn.className = className;
         btn.textContent = opt.label;
+        btn.disabled = disabled;
         btn.classList.toggle("active", data[step.id] === opt.value);
         btn.addEventListener("click", () => {
+          if (disabled) return;
           data[step.id] = opt.value;
           renderStep();
         });
@@ -342,7 +351,7 @@ export function initOnboardingWizard() {
       const container = document.createElement("div");
       container.className = "tabs-container";
       const tabs = document.createElement("div");
-      tabs.className = "tabs";
+      tabs.className = `tabs${step.layout === "vertical" ? " vertical" : ""}`;
       step.options.forEach((opt, index) => {
         const input = document.createElement("input");
         input.type = "radio";
@@ -366,20 +375,26 @@ export function initOnboardingWizard() {
       const updateGlider = () => {
         const idx = step.options.findIndex((opt) => opt.value === data[step.id]);
         const index = idx >= 0 ? idx : 0;
-        glider.style.transform = `translateX(${index * 100}%)`;
+        if (step.layout === "vertical") {
+          glider.style.transform = `translateY(${index * 100}%)`;
+        } else {
+          glider.style.transform = `translateX(${index * 100}%)`;
+        }
       };
       updateGlider();
       tabs.addEventListener("change", updateGlider);
       container.appendChild(tabs);
       bodyEl.appendChild(container);
 
-      const field = document.createElement("textarea");
-      field.placeholder = step.notesPlaceholder || "";
-      field.value = data[step.notesId] || "";
-      field.addEventListener("input", () => {
-        data[step.notesId] = field.value;
-      });
-      bodyEl.appendChild(field);
+      if (step.showNotes !== false && step.notesId) {
+        const field = document.createElement("textarea");
+        field.placeholder = step.notesPlaceholder || "";
+        field.value = data[step.notesId] || "";
+        field.addEventListener("input", () => {
+          data[step.notesId] = field.value;
+        });
+        bodyEl.appendChild(field);
+      }
     }
 
     if (step.type === "wheel" || step.type === "wheel-horizontal") {
@@ -537,12 +552,18 @@ export function initOnboardingWizard() {
   };
 
   const submitOnboarding = async () => {
+    const stageMap = {
+      core: 0,
+      flow: 3,
+      peak: 6,
+    };
+    const trainingYears = stageMap[data.trainingStage] ?? 0;
     const payload = {
       sex: data.sex,
       age: Number(data.age || 0),
       height_cm: Number(data.height || 0),
       weight_kg: Number(data.weight || 0),
-      training_years: Number(data.trainingYears || 0),
+      training_years: trainingYears,
       bodyfat_pct: Number(data.bodyfat || 0),
       goal: normalizeGoalType(data.goalType || ""),
     };

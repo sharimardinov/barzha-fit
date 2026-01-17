@@ -136,6 +136,21 @@ body {
   transition: 0.25s ease-out;
 }
 
+.tabs.vertical {
+  flex-direction: column;
+  border-radius: 18px;
+  width: 140px;
+  gap: 0;
+}
+
+.tabs.vertical .tab {
+  width: 100%;
+}
+
+.tabs.vertical .glider {
+  width: 100%;
+}
+
 .tabs.sex-tabs .tab {
   width: 180px;
   height: 64px;
@@ -498,19 +513,28 @@ button {
 }
 
 .option-card.accent-fill {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--white);
+  background: var(--white);
+  border-color: var(--border);
+  color: var(--black);
 }
 
-.option-card.accent-fill.active {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+.option-card.accent-fill.option-disabled {
+  background: #f2f2f2;
+  border-color: var(--border);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .option-card.active {
   border-color: var(--accent);
   background: rgba(255, 3, 62, 0.08);
   color: var(--accent);
+}
+
+.option-card.accent-fill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
 }
 
 .option-card.option-male.active {

@@ -36,9 +36,6 @@ export async function loadProfile() {
 export async function loadTrainingProfile() {
   try {
     const p = await api("/api/training/profile/get");
-    $("training-bench").value = p.bench_kg || "";
-    $("training-pullups").value = p.pullups || "";
-    $("training-run").value = p.run_km || "";
     $("training-injuries").value = p.injuries || "";
     const parsed = splitGoalText(p.goal || "");
     if (parsed.type) {
@@ -48,12 +45,11 @@ export async function loadTrainingProfile() {
       $("training-goal-notes").value = p.goal || "";
     }
     $("training-times").value = p.trainings_per_week || "";
-    $("training-wishes").value = p.wishes || "";
     if (p.pharma === true) $("training-pharma").value = "yes";
     else if (p.pharma === false) $("training-pharma").value = "no";
     else $("training-pharma").value = "";
   } catch (_) {
-    $("training-bench").value = "";
+    $("training-injuries").value = "";
   }
 }
 
@@ -113,18 +109,12 @@ export function validateProfileInputs() {
 
 export function validateTrainingInputs() {
   const issues = [];
-  const bench = parseNumberField("training-bench", "жим лёжа", { required: true, integer: true, min: 0, max: 400 });
-  const pullups = parseNumberField("training-pullups", "подтягивания", { required: true, integer: true, min: 0, max: 100 });
-  const run = parseNumberField("training-run", "бег", { required: true, integer: false, min: 0, max: 300 });
   const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
   const goalType = getGoalTypeFromTabs();
   const goalNotes = $("training-goal-notes").value.trim();
   const pharmaValue = $("training-pharma").value;
   const pharma = pharmaValue === "yes" ? true : pharmaValue === "no" ? false : null;
 
-  if (!bench.ok) issues.push(bench.label);
-  if (!pullups.ok) issues.push(pullups.label);
-  if (!run.ok) issues.push(run.label);
   if (!times.ok) issues.push(times.label);
   if (!goalType) issues.push("цель");
   if (pharma === null) issues.push("фармакология");
@@ -135,9 +125,9 @@ export function validateTrainingInputs() {
   }
 
   return {
-    bench: bench.value,
-    pullups: pullups.value,
-    run: run.value,
+    bench: 0,
+    pullups: 0,
+    run: 0,
     times: times.value,
     goalType,
     goalNotes,
@@ -201,14 +191,14 @@ export function initProfileTab() {
       };
       const trainingGoal = buildTrainingGoalText(trainingValidated.goalType, trainingValidated.goalNotes);
       const trainingPayload = {
-        bench_kg: trainingValidated.bench,
-        pullups: trainingValidated.pullups,
-        run_km: trainingValidated.run,
+        bench_kg: trainingValidated.bench || 0,
+        pullups: trainingValidated.pullups || 0,
+        run_km: trainingValidated.run || 0,
         injuries: $("training-injuries").value.trim(),
         goal: trainingGoal,
         pharma: trainingValidated.pharma,
         trainings_per_week: trainingValidated.times,
-        wishes: $("training-wishes").value.trim(),
+        wishes: "",
       };
       await saveProfileFlow(payload, trainingPayload, profileSave, { planMode: "ai-profile" });
     });
