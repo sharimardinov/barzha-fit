@@ -260,6 +260,9 @@ body {
     transform: scale(0.9);
     transform-origin: left center;
   }
+  .tabs.wide {
+    transform: none;
+  }
   .tabs.sex-tabs {
     transform: scale(0.85);
   }
