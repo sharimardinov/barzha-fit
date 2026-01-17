@@ -58,10 +58,6 @@ export function createWheel(values, initial, onChange, axis = "y", extraClass = 
   };
 
   list.addEventListener("scroll", syncActive);
-  list.addEventListener("touchend", () => {
-    const offset = axis === "x" ? list.scrollLeft : list.scrollTop;
-    snapToIndex(Math.round(offset / itemSize));
-  });
   list.addEventListener("mouseup", () => {
     const offset = axis === "x" ? list.scrollLeft : list.scrollTop;
     snapToIndex(Math.round(offset / itemSize));

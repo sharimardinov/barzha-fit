@@ -104,6 +104,7 @@ export function initOnboardingWizard() {
       min: 30,
       max: 300,
       step: 0.5,
+      defaultValue: 75,
       unit: "кг",
       help: "Нужен для расчёта нагрузки и калорий.",
       required: true,
