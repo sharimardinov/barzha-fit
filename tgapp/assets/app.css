@@ -64,6 +64,7 @@ body {
 .tabs-container {
   display: flex;
   justify-content: flex-start;
+  width: 100%;
 }
 
 .tabs {
@@ -156,6 +157,7 @@ body {
   gap: 0;
   align-items: center;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .tabs.wide .tab {
@@ -168,6 +170,7 @@ body {
 .tabs.wide .glider {
   width: calc(100% / 3);
   left: 0;
+  box-sizing: border-box;
 }
 
 .tabs.big .tab {
