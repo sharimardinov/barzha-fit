@@ -1175,22 +1175,32 @@ button {
   display: flex;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
   gap: 0;
   padding: 0;
+  margin: 0;
   background: #f2f2f2;
 }
 
 .tabs.profile-goal-tabs .tab {
-  width: 100%;
-  flex: 1;
+  width: auto;
+  flex: 1 1 0;
+  align-items: center;
   justify-content: center;
   text-align: center;
+  margin: 0; 
+  line-height: 1;
 }
 
 .tabs.profile-goal-tabs .glider {
   width: calc(100% / 3);
   box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  bottom: 0;
   left: 0;
+  transform: translateX(0%);
+  transition: transform .25s ease;
 }
 .tabs.accent-text input[type="radio"]:checked + label {
   color: var(--accent);
