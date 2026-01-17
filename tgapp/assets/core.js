@@ -31,9 +31,31 @@ export function createWheel(values, initial, onChange, axis = "y", extraClass = 
   let currentValue = null;
   let ticking = false;
 
+  const getHorizontalMetrics = () => {
+    const styles = getComputedStyle(list);
+    const paddingLeft = Number.parseFloat(styles.paddingLeft || "0") || 0;
+    const viewWidth = list.clientWidth || itemSize * 3;
+    return { paddingLeft, viewWidth };
+  };
+
+  const indexFromOffset = (offset) => {
+    if (axis !== "x") return Math.round(offset / itemSize);
+    const { paddingLeft, viewWidth } = getHorizontalMetrics();
+    const center = offset + viewWidth / 2;
+    const raw = (center - paddingLeft - itemSize / 2) / itemSize;
+    return Math.round(raw);
+  };
+
+  const scrollForIndex = (index) => {
+    if (axis !== "x") return index * itemSize;
+    const { paddingLeft, viewWidth } = getHorizontalMetrics();
+    const target = index * itemSize + paddingLeft - (viewWidth / 2 - itemSize / 2);
+    return Math.max(0, target);
+  };
+
   const snapToIndex = (index) => {
     if (axis === "x") {
-      list.scrollLeft = index * itemSize;
+      list.scrollLeft = scrollForIndex(index);
     } else {
       list.scrollTop = index * itemSize;
     }
@@ -44,7 +66,7 @@ export function createWheel(values, initial, onChange, axis = "y", extraClass = 
     ticking = true;
     requestAnimationFrame(() => {
       const offset = axis === "x" ? list.scrollLeft : list.scrollTop;
-      const index = Math.round(offset / itemSize);
+      const index = indexFromOffset(offset);
       const value = values[Math.max(0, Math.min(values.length - 1, index))];
       if (value !== currentValue) {
         currentValue = value;
@@ -67,12 +89,14 @@ export function createWheel(values, initial, onChange, axis = "y", extraClass = 
   wheel.appendChild(selector);
 
   const initialIndex = Math.max(0, values.indexOf(initial));
-  if (axis === "x") {
-    list.scrollLeft = initialIndex * itemSize;
-  } else {
-    list.scrollTop = initialIndex * itemSize;
-  }
-  requestAnimationFrame(syncActive);
+  requestAnimationFrame(() => {
+    if (axis === "x") {
+      list.scrollLeft = scrollForIndex(initialIndex);
+    } else {
+      list.scrollTop = initialIndex * itemSize;
+    }
+    syncActive();
+  });
 
   return wheel;
 }
