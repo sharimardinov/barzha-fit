@@ -37,11 +37,11 @@ type Exercise struct {
 }
 
 type Periodization struct {
-	Week       int
-	Intensity  string
-	Percent1RM string
-	Reps       string
-	Rest       string
+	Week       int    `json:"week"`
+	Intensity  string `json:"intensity"`
+	Percent1RM string `json:"percent_1rm"`
+	Reps       string `json:"reps"`
+	Rest       string `json:"rest"`
 }
 
 type UserProgram struct {
@@ -56,9 +56,10 @@ type UserProgram struct {
 }
 
 type GeneratedProgram struct {
-	Template string         `json:"template"`
-	Week     int            `json:"week"`
-	Days     []GeneratedDay `json:"days"`
+	Template      string         `json:"template"`
+	Week          int            `json:"week"`
+	Periodization Periodization  `json:"periodization"`
+	Days          []GeneratedDay `json:"days"`
 }
 
 type GeneratedDay struct {
@@ -70,13 +71,14 @@ type GeneratedDay struct {
 }
 
 type GeneratedExercise struct {
-	ExerciseID  string `json:"exercise_id"`
-	Name        string `json:"name"`
-	MuscleGroup string `json:"muscle_group"`
-	Priority    string `json:"priority"`
-	Sets        int    `json:"sets"`
-	Reps        string `json:"reps"`
-	RPE         string `json:"rpe"`
-	Rest        string `json:"rest"`
-	Percent1RM  string `json:"percent_1rm,omitempty"`
+	ExerciseID  string   `json:"exercise_id"`
+	Name        string   `json:"name"`
+	MuscleGroup string   `json:"muscle_group"`
+	Priority    string   `json:"priority"`
+	Sets        int      `json:"sets"`
+	Reps        string   `json:"reps"`
+	RPE         string   `json:"rpe"`
+	Rest        string   `json:"rest"`
+	Percent1RM  string   `json:"percent_1rm,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 }

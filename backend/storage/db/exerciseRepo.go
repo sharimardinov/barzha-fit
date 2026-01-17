@@ -121,6 +121,59 @@ func (r *ExerciseRepo) ListPrehabByTargets(ctx context.Context, targets []string
 	return out, rows.Err()
 }
 
+func (r *ExerciseRepo) ListSubstitutes(ctx context.Context, names []string, level domain.FitnessLevel, injuries []string) ([]domain.Exercise, error) {
+	if len(names) == 0 {
+		return []domain.Exercise{}, nil
+	}
+	if injuries == nil {
+		injuries = []string{}
+	}
+	rows, err := r.db.Query(ctx, `
+		select id, name, muscle_group, type, level, priority, contraindications, substitute_for, prehab_target
+		from exercises
+		where substitute_for && $1::text[]
+		  and (cardinality(level)=0 or $2::fitness_level = any(level))
+		  and not (contraindications && $3::text[])
+		order by name
+	`, names, string(level), injuries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]domain.Exercise, 0)
+	for rows.Next() {
+		var item domain.Exercise
+		var typ []string
+		var lvl []string
+		var contraindications []string
+		var substituteFor []string
+		var prehab sql.NullString
+		if err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.MuscleGroup,
+			&typ,
+			&lvl,
+			&item.Priority,
+			&contraindications,
+			&substituteFor,
+			&prehab,
+		); err != nil {
+			return nil, err
+		}
+		item.Type = typ
+		item.Level = toFitnessLevels(lvl)
+		item.Contraindications = contraindications
+		item.SubstituteFor = substituteFor
+		if prehab.Valid {
+			item.PrehabTarget = prehab.String
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func toFitnessLevels(in []string) []domain.FitnessLevel {
 	if len(in) == 0 {
 		return []domain.FitnessLevel{}
