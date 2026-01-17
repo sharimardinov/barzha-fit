@@ -154,27 +154,8 @@ export async function saveProfileFlow(payload, trainingPayload, button, opts = {
     await api("/api/targets/refresh");
     if (opts.planMode === "ai") {
       await api("/api/training/profile/set", trainingPayload);
-      let pipelineOk = false;
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        try {
-          await api("/api/training/generate");
-          pipelineOk = true;
-          break;
-        } catch (err) {
-          if (err.message === "training_plan_invalid" && attempt < 3) {
-            continue;
-          }
-          if (err.message === "training_plan_invalid") {
-            toast("План кривой. Нажми ещё раз.");
-            return false;
-          }
-          throw err;
-        }
-      }
-      if (!pipelineOk) {
-        return false;
-      }
-      await loadPlan();
+      toast("Генерация плана пока в разработке");
+      return false;
     } else if (opts.planMode === "manual" && typeof opts.planText === "string") {
       await api("/api/plan/set", { text: opts.planText });
       await loadPlan();

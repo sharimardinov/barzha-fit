@@ -85,7 +85,6 @@ func main() {
 	statsView := service.NewStatsViewService(nutSvc, workoutSvc, stepsSvc, targetsSvc, cfg.TZ)
 
 	activityAI := service.NewActivityAI(aiClient)
-	trainingAI := service.NewTrainingPlanAI(aiClient)
 	reflectionAI := service.NewReflectionAI(aiClient)
 
 	if *morning {
@@ -136,7 +135,6 @@ func main() {
 		Profile:   profileSvc,
 		Training:  trainingProfileSvc,
 		Activity:  activityAI,
-		TrainingAI: trainingAI,
 		PlanView:  planView,
 		StatsView: statsView,
 	})

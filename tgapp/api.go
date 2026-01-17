@@ -42,7 +42,6 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/activity/estimate", s.withAuth(s.handleActivityEstimate))
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
-	mux.HandleFunc("/api/training/generate", s.withAuth(s.handleTrainingGenerate))
 	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
@@ -495,118 +494,6 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: trainingProfileToDTO(p)})
-}
-
-func (s *Server) handleTrainingGenerate(w http.ResponseWriter, r *http.Request, auth authContext) {
-	if s.trainingAI == nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_ai_unavailable"})
-		return
-	}
-	if s.training == nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_unavailable"})
-		return
-	}
-	ctx := context.Background()
-	p, ok, err := s.profile.Get(ctx, auth.User.ID)
-	if err != nil {
-		log.Printf("training profile read user failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
-		return
-	}
-	tp, okTP, err := s.training.Get(ctx, auth.User.ID)
-	if err != nil {
-		log.Printf("training profile read failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_read_failed"})
-		return
-	}
-
-	missing := missingTrainingFields(p, tp, ok, okTP)
-	if len(missing) > 0 {
-		writeJSON(w, http.StatusBadRequest, apiResponse{
-			OK:    false,
-			Error: "missing_fields",
-			Data:  map[string]any{"fields": missing},
-		})
-		return
-	}
-
-	payload := domain.BuildTrainingPrompt(p, tp)
-	var planText string
-	var raw any
-	var issues []string
-	for attempt := 0; attempt < 3; attempt++ {
-		planText, raw, err = s.trainingAI.GenerateTrainingPlan(ctx, payload)
-		if err != nil {
-			if isTransientAIError(err) && attempt < 2 {
-				log.Printf("training generate retry: chat_id=%d attempt=%d err=%v", auth.User.ID, attempt+1, err)
-				continue
-			}
-			log.Printf("training generate failed: chat_id=%d err=%v", auth.User.ID, err)
-			writeJSON(w, http.StatusInternalServerError, apiResponse{
-				OK:    false,
-				Error: "training_generate_failed",
-				Data:  raw,
-			})
-			return
-		}
-		normalized, ok := service.NormalizeTrainingPlan(planText)
-		if !ok {
-			issues = []string{"invalid_json"}
-		} else {
-			planText = normalizeTrainingPlanTypes(normalized)
-			if tpPlan, ok := service.ParseTrainingPlan(planText); ok {
-				issues = validateTrainingPlan(tpPlan)
-				issues = append(issues, validateTrainingPlanWithProfile(tpPlan, tp.TrainingsPerWeek, tp.Injuries, tp.Wishes)...)
-				if payloadIssues := validateTrainingPlanPayload(planText); len(payloadIssues) > 0 {
-					issues = append(issues, payloadIssues...)
-				}
-			} else {
-				issues = []string{"invalid_json"}
-			}
-		}
-		if len(issues) == 0 {
-			break
-		}
-		if attempt < 2 {
-			log.Printf("training plan retry: chat_id=%d attempt=%d issues=%v", auth.User.ID, attempt+1, issues)
-		}
-	}
-	if len(issues) > 0 {
-		snippet := planText
-		if len(snippet) > 600 {
-			snippet = snippet[:600] + "..."
-		}
-		log.Printf("training plan invalid: chat_id=%d issues=%v plan=%s", auth.User.ID, issues, snippet)
-		writeJSON(w, http.StatusUnprocessableEntity, apiResponse{
-			OK:    false,
-			Error: "training_plan_invalid",
-			Data:  map[string]any{"issues": issues},
-		})
-		return
-	}
-
-	if err := s.plan.Save(ctx, auth.User.ID, planText); err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]string{"plan": planText}})
-}
-
-func isTransientAIError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	if strings.Contains(msg, "context deadline exceeded") {
-		return true
-	}
-	for _, code := range []string{"status=429", "status=500", "status=502", "status=503", "status=504"} {
-		if strings.Contains(msg, code) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {

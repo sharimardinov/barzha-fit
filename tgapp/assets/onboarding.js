@@ -135,7 +135,7 @@ export function initOnboardingWizard() {
       title: "Как получим план?",
       type: "options",
       options: [
-        { value: "ai", label: "Сгенерировать автоматически" },
+        { value: "ai", label: "Сгенерировать" },
         { value: "manual", label: "Вставить вручную" },
       ],
       help: "Можно доверить AI или вставить свой план.",
