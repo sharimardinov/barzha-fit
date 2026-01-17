@@ -639,4 +639,15 @@ export function initOnboardingWizard() {
       await loadTargets();
     });
   }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.tagName === "TEXTAREA") return;
+    if (nextBtn && !nextBtn.disabled) {
+      event.preventDefault();
+      nextBtn.click();
+    }
+  });
 }
