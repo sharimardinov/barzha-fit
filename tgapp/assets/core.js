@@ -88,7 +88,21 @@ export function createWheel(values, initial, onChange, axis = "y", extraClass = 
   wheel.appendChild(list);
   wheel.appendChild(selector);
 
-  const initialIndex = Math.max(0, values.indexOf(initial));
+  let initialIndex = values.indexOf(initial);
+  if (initialIndex < 0 && initial !== undefined && initial !== null) {
+    const target = Number(initial);
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    values.forEach((val, idx) => {
+      const diff = Math.abs(Number(val) - target);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = idx;
+      }
+    });
+    initialIndex = bestIdx;
+  }
+  if (initialIndex < 0) initialIndex = 0;
   requestAnimationFrame(() => {
     if (axis === "x") {
       list.scrollLeft = scrollForIndex(initialIndex);
