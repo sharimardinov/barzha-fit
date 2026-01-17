@@ -122,6 +122,7 @@ export function initOnboardingWizard() {
       required: true,
       showNotes: false,
       wide: true,
+      big: true,
     },
     {
       id: "bodyfat",

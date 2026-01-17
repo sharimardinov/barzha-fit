@@ -159,8 +159,6 @@ body {
 .tabs.wide .tab {
   flex: 1;
   width: auto;
-  height: 46px;
-  font-size: 0.9rem;
 }
 
 .tabs.wide .glider {
@@ -168,14 +166,14 @@ body {
 }
 
 .tabs.big .tab {
-  height: 64px;
-  font-size: 1.35rem;
+  height: 96px;
+  font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
 
 .tabs.big .glider {
-  height: 64px;
+  height: 96px;
 }
 
 .tab-with-icon {
@@ -193,6 +191,10 @@ body {
   background-color: var(--black);
   -webkit-mask: var(--icon) no-repeat center / contain;
   mask: var(--icon) no-repeat center / contain;
+}
+
+.tab-text {
+  line-height: 1;
 }
 
 .tabs input[type="radio"]:checked + .tab-with-icon .tab-icon {
