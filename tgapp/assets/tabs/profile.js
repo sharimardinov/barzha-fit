@@ -23,7 +23,6 @@ export async function loadProfile() {
     $("profile-age").value = p.age ?? "";
     $("profile-height").value = p.height_cm ?? "";
     $("profile-weight").value = p.weight_kg ?? "";
-    $("profile-training-years").value = p.training_years ?? "";
     $("profile-bodyfat").value = p.bodyfat_pct ?? "";
     setGoalTabs(p.goal || "balance");
     $("profile-activity").textContent = p.activity_multiplier ? p.activity_multiplier.toFixed(2) : "—";
@@ -40,9 +39,8 @@ export async function loadTrainingProfile() {
     const parsed = splitGoalText(p.goal || "");
     if (parsed.type) {
       setGoalTabs(parsed.type);
-      $("training-goal-notes").value = parsed.notes;
     } else {
-      $("training-goal-notes").value = p.goal || "";
+      setGoalTabs(p.goal || "balance");
     }
     $("training-times").value = p.trainings_per_week || "";
     if (p.pharma === true) $("training-pharma").value = "yes";
@@ -77,19 +75,12 @@ export function validateProfileInputs() {
   const height = parseNumberField("profile-height", "рост", { required: true, integer: true, min: 100, max: 250 });
   const weight = parseNumberField("profile-weight", "вес", { required: true, integer: false, min: 30, max: 300 });
   const bodyfat = parseNumberField("profile-bodyfat", "процент жира", { required: true, integer: false, min: 1, max: 100 });
-  const trainingYears = parseNumberField("profile-training-years", "стаж тренировок", {
-    required: true,
-    integer: true,
-    min: 0,
-    max: 80,
-  });
   const goalType = getGoalTypeFromTabs();
 
   if (!age.ok) issues.push(age.label);
   if (!height.ok) issues.push(height.label);
   if (!weight.ok) issues.push(weight.label);
   if (!bodyfat.ok) issues.push(bodyfat.label);
-  if (!trainingYears.ok) issues.push(trainingYears.label);
   if (!goalType) issues.push("цель");
 
   if (issues.length) {
@@ -102,7 +93,7 @@ export function validateProfileInputs() {
     height: height.value,
     weight: weight.value,
     bodyfat: bodyfat.value,
-    trainingYears: trainingYears.value,
+    trainingYears: 0,
     goalType,
   };
 }
@@ -111,7 +102,7 @@ export function validateTrainingInputs() {
   const issues = [];
   const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
   const goalType = getGoalTypeFromTabs();
-  const goalNotes = $("training-goal-notes").value.trim();
+  const goalNotes = "";
   const pharmaValue = $("training-pharma").value;
   const pharma = pharmaValue === "yes" ? true : pharmaValue === "no" ? false : null;
 

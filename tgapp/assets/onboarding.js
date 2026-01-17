@@ -211,15 +211,12 @@ export function initOnboardingWizard() {
       big: true,
     },
     {
-      id: "pharma",
-      title: "Фармакология",
-      type: "options",
-      options: [
-        { value: true, label: "Да" },
-        { value: false, label: "Нет" },
-      ],
-      help: "Влияет на восстановление и объём.",
-      required: true,
+      id: "wishes",
+      title: "Пожелания",
+      type: "textarea",
+      placeholder: "Например: больше спины, не люблю бег",
+      help: "Учтём предпочтения и ограничения.",
+      required: false,
       when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
@@ -235,12 +232,15 @@ export function initOnboardingWizard() {
       when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
-      id: "wishes",
-      title: "Пожелания",
-      type: "textarea",
-      placeholder: "Например: больше спины, не люблю бег",
-      help: "Учтём предпочтения и ограничения.",
-      required: false,
+      id: "pharma",
+      title: "Фармакология",
+      type: "options",
+      options: [
+        { value: true, label: "Да" },
+        { value: false, label: "Нет" },
+      ],
+      help: "Влияет на восстановление и объём.",
+      required: true,
       when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
