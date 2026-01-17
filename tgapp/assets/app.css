@@ -154,11 +154,13 @@ body {
 .tabs.wide {
   width: 100%;
   gap: 0;
+  align-items: center;
 }
 
 .tabs.wide .tab {
   flex: 1;
   width: auto;
+  justify-content: center;
 }
 
 .tabs.wide .glider {
@@ -166,19 +168,21 @@ body {
 }
 
 .tabs.big .tab {
-  height: 96px;
-  font-size: 1.15rem;
+  height: 120px;
+  font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
 
 .tabs.big .glider {
-  height: 96px;
+  height: 120px;
 }
 
 .tab-with-icon {
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  justify-content: center;
+  text-align: center;
 }
 
 .tabs.wide .tab-with-icon {
@@ -186,8 +190,8 @@ body {
 }
 
 .tab-icon {
-  width: 46px;
-  height: 46px;
+  width: 64px;
+  height: 64px;
   background-color: var(--black);
   -webkit-mask: var(--icon) no-repeat center / contain;
   mask: var(--icon) no-repeat center / contain;
@@ -1160,4 +1164,19 @@ button {
 
 .tabs.profile-goal-tabs .glider {
   width: calc(33.333% - 8px);
+}
+.tabs.accent-text input[type="radio"]:checked + label {
+  color: var(--accent);
+}
+
+.tabs.accent-text .glider {
+  background-color: transparent;
+}
+
+.tabs.accent-text .tab-icon {
+  background-color: var(--muted);
+}
+
+.tabs.accent-text input[type="radio"]:checked + .tab-with-icon .tab-icon {
+  background-color: var(--accent);
 }

@@ -358,6 +358,7 @@ export function initOnboardingWizard() {
       if (step.layout === "vertical") tabsClasses.push("vertical");
       if (step.wide) tabsClasses.push("wide");
       if (step.big) tabsClasses.push("big");
+      if (step.id === "trainingStage") tabsClasses.push("accent-text");
       tabs.className = tabsClasses.join(" ");
       step.options.forEach((opt, index) => {
         const input = document.createElement("input");
