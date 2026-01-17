@@ -196,9 +196,9 @@ export function initOnboardingWizard() {
       title: "Твоя цель",
       type: "goal-combo",
       options: [
-        { value: "cut", label: "CUT\u00A0\u00A0" },
-        { value: "balance", label: "BALANCE\u00A0\u00A0" },
-        { value: "bulk", label: "BULK\u00A0\u00A0" },
+        { value: "cut", label: "CUT" },
+        { value: "balance", label: "BALANCE" },
+        { value: "bulk", label: "BULK" },
       ],
       defaultValue: "balance",
       notesId: "goalNotes",
