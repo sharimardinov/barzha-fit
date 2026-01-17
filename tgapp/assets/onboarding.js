@@ -121,6 +121,7 @@ export function initOnboardingWizard() {
       help: "Выбери текущую фазу тренировок.",
       required: true,
       showNotes: false,
+      wide: true,
     },
     {
       id: "bodyfat",
@@ -154,7 +155,7 @@ export function initOnboardingWizard() {
       placeholder: "Например: 80",
       help: "Понимаем силу верхнего тела.",
       required: true,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "pullups",
@@ -166,7 +167,7 @@ export function initOnboardingWizard() {
       placeholder: "Например: 8",
       help: "Оценка тяговой силы.",
       required: true,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "run",
@@ -178,7 +179,7 @@ export function initOnboardingWizard() {
       placeholder: "Например: 5",
       help: "Помогает оценить выносливость.",
       required: true,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "injuries",
@@ -187,7 +188,7 @@ export function initOnboardingWizard() {
       placeholder: "Например: грыжа L5-S1",
       help: "Чтобы исключить рискованные упражнения.",
       required: false,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "goalType",
@@ -204,7 +205,8 @@ export function initOnboardingWizard() {
       help: "Выбери цель.",
       required: true,
       showNotes: false,
-      layout: "vertical",
+      wide: true,
+      big: true,
     },
     {
       id: "pharma",
@@ -216,7 +218,7 @@ export function initOnboardingWizard() {
       ],
       help: "Влияет на восстановление и объём.",
       required: true,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "trainingsPerWeek",
@@ -228,7 +230,7 @@ export function initOnboardingWizard() {
       placeholder: "Например: 4",
       help: "Формируем недельную структуру.",
       required: true,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "wishes",
@@ -237,7 +239,7 @@ export function initOnboardingWizard() {
       placeholder: "Например: больше спины, не люблю бег",
       help: "Учтём предпочтения и ограничения.",
       required: false,
-      when: (d) => d.planMode !== "manual",
+      when: (d) => (d.planMode || "manual") !== "manual",
     },
     {
       id: "planWeek",
@@ -351,7 +353,11 @@ export function initOnboardingWizard() {
       const container = document.createElement("div");
       container.className = "tabs-container";
       const tabs = document.createElement("div");
-      tabs.className = `tabs${step.layout === "vertical" ? " vertical" : ""}`;
+      const tabsClasses = ["tabs"];
+      if (step.layout === "vertical") tabsClasses.push("vertical");
+      if (step.wide) tabsClasses.push("wide");
+      if (step.big) tabsClasses.push("big");
+      tabs.className = tabsClasses.join(" ");
       step.options.forEach((opt, index) => {
         const input = document.createElement("input");
         input.type = "radio";
@@ -385,6 +391,26 @@ export function initOnboardingWizard() {
       tabs.addEventListener("change", updateGlider);
       container.appendChild(tabs);
       bodyEl.appendChild(container);
+
+      if (step.id === "trainingStage") {
+        const stageRow = document.createElement("div");
+        stageRow.className = "stage-images";
+        const stages = [
+          { value: "core", src: "images/core.png", label: "CORE" },
+          { value: "flow", src: "images/flow.png", label: "FLOW" },
+          { value: "peak", src: "images/peak.png", label: "PEAK" },
+        ];
+        stages.forEach((stage) => {
+          const item = document.createElement("div");
+          item.className = `stage-image${data[step.id] === stage.value ? " active" : ""}`;
+          const img = document.createElement("img");
+          img.src = stage.src;
+          img.alt = stage.label;
+          item.appendChild(img);
+          stageRow.appendChild(item);
+        });
+        bodyEl.appendChild(stageRow);
+      }
 
       if (step.showNotes !== false && step.notesId) {
         const field = document.createElement("textarea");
