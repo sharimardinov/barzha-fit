@@ -395,7 +395,10 @@ export function initOnboardingWizard() {
       const updateGlider = () => {
         const idx = step.options.findIndex((opt) => opt.value === data[step.id]);
         const index = idx >= 0 ? idx : 0;
-        if (step.layout === "vertical") {
+        if (step.wide) {
+          glider.style.transform = "none";
+          glider.style.left = `calc(${index} * (100% / ${step.options.length}))`;
+        } else if (step.layout === "vertical") {
           glider.style.transform = `translateY(${index * 100}%)`;
         } else {
           glider.style.transform = `translateX(${index * 100}%)`;
