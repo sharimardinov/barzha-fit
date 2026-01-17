@@ -1172,7 +1172,9 @@ button {
   transform: none;
 }
 .tabs.profile-goal-tabs {
+  display: flex;
   width: 100%;
+  position: relative;
   gap: 0;
   padding: 0;
   background: #f2f2f2;
