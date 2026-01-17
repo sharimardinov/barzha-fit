@@ -704,16 +704,16 @@ button {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  padding: 0 70px;
+  padding: 0 50px;
   -webkit-overflow-scrolling: touch;
 }
 
 .wheel.horizontal .wheel-item {
-  width: 70px;
+  width: 50px;
   height: 80px;
   flex: 0 0 auto;
   scroll-snap-align: center;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .wheel.horizontal .wheel-selector {

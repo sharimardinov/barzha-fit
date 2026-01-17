@@ -27,7 +27,7 @@ export function createWheel(values, initial, onChange, axis = "y", extraClass = 
     list.appendChild(item);
   });
 
-  const itemSize = axis === "x" ? 70 : 40;
+  const itemSize = axis === "x" ? 50 : 40;
   let currentValue = null;
   let ticking = false;
 
