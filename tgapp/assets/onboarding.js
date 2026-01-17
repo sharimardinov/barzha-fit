@@ -368,7 +368,19 @@ export function initOnboardingWizard() {
         const label = document.createElement("label");
         label.className = "tab";
         label.setAttribute("for", input.id);
-        label.textContent = opt.label;
+        if (step.id === "trainingStage") {
+          label.classList.add("tab-with-icon");
+          label.style.setProperty("--icon", `url(images/${opt.value}.svg)`);
+          const icon = document.createElement("span");
+          icon.className = "tab-icon";
+          const text = document.createElement("span");
+          text.className = "tab-text";
+          text.textContent = opt.label;
+          label.appendChild(icon);
+          label.appendChild(text);
+        } else {
+          label.textContent = opt.label;
+        }
         input.addEventListener("change", () => {
           data[step.id] = opt.value;
         });
@@ -391,27 +403,6 @@ export function initOnboardingWizard() {
       tabs.addEventListener("change", updateGlider);
       container.appendChild(tabs);
       bodyEl.appendChild(container);
-
-      if (step.id === "trainingStage") {
-        const stageRow = document.createElement("div");
-        stageRow.className = "stage-images";
-        const stages = [
-          { value: "core", src: "images/core.svg", label: "CORE" },
-          { value: "flow", src: "images/flow.svg", label: "FLOW" },
-          { value: "peak", src: "images/peak.svg", label: "PEAK" },
-        ];
-        stages.forEach((stage) => {
-          const item = document.createElement("div");
-          item.className = `stage-image${data[step.id] === stage.value ? " active" : ""}`;
-          const icon = document.createElement("div");
-          icon.className = "stage-icon";
-          icon.style.setProperty("--icon", `url(${stage.src})`);
-          icon.setAttribute("aria-label", stage.label);
-          item.appendChild(icon);
-          stageRow.appendChild(item);
-        });
-        bodyEl.appendChild(stageRow);
-      }
 
       if (step.showNotes !== false && step.notesId) {
         const field = document.createElement("textarea");

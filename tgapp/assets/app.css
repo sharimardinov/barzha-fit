@@ -178,37 +178,24 @@ body {
   height: 64px;
 }
 
-.stage-images {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.tab-with-icon {
   gap: 10px;
-  margin-top: 12px;
 }
 
-.stage-image {
-  border: 2px solid transparent;
-  border-radius: 14px;
-  padding: 6px;
-  background: #f6f6f6;
-  display: flex;
-  align-items: center;
+.tabs.wide .tab-with-icon {
   justify-content: center;
 }
 
-.stage-icon {
-  width: 100%;
-  height: 64px;
-  background-color: var(--muted);
+.tab-icon {
+  width: 22px;
+  height: 22px;
+  background-color: var(--black);
   -webkit-mask: var(--icon) no-repeat center / contain;
   mask: var(--icon) no-repeat center / contain;
 }
 
-.stage-image.active {
-  border-color: transparent;
-}
-
-.stage-image.active .stage-icon {
-  background-color: var(--accent);
+.tabs input[type="radio"]:checked + .tab-with-icon .tab-icon {
+  background-color: var(--white);
 }
 .tabs.sex-tabs .tab {
   width: 180px;
