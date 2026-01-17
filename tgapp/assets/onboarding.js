@@ -157,7 +157,7 @@ export async function initOnboardingWizard() {
         { value: "ai", label: "Сгенерировать" },
         { value: "manual", label: "Вставить вручную" },
       ],
-      help: "Генерация в разработке — используй ручной план.",
+      help: "Соберём данные и сгенерируем план.",
       required: true,
     },
     {
@@ -237,8 +237,8 @@ export async function initOnboardingWizard() {
       title: "Тренировок в неделю",
       type: "input",
       inputType: "number",
-      min: 1,
-      max: 7,
+      min: 2,
+      max: 6,
       placeholder: "Например: 4",
       help: "Формируем недельную структуру.",
       required: true,
@@ -329,14 +329,10 @@ export async function initOnboardingWizard() {
         if (step.id === "sex" && opt.value === "m") className += " option-male";
         if (step.id === "sex" && opt.value === "f") className += " option-female";
         if (step.id === "planMode") className += " accent-fill";
-        const disabled = step.id === "planMode" && opt.value === "ai";
-        if (disabled) className += " option-disabled";
         btn.className = className;
         btn.textContent = opt.label;
-        btn.disabled = disabled;
         btn.classList.toggle("active", data[step.id] === opt.value);
         btn.addEventListener("click", () => {
-          if (disabled) return;
           data[step.id] = opt.value;
           renderStep();
         });
@@ -640,9 +636,13 @@ export async function initOnboardingWizard() {
       goal: normalizeGoalType(data.goalType || ""),
     };
     const trainingGoal = buildTrainingGoalText(data.goalType, data.goalNotes);
-    const injuries = Array.isArray(data.injuries)
-      ? data.injuries.join(", ")
-      : String(data.injuries || "").trim();
+    const injuriesList = Array.isArray(data.injuries)
+      ? data.injuries
+      : String(data.injuries || "")
+        .split(/[,;]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    const injuries = injuriesList.join(", ");
     const trainingPayload = {
       bench_kg: Number(data.bench || 0),
       pullups: Number(data.pullups || 0),
@@ -658,7 +658,19 @@ export async function initOnboardingWizard() {
     const normalizedPlan = planMode === "manual"
       ? JSON.stringify({ week_plan: normalizeWeekPlanForSave(planWeek), comment: "" })
       : "";
-    await saveProfileFlow(payload, trainingPayload, nextBtn, { planMode, planText: normalizedPlan });
+    const trainingInput = planMode === "ai"
+      ? {
+        fitness_level: data.trainingStage,
+        goal: data.goalType,
+        days_per_week: Number(data.trainingsPerWeek || 0),
+        injuries: injuriesList,
+      }
+      : null;
+    await saveProfileFlow(payload, trainingPayload, nextBtn, {
+      planMode,
+      planText: normalizedPlan,
+      trainingInput,
+    });
   };
 
   backBtn.addEventListener("click", () => {

@@ -27,6 +27,7 @@ func FormatGeneratedProgram(program domain.GeneratedProgram) string {
 		if i > 0 {
 			b.WriteString("\n")
 		}
+		b.WriteString(fmt.Sprintf("%d\n", day.Day))
 		label := strings.TrimSpace(day.Name)
 		if label == "" || strings.HasPrefix(strings.ToLower(label), "day ") {
 			label = strings.TrimSpace(day.Focus)
@@ -34,7 +35,8 @@ func FormatGeneratedProgram(program domain.GeneratedProgram) string {
 		if label == "" {
 			label = "Training"
 		}
-		b.WriteString(fmt.Sprintf("Day %d — %s\n", day.Day, label))
+		b.WriteString(label)
+		b.WriteString("\n")
 		for j, ex := range day.Exercises {
 			line := fmt.Sprintf(
 				"%d. %s — %dx%s | RPE %s | Rest %s",

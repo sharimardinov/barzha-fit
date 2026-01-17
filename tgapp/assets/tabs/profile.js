@@ -193,8 +193,10 @@ export async function saveProfileFlow(payload, trainingPayload, button, opts = {
     await api("/api/targets/refresh");
     if (opts.planMode === "ai") {
       await api("/api/training/profile/set", trainingPayload);
-      toast("Генерация плана пока в разработке");
-      return false;
+      if (opts.trainingInput) {
+        await api("/api/training/program/generate", opts.trainingInput);
+        await loadPlan();
+      }
     } else if (opts.planMode === "manual" && typeof opts.planText === "string") {
       await api("/api/plan/set", { text: opts.planText });
       await loadPlan();

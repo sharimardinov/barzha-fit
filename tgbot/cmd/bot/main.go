@@ -68,6 +68,21 @@ func main() {
 
 	trainingProfileRepo := db.NewTrainingProfileRepo(pool)
 	trainingProfileSvc := service.NewTrainingProfileService(trainingProfileRepo)
+	appUserRepo := db.NewAppUserRepo(pool)
+	trainingInputRepo := db.NewTrainingInputRepo(pool)
+	trainingInputSvc := service.NewTrainingInputService(trainingInputRepo, appUserRepo)
+	templateRepo := db.NewProgramTemplateRepo(pool)
+	exerciseRepo := db.NewExerciseRepo(pool)
+	periodizationRepo := db.NewPeriodizationRepo(pool)
+	userProgramRepo := db.NewUserProgramRepo(pool)
+	trainingProgramSvc := service.NewTrainingProgramService(
+		appUserRepo,
+		trainingInputRepo,
+		templateRepo,
+		exerciseRepo,
+		periodizationRepo,
+		userProgramRepo,
+	)
 	injuryTypeRepo := db.NewInjuryTypeRepo(pool)
 	injuryTypeSvc := service.NewInjuryTypeService(injuryTypeRepo)
 
@@ -136,6 +151,8 @@ func main() {
 		Steps:     stepsSvc,
 		Profile:   profileSvc,
 		Training:  trainingProfileSvc,
+		Inputs:    trainingInputSvc,
+		Programs:  trainingProgramSvc,
 		Injuries:  injuryTypeSvc,
 		Activity:  activityAI,
 		PlanView:  planView,

@@ -43,6 +43,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
 	mux.HandleFunc("/api/training/injuries", s.withAuth(s.handleTrainingInjuries))
+	mux.HandleFunc("/api/training/program/generate", s.withAuth(s.handleTrainingProgramGenerate))
 	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
@@ -515,6 +516,56 @@ func (s *Server) handleTrainingInjuries(w http.ResponseWriter, r *http.Request, 
 	resp := make([]injuryDTO, 0, len(items))
 	for _, item := range items {
 		resp = append(resp, injuryDTO{Code: item.Code, Label: item.Label})
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
+}
+
+func (s *Server) handleTrainingProgramGenerate(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.inputs == nil || s.programs == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_program_unavailable"})
+		return
+	}
+
+	var payload struct {
+		FitnessLevel string   `json:"fitness_level"`
+		Goal         string   `json:"goal"`
+		DaysPerWeek  int      `json:"days_per_week"`
+		Injuries     []string `json:"injuries"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+
+	ctx := context.Background()
+	if _, err := s.inputs.SaveFromSelection(ctx, auth.User.ID, payload.FitnessLevel, payload.Goal, payload.DaysPerWeek, payload.Injuries); err != nil {
+		log.Printf("training input save failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "training_input_invalid"})
+		return
+	}
+
+	_, program, err := s.programs.Generate(ctx, auth.User.ID)
+	if err != nil {
+		log.Printf("training program generate failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_program_generate_failed"})
+		return
+	}
+
+	text := service.FormatGeneratedProgram(program)
+	if s.plan != nil {
+		if err := s.plan.Save(ctx, auth.User.ID, text); err != nil {
+			log.Printf("training program plan save failed: chat_id=%d err=%v", auth.User.ID, err)
+			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
+			return
+		}
+	}
+
+	resp := struct {
+		Program domain.GeneratedProgram `json:"program"`
+		Text    string                  `json:"text"`
+	}{
+		Program: program,
+		Text:    text,
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
 }
