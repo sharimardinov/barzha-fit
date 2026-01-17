@@ -179,7 +179,8 @@ body {
 }
 
 .tab-with-icon {
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .tabs.wide .tab-with-icon {
@@ -187,8 +188,8 @@ body {
 }
 
 .tab-icon {
-  width: 22px;
-  height: 22px;
+  width: 46px;
+  height: 46px;
   background-color: var(--black);
   -webkit-mask: var(--icon) no-repeat center / contain;
   mask: var(--icon) no-repeat center / contain;
