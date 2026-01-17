@@ -77,7 +77,8 @@ body {
 }
 
 .tabs * {
-  z-index: 2;
+  .tabs .tab { position: relative; z-index: 2; }
+  .tabs .glider { z-index: 1; pointer-events: none; }
 }
 
 .tabs input[type="radio"] {
@@ -1191,6 +1192,7 @@ button {
 
 /* ВАЖНО: табы выше глайдера и кликабельны */
 .tabs.profile-goal-tabs .tab{
+  width: auto;        /* ВАЖНО, иначе 92px */
   flex: 1 1 0;
   display: flex;
   align-items: center;
