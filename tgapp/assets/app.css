@@ -167,12 +167,14 @@ body {
   margin: 0;
   min-width: 0;
   overflow: hidden;
+  text-align: center;
 }
 
 .tabs.wide .glider {
   width: calc(100% / 3);
   left: 0;
   box-sizing: border-box;
+  margin: 0;
 }
 
 .tabs.big .tab {
@@ -208,6 +210,8 @@ body {
 .tab-text {
   line-height: 1;
   white-space: nowrap;
+  text-align: center;
+  width: 100%;
 }
 
 .tabs.wide.big .tab {
