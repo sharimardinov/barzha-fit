@@ -186,9 +186,13 @@ export function initOnboardingWizard() {
     {
       id: "injuries",
       title: "Травмы и ограничения",
-      type: "textarea",
-      placeholder: "Например: грыжа L5-S1",
-      help: "Чтобы исключить рискованные упражнения.",
+      type: "multi-options",
+      options: [
+        { value: "shoulder", label: "Плечо" },
+        { value: "lower_back", label: "Поясница" },
+        { value: "knee", label: "Колено" },
+      ],
+      help: "Можно выбрать несколько или пропустить.",
       required: false,
       when: (d) => (d.planMode || "manual") !== "manual",
     },
@@ -298,9 +302,11 @@ export function initOnboardingWizard() {
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
       : step.type === "options" || step.type === "goal-combo" || step.type === "sex-buttons"
         ? "Выбери один вариант"
-        : step.type === "plan-editor"
-          ? "Заполни план на 7 дней"
-          : "Введи значение";
+        : step.type === "multi-options"
+          ? "Можно выбрать несколько"
+          : step.type === "plan-editor"
+            ? "Заполни план на 7 дней"
+            : "Введи значение";
     helpEl.textContent = step.help || "";
     bodyEl.innerHTML = "";
 
@@ -324,6 +330,32 @@ export function initOnboardingWizard() {
           if (disabled) return;
           data[step.id] = opt.value;
           renderStep();
+        });
+        list.appendChild(btn);
+      });
+      bodyEl.appendChild(list);
+    }
+
+    if (step.type === "multi-options") {
+      const list = document.createElement("div");
+      list.className = "option-list";
+      const selected = Array.isArray(data[step.id]) ? data[step.id] : [];
+      step.options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "option-card";
+        btn.textContent = opt.label;
+        btn.classList.toggle("active", selected.includes(opt.value));
+        btn.addEventListener("click", () => {
+          const next = Array.isArray(data[step.id]) ? [...data[step.id]] : [];
+          const idx = next.indexOf(opt.value);
+          if (idx >= 0) {
+            next.splice(idx, 1);
+          } else {
+            next.push(opt.value);
+          }
+          data[step.id] = next;
+          btn.classList.toggle("active", next.includes(opt.value));
         });
         list.appendChild(btn);
       });
@@ -498,6 +530,13 @@ export function initOnboardingWizard() {
       toast("Выбери вариант");
       return false;
     }
+    if (step.type === "multi-options") {
+      const list = Array.isArray(value) ? value : [];
+      if (list.length === 0) {
+        toast("Выбери хотя бы один вариант");
+        return false;
+      }
+    }
     if ((step.type === "wheel" || step.type === "wheel-horizontal") && (value === undefined || value === null || Number.isNaN(value))) {
       toast("Выбери значение");
       return false;
@@ -592,11 +631,14 @@ export function initOnboardingWizard() {
       goal: normalizeGoalType(data.goalType || ""),
     };
     const trainingGoal = buildTrainingGoalText(data.goalType, data.goalNotes);
+    const injuries = Array.isArray(data.injuries)
+      ? data.injuries.join(", ")
+      : String(data.injuries || "").trim();
     const trainingPayload = {
       bench_kg: Number(data.bench || 0),
       pullups: Number(data.pullups || 0),
       run_km: Number(data.run || 0),
-      injuries: String(data.injuries || "").trim(),
+      injuries,
       goal: trainingGoal,
       pharma: data.pharma ?? null,
       trainings_per_week: Number(data.trainingsPerWeek || 0),
