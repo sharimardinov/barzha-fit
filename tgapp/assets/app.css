@@ -165,6 +165,8 @@ body {
   width: auto;
   justify-content: center;
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .tabs.wide .glider {
@@ -177,7 +179,7 @@ body {
   height: 120px;
   font-size: 1.25rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .tabs.big .glider {
@@ -205,6 +207,12 @@ body {
 
 .tab-text {
   line-height: 1;
+  white-space: nowrap;
+}
+
+.tabs.wide.big .tab {
+  font-size: clamp(0.95rem, 3.6vw, 1.25rem);
+  letter-spacing: 0.02em;
 }
 
 .tabs input[type="radio"]:checked + .tab-with-icon .tab-icon {
