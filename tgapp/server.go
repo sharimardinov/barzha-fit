@@ -27,6 +27,7 @@ type Server struct {
 	steps     *service.StepsService
 	profile   *service.ProfileService
 	training  *service.TrainingProfileService
+	injuries  *service.InjuryTypeService
 	activity  *service.ActivityAI
 	planView  *service.PlanViewService
 	statsView *service.StatsViewService
@@ -43,6 +44,7 @@ type Deps struct {
 	Steps     *service.StepsService
 	Profile   *service.ProfileService
 	Training  *service.TrainingProfileService
+	Injuries  *service.InjuryTypeService
 	Activity  *service.ActivityAI
 	PlanView  *service.PlanViewService
 	StatsView *service.StatsViewService
@@ -60,6 +62,7 @@ func NewServer(d Deps) *Server {
 		steps:     d.Steps,
 		profile:   d.Profile,
 		training:  d.Training,
+		injuries:  d.Injuries,
 		activity:  d.Activity,
 		planView:  d.PlanView,
 		statsView: d.StatsView,

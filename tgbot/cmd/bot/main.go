@@ -14,8 +14,8 @@ import (
 	"barzhafit/backend/service"
 	"barzhafit/backend/storage/db"
 	"barzhafit/backend/util"
-	"barzhafit/tgbot"
 	"barzhafit/tgapp"
+	"barzhafit/tgbot"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -68,6 +68,8 @@ func main() {
 
 	trainingProfileRepo := db.NewTrainingProfileRepo(pool)
 	trainingProfileSvc := service.NewTrainingProfileService(trainingProfileRepo)
+	injuryTypeRepo := db.NewInjuryTypeRepo(pool)
+	injuryTypeSvc := service.NewInjuryTypeService(injuryTypeRepo)
 
 	aiClient, err := service.NewAIClient()
 	if err != nil {
@@ -134,6 +136,7 @@ func main() {
 		Steps:     stepsSvc,
 		Profile:   profileSvc,
 		Training:  trainingProfileSvc,
+		Injuries:  injuryTypeSvc,
 		Activity:  activityAI,
 		PlanView:  planView,
 		StatsView: statsView,

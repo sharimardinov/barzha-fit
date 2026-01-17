@@ -54,7 +54,7 @@ export async function ensureOnboarding() {
   return true;
 }
 
-export function initOnboardingWizard() {
+export async function initOnboardingWizard() {
   const progressEl = $("onboarding-progress");
   const titleEl = $("onboarding-title");
   const descEl = $("onboarding-desc");
@@ -62,6 +62,19 @@ export function initOnboardingWizard() {
   const helpEl = $("onboarding-help");
   const backBtn = $("onboarding-back");
   const nextBtn = $("onboarding-next");
+
+  let injuryOptions = [];
+  try {
+    injuryOptions = await api("/api/training/injuries");
+  } catch (_) {
+    injuryOptions = [];
+  }
+  const injuriesList = Array.isArray(injuryOptions) && injuryOptions.length
+    ? injuryOptions.map((item) => ({
+      value: item.code,
+      label: item.label,
+    }))
+    : [];
 
   const steps = [
     {
@@ -187,11 +200,7 @@ export function initOnboardingWizard() {
       id: "injuries",
       title: "Травмы и ограничения",
       type: "multi-options",
-      options: [
-        { value: "shoulder", label: "Плечо" },
-        { value: "lower_back", label: "Поясница" },
-        { value: "knee", label: "Колено" },
-      ],
+      options: injuriesList,
       help: "Можно выбрать несколько или пропустить.",
       required: false,
       when: (d) => (d.planMode || "manual") !== "manual",
@@ -530,7 +539,7 @@ export function initOnboardingWizard() {
       toast("Выбери вариант");
       return false;
     }
-    if (step.type === "multi-options") {
+    if (step.type === "multi-options" && step.required) {
       const list = Array.isArray(value) ? value : [];
       if (list.length === 0) {
         toast("Выбери хотя бы один вариант");

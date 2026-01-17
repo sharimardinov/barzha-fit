@@ -59,7 +59,7 @@ async function bootstrap() {
 
   const onboardingReady = await ensureOnboarding();
   if (!onboardingReady) {
-    initOnboardingWizard();
+    await initOnboardingWizard();
     lucide?.createIcons();
     requestAnimationFrame(updateNavHighlight);
     return;

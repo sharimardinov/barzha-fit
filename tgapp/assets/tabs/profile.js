@@ -16,6 +16,63 @@ import {
 import { loadToday } from "./today.js";
 import { loadPlan } from "./plan.js";
 
+let injuryOptions = [];
+let selectedInjuries = [];
+
+async function ensureInjuryOptions() {
+  if (injuryOptions.length > 0) {
+    return injuryOptions;
+  }
+  try {
+    const list = await api("/api/training/injuries");
+    injuryOptions = Array.isArray(list) ? list : [];
+  } catch (_) {
+    injuryOptions = [];
+  }
+  renderInjuryOptions();
+  return injuryOptions;
+}
+
+function renderInjuryOptions() {
+  const container = $("training-injuries");
+  if (!container) return;
+  container.innerHTML = "";
+  injuryOptions.forEach((item) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "option-card";
+    btn.textContent = item.label;
+    btn.classList.toggle("active", selectedInjuries.includes(item.code));
+    btn.addEventListener("click", () => {
+      if (selectedInjuries.includes(item.code)) {
+        selectedInjuries = selectedInjuries.filter((v) => v !== item.code);
+      } else {
+        selectedInjuries = [...selectedInjuries, item.code];
+      }
+      btn.classList.toggle("active", selectedInjuries.includes(item.code));
+    });
+    container.appendChild(btn);
+  });
+}
+
+function setSelectedInjuries(raw) {
+  const list = String(raw || "")
+    .split(/[,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (injuryOptions.length > 0) {
+    const allowed = new Set(injuryOptions.map((item) => item.code));
+    selectedInjuries = list.filter((item) => allowed.has(item));
+  } else {
+    selectedInjuries = list;
+  }
+  renderInjuryOptions();
+}
+
+function formatSelectedInjuries() {
+  return selectedInjuries.join(", ");
+}
+
 export async function loadProfile() {
   try {
     const p = await api("/api/profile/get");
@@ -33,9 +90,10 @@ export async function loadProfile() {
 }
 
 export async function loadTrainingProfile() {
+  await ensureInjuryOptions();
   try {
     const p = await api("/api/training/profile/get");
-    $("training-injuries").value = p.injuries || "";
+    setSelectedInjuries(p.injuries || "");
     const parsed = splitGoalText(p.goal || "");
     if (parsed.type) {
       setGoalTabs(parsed.type);
@@ -47,7 +105,7 @@ export async function loadTrainingProfile() {
     else if (p.pharma === false) $("training-pharma").value = "no";
     else $("training-pharma").value = "";
   } catch (_) {
-    $("training-injuries").value = "";
+    setSelectedInjuries("");
   }
 }
 
@@ -164,6 +222,7 @@ export async function saveProfileFlow(payload, trainingPayload, button, opts = {
 }
 
 export function initProfileTab() {
+  ensureInjuryOptions();
   const profileSave = $("profile-save");
   if (profileSave) {
     profileSave.addEventListener("click", async () => {
@@ -185,7 +244,7 @@ export function initProfileTab() {
         bench_kg: trainingValidated.bench || 0,
         pullups: trainingValidated.pullups || 0,
         run_km: trainingValidated.run || 0,
-        injuries: $("training-injuries").value.trim(),
+        injuries: formatSelectedInjuries(),
         goal: trainingGoal,
         pharma: trainingValidated.pharma,
         trainings_per_week: trainingValidated.times,

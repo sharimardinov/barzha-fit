@@ -42,6 +42,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/activity/estimate", s.withAuth(s.handleActivityEstimate))
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
+	mux.HandleFunc("/api/training/injuries", s.withAuth(s.handleTrainingInjuries))
 	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
@@ -494,6 +495,28 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: trainingProfileToDTO(p)})
+}
+
+func (s *Server) handleTrainingInjuries(w http.ResponseWriter, r *http.Request, _ authContext) {
+	if s.injuries == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "injury_types_unavailable"})
+		return
+	}
+	items, err := s.injuries.List(context.Background())
+	if err != nil {
+		log.Printf("injury types list failed: %v", err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "injury_types_read_failed"})
+		return
+	}
+	type injuryDTO struct {
+		Code  string `json:"code"`
+		Label string `json:"label"`
+	}
+	resp := make([]injuryDTO, 0, len(items))
+	for _, item := range items {
+		resp = append(resp, injuryDTO{Code: item.Code, Label: item.Label})
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
 }
 
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {
