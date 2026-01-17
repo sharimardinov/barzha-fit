@@ -396,17 +396,18 @@ export function initOnboardingWizard() {
         const stageRow = document.createElement("div");
         stageRow.className = "stage-images";
         const stages = [
-          { value: "core", src: "images/core.png", label: "CORE" },
-          { value: "flow", src: "images/flow.png", label: "FLOW" },
-          { value: "peak", src: "images/peak.png", label: "PEAK" },
+          { value: "core", src: "images/core.svg", label: "CORE" },
+          { value: "flow", src: "images/flow.svg", label: "FLOW" },
+          { value: "peak", src: "images/peak.svg", label: "PEAK" },
         ];
         stages.forEach((stage) => {
           const item = document.createElement("div");
           item.className = `stage-image${data[step.id] === stage.value ? " active" : ""}`;
-          const img = document.createElement("img");
-          img.src = stage.src;
-          img.alt = stage.label;
-          item.appendChild(img);
+          const icon = document.createElement("div");
+          icon.className = "stage-icon";
+          icon.style.setProperty("--icon", `url(${stage.src})`);
+          icon.setAttribute("aria-label", stage.label);
+          item.appendChild(icon);
           stageRow.appendChild(item);
         });
         bodyEl.appendChild(stageRow);
