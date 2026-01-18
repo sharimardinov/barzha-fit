@@ -245,44 +245,29 @@ func (s *TrainingProgramService) generateDay(
 		return domain.GeneratedDay{}, err
 	}
 
-	// группируем для быстрого доступа
-	byPriority := groupByPriority(all)
+	grouped := groupByPriority(all)
+	used := map[string]bool{}
 
-	used := map[string]bool{} // used by ID in this day
-
-	// 1) базовые квоты full-body: lower + push + pull
-	selected := make([]domain.Exercise, 0, 6)
-
-	// lower: quads/hamstrings/glutes (минимум 1)
-	selected = append(selected, pickFirstAvailable(byPriority, []string{"main", "secondary"}, lowerGroups(), used, usedInCycle)...)
-
-	// push: chest/shoulders_front/shoulders_side/triceps (минимум 1)
-	selected = append(selected, pickFirstAvailable(byPriority, []string{"main", "secondary"}, pushGroups(), used, usedInCycle)...)
-
-	// pull: back/shoulders_rear/biceps (минимум 1)
-	selected = append(selected, pickFirstAvailable(byPriority, []string{"main", "secondary"}, pullGroups(), used, usedInCycle)...)
-
-	// 2) если не получилось набрать lower из-за contraindications — добираем чем есть (но НЕ молчим)
-	if !containsAnyGroup(selected, lowerGroups()) {
-		// последняя попытка: lower accessory (например сгибания/разгибания/отведения)
-		selected = append(selected, pickFirstAvailable(byPriority, []string{"accessory"}, lowerGroups(), used, usedInCycle)...)
+	// MAIN FIX: Use full-body logic for full_body template
+	var selected []domain.Exercise
+	if day.Type == "full_body" {
+		selected = buildFullBodySelection(grouped, used, usedInCycle, 6, dayIndex)
+	} else {
+		// For other splits (push/pull/legs), use original logic
+		selected = buildSplitSelection(grouped, groups, used, usedInCycle)
 	}
 
-	// 3) теперь добираем до 5–6 упражнений старой логикой, но уже после квот
-	// приоритеты: main→secondary→accessory
-	selected = append(selected, pickFill(byPriority, groups, 6-len(selected), used, usedInCycle)...)
-
-	// минимум 5
+	// Minimum guarantee
 	if len(selected) < 5 {
-		selected = append(selected, pickFallback(byPriority, groups, 5-len(selected), used, usedInCycle)...)
+		selected = append(selected, pickFallback(grouped, groups, 5-len(selected), used, usedInCycle)...)
 	}
 
-	// 4) подмена повторов из прошлой программы
+	// Replace repeats from previous program
 	if len(avoidNames) > 0 {
 		selected = replaceWithSubstitutes(selected, substitutes, avoidNames, used)
 	}
 
-	// 5) prehab под травмы
+	// Add prehab for injuries
 	if len(input.Injuries) > 0 {
 		prehab, err := s.exercises.ListPrehabByTargets(ctx, input.Injuries, input.Level, input.Injuries)
 		if err != nil {
@@ -297,7 +282,7 @@ func (s *TrainingProgramService) generateDay(
 		}
 	}
 
-	// соберем DTO
+	// Build prescription
 	items := make([]domain.GeneratedExercise, 0, len(selected))
 	for _, ex := range selected {
 		sets, reps, rpe, rest, percent := buildPrescription(input.Goal, ex.Priority, period)
@@ -342,11 +327,9 @@ func (s *TrainingProgramService) generateDay(
 
 // -------------------- FULL BODY "RIGHT" SELECTION --------------------
 
-var (
-	lowerAllGroups = []string{"quads", "hamstrings", "glutes"}
-	shoulderGroups = []string{"shoulders_front", "shoulders_side", "shoulders_rear"}
-	armsGroups     = []string{"biceps", "triceps"}
-)
+func lowerAllGroups() []string {
+	return []string{"quads", "hamstrings", "glutes"}
+}
 
 func buildFullBodySelection(
 	grouped map[string]map[string][]domain.Exercise,
@@ -357,79 +340,77 @@ func buildFullBodySelection(
 ) []domain.Exercise {
 	selected := make([]domain.Exercise, 0, targetCount)
 
-	// Rotate main lower emphasis across days:
-	// Day1 -> quads (knee dominant), Day2 -> hamstrings (hinge), Day3 -> glutes (hip extension)
-	primaryLower := []string{"quads"}
+	// Rotate lower emphasis across days
+	var primaryLower, secondaryLower []string
 	switch ((dayIndex - 1) % 3) + 1 {
-	case 1:
+	case 1: // Day 1: Quads focus
 		primaryLower = []string{"quads"}
-	case 2:
+		secondaryLower = []string{"glutes", "hamstrings"}
+	case 2: // Day 2: Hamstrings focus
 		primaryLower = []string{"hamstrings"}
-	case 3:
+		secondaryLower = []string{"quads", "glutes"}
+	case 3: // Day 3: Glutes focus
 		primaryLower = []string{"glutes"}
+		secondaryLower = []string{"hamstrings", "quads"}
 	}
 
-	// Slot 1: Lower (main/secondary) [emphasis]
+	// SLOT 1: Primary Lower (main/secondary) - focused muscle
 	if ex, ok := pickOne(grouped, primaryLower, []string{"main", "secondary"}, used, usedInCycle); ok {
 		selected = append(selected, ex)
-	} else if ex, ok := pickOne(grouped, lowerAllGroups, []string{"main", "secondary"}, used, usedInCycle); ok {
+	} else if ex, ok := pickOne(grouped, lowerAllGroups(), []string{"main", "secondary"}, used, usedInCycle); ok {
 		selected = append(selected, ex)
 	}
 
-	// Slot 2: Push (main/secondary)
+	// SLOT 2: Horizontal Push (chest main/secondary)
+	if ex, ok := pickOne(grouped, []string{"chest"}, []string{"main", "secondary"}, used, usedInCycle); ok {
+		selected = append(selected, ex)
+	}
+
+	// SLOT 3: Vertical or Horizontal Pull (back main/secondary)
+	if ex, ok := pickOne(grouped, []string{"back"}, []string{"main", "secondary"}, used, usedInCycle); ok {
+		selected = append(selected, ex)
+	}
+
+	// SLOT 4: Secondary Lower (different pattern) - lighter priority
 	if len(selected) < targetCount {
-		if ex, ok := pickOne(grouped, pushGroups(), []string{"main", "secondary"}, used, usedInCycle); ok {
+		if ex, ok := pickOne(grouped, secondaryLower, []string{"secondary", "accessory"}, used, usedInCycle); ok {
 			selected = append(selected, ex)
 		}
 	}
 
-	// Slot 3: Pull (main/secondary)
+	// SLOT 5: Vertical Push OR Shoulders (shoulders_front/side, main/secondary)
 	if len(selected) < targetCount {
-		if ex, ok := pickOne(grouped, pullGroups(), []string{"main", "secondary"}, used, usedInCycle); ok {
+		if ex, ok := pickOne(grouped, []string{"shoulders_front", "shoulders_side"}, []string{"main", "secondary"}, used, usedInCycle); ok {
 			selected = append(selected, ex)
 		}
 	}
 
-	// Slot 4: Second Lower (lighter) (secondary/accessory)
+	// SLOT 6: Arms OR second pull (accessory work)
 	if len(selected) < targetCount {
-		if ex, ok := pickOne(grouped, lowerAllGroups, []string{"secondary", "accessory"}, used, usedInCycle); ok {
+		if ex, ok := pickOne(grouped, []string{"biceps", "triceps", "back"}, []string{"secondary", "accessory"}, used, usedInCycle); ok {
 			selected = append(selected, ex)
 		}
 	}
 
-	// Slot 5: Shoulders accessory (or upper accessory if no shoulders)
-	if len(selected) < targetCount {
-		if ex, ok := pickOne(grouped, shoulderGroups, []string{"accessory", "secondary"}, used, usedInCycle); ok {
-			selected = append(selected, ex)
-		}
-	}
-
-	// Optional Slot 6: Arms accessory (if targetCount == 6)
-	if len(selected) < targetCount {
-		if ex, ok := pickOne(grouped, armsGroups, []string{"accessory"}, used, usedInCycle); ok {
-			selected = append(selected, ex)
-		}
-	}
-
-	// Hard guarantee: at least one lower in the day
+	// HARD GUARANTEE: At least one lower body exercise
 	if !hasLower(selected) {
-		if ex, ok := pickOne(grouped, lowerAllGroups, []string{"secondary", "accessory", "main"}, used, usedInCycle); ok {
-			if len(selected) >= 1 {
-				// replace last to keep stable count
-				if len(selected) >= targetCount {
-					selected[len(selected)-1] = ex
-				} else {
-					selected = append(selected, ex)
-				}
+		// Emergency: replace last exercise with ANY lower
+		if ex, ok := pickOne(grouped, lowerAllGroups(), []string{"main", "secondary", "accessory"}, used, usedInCycle); ok {
+			if len(selected) > 0 {
+				// Remove last and add lower
+				lastID := selected[len(selected)-1].ID
+				delete(used, lastID)
+				selected = selected[:len(selected)-1]
 			}
+			selected = append(selected, ex)
 		}
 	}
 
-	// Fill remaining slots with anything (still respecting used + usedInCycle)
+	// Fill remaining slots if needed (should rarely happen)
 	if len(selected) < targetCount {
-		all := []string{"chest", "back", "quads", "hamstrings", "glutes", "shoulders_front", "shoulders_side", "shoulders_rear", "biceps", "triceps"}
+		allGroups := []string{"chest", "back", "quads", "hamstrings", "glutes", "shoulders_front", "shoulders_side", "shoulders_rear", "biceps", "triceps"}
 		for len(selected) < targetCount {
-			ex, ok := pickOne(grouped, all, []string{"main", "secondary", "accessory"}, used, usedInCycle)
+			ex, ok := pickOne(grouped, allGroups, []string{"secondary", "accessory"}, used, usedInCycle)
 			if !ok {
 				break
 			}
@@ -440,6 +421,26 @@ func buildFullBodySelection(
 	if len(selected) > targetCount {
 		selected = selected[:targetCount]
 	}
+	return selected
+}
+
+func buildSplitSelection(
+	grouped map[string]map[string][]domain.Exercise,
+	groups []string,
+	used map[string]bool,
+	usedInCycle map[string]bool,
+) []domain.Exercise {
+	selected := make([]domain.Exercise, 0, 6)
+
+	// Main exercises: 2-3
+	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used, usedInCycle)...)
+
+	// Secondary: 2-3
+	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used, usedInCycle)...)
+
+	// Accessory: 1-2
+	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used, usedInCycle)...)
+
 	return selected
 }
 
@@ -473,6 +474,7 @@ func pickOne(
 					continue
 				}
 				used[ex.ID] = true
+				usedInCycle[key] = true
 				return ex, true
 			}
 		}
@@ -569,6 +571,7 @@ func containsAnyGroup(selected []domain.Exercise, groups []string) bool {
 	}
 	return false
 }
+
 func normalizeGroups(groups []string) []string {
 	out := make([]string, 0, len(groups))
 	seen := map[string]bool{}
@@ -632,7 +635,8 @@ func pickByPriority(
 	groups []string,
 	count int,
 	used map[string]bool,
-	usedInCycle map[string]bool) []domain.Exercise {
+	usedInCycle map[string]bool,
+) []domain.Exercise {
 	if count <= 0 {
 		return nil
 	}
@@ -658,6 +662,7 @@ func pickByPriority(
 				}
 				index[group] = i + 1
 				used[ex.ID] = true
+				usedInCycle[key] = true
 				selected = append(selected, ex)
 				added = true
 				break
@@ -698,6 +703,7 @@ func pickFallback(
 					continue
 				}
 				used[ex.ID] = true
+				usedInCycle[key] = true
 				selected = append(selected, ex)
 				if len(selected) >= count {
 					return selected
@@ -787,6 +793,10 @@ func intensityRPE(intensity string, goal domain.FitnessGoal) string {
 
 func prehabPrescription() (int, string, string, string, string) {
 	return 2, "12-15", "6-7", "60-90s", ""
+}
+
+func normalizeName(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func decodeGeneratedProgram(raw json.RawMessage) (domain.GeneratedProgram, error) {
@@ -928,10 +938,6 @@ func pickSubstitute(candidates []domain.Exercise, original domain.Exercise, used
 		return ex, true
 	}
 	return firstMatch(false)
-}
-
-func normalizeName(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func fallbackPeriodization() domain.Periodization {
