@@ -181,7 +181,6 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		}
 		gen.Days = append(gen.Days, plan)
 
-		// НОВОЕ: добавляем упражнения этого дня в общий пул
 		for _, ex := range plan.Exercises {
 			key := normalizeName(ex.Name)
 			usedInCycle[key] = true
@@ -239,7 +238,7 @@ func (s *TrainingProgramService) generateDay(
 	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used, usedInCycle)...)
 
 	if len(selected) < 5 {
-		selected = append(selected, pickFallback(grouped, groups, 5-len(selected), used)...)
+		selected = append(selected, pickFallback(grouped, groups, 5-len(selected), used, usedInCycle)...)
 	}
 
 	if len(avoidNames) > 0 {
@@ -364,7 +363,7 @@ func pickByPriority(
 	groups []string,
 	count int,
 	used map[string]bool,
-	usedInCycle map[string]bool, // ✅ НОВЫЙ ПАРАМЕТР
+	usedInCycle map[string]bool,
 ) []domain.Exercise {
 	if count <= 0 {
 		return nil
@@ -383,7 +382,7 @@ func pickByPriority(
 			for i < len(list) {
 				ex := list[i]
 				key := normalizeName(ex.Name)
-				// ✅ Пропускаем если уже использован В ЭТОМ ДНЕ или В ЦИКЛЕ
+				// Пропускаем если уже использован в этом дне или в цикле
 				if used[ex.ID] || usedInCycle[key] {
 					i++
 					continue
@@ -408,7 +407,13 @@ func pickByPriority(
 	return selected
 }
 
-func pickFallback(grouped map[string]map[string][]domain.Exercise, groups []string, count int, used map[string]bool) []domain.Exercise {
+func pickFallback(
+	grouped map[string]map[string][]domain.Exercise,
+	groups []string,
+	count int,
+	used map[string]bool,
+	usedInCycle map[string]bool,
+) []domain.Exercise {
 	if count <= 0 {
 		return nil
 	}
@@ -421,7 +426,9 @@ func pickFallback(grouped map[string]map[string][]domain.Exercise, groups []stri
 		}
 		for _, group := range groups {
 			for _, ex := range byGroup[group] {
-				if used[ex.ID] {
+				key := normalizeName(ex.Name)
+				// Пропускаем если уже использован в этом дне или в цикле
+				if used[ex.ID] || usedInCycle[key] {
 					continue
 				}
 				used[ex.ID] = true
