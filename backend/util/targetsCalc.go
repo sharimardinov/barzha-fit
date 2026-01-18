@@ -74,7 +74,7 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	case "cut":
 		proteinRate = 2.2
 	case "bulk":
-		proteinRate = 1.8
+		proteinRate = 2.0
 	default:
 		proteinRate = 1.8
 	}
