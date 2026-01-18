@@ -285,29 +285,61 @@ export async function initOnboardingWizard() {
 
     if (step.type === "multi-options") {
       const list = document.createElement("div");
-      list.className = "option-list";
+      list.className = "injury-options";
+    
       const selected = Array.isArray(data[step.id]) ? data[step.id] : [];
-      step.options.forEach((opt) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "option-card";
-        btn.textContent = opt.label;
-        btn.classList.toggle("active", selected.includes(opt.value));
-        btn.addEventListener("click", () => {
+    
+      step.options.forEach((opt, idx) => {
+        const row = document.createElement("div");
+        row.className = "injury-row";
+    
+        const text = document.createElement("div");
+        text.className = "injury-label";
+        text.textContent = opt.label;
+    
+        const pinLabel = document.createElement("label");
+        pinLabel.className = "pinbox";
+    
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = selected.includes(opt.value);
+    
+        const pinWrap = document.createElement("div");
+        pinWrap.innerHTML = PIN_SVG;
+    
+        input.addEventListener("change", () => {
           const next = Array.isArray(data[step.id]) ? [...data[step.id]] : [];
-          const idx = next.indexOf(opt.value);
-          if (idx >= 0) {
-            next.splice(idx, 1);
+          const i = next.indexOf(opt.value);
+    
+          if (input.checked) {
+            if (i < 0) next.push(opt.value);
           } else {
-            next.push(opt.value);
+            if (i >= 0) next.splice(i, 1);
           }
+    
           data[step.id] = next;
-          btn.classList.toggle("active", next.includes(opt.value));
         });
-        list.appendChild(btn);
+    
+        // делаем кликабельной всю строку (кроме того что уже label)
+        row.addEventListener("click", (e) => {
+          // если кликнули по самому input/label — не дублируем
+          if (e.target instanceof HTMLElement && e.target.closest(".pinbox")) return;
+          input.checked = !input.checked;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+    
+        pinLabel.appendChild(input);
+        pinLabel.appendChild(pinWrap.firstElementChild);
+    
+        row.appendChild(text);
+        row.appendChild(pinLabel);
+    
+        list.appendChild(row);
       });
+    
       bodyEl.appendChild(list);
     }
+    
 
     if (step.type === "sex-buttons") {
       const list = document.createElement("div");
@@ -645,3 +677,12 @@ export async function initOnboardingWizard() {
     }
   });
 }
+
+const PIN_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 75 100" class="pin">
+  <line stroke-width="12" stroke="black" y2="100" x2="37" y1="64" x1="37"></line>
+  <path stroke-width="10" stroke="black"
+    d="M16.5 36V4.5H58.5V36V53.75V54.9752L59.1862 55.9903L66.9674 67.5H8.03256L15.8138 55.9903L16.5 54.9752V53.75V36Z">
+  </path>
+</svg>`;
+
