@@ -39,10 +39,6 @@ type UserProgramStorage interface {
 	GetLatestByUserID(ctx context.Context, userID string) (domain.UserProgram, bool, error)
 }
 
-type UserIdentityStorage interface {
-	EnsureByTelegramChatID(ctx context.Context, chatID int64) (string, error)
-}
-
 // -------------------- SERVICE --------------------
 
 type TrainingProgramService struct {
