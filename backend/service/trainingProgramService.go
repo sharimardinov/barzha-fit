@@ -188,14 +188,6 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		}
 	}
 
-	for i, day := range days {
-		plan, err := s.generateDay(ctx, i+1, day, input, period, avoidNames, substitutes, usedInCycle)
-		if err != nil {
-			return domain.UserProgram{}, domain.GeneratedProgram{}, err
-		}
-		gen.Days = append(gen.Days, plan)
-	}
-
 	raw, err := json.Marshal(gen)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
