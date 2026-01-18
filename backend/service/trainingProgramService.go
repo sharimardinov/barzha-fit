@@ -171,8 +171,25 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		Periodization: period,
 		Days:          make([]domain.GeneratedDay, 0, len(days)),
 	}
+
+	usedInCycle := map[string]bool{}
+
 	for i, day := range days {
-		plan, err := s.generateDay(ctx, i+1, day, input, period, avoidNames, substitutes)
+		plan, err := s.generateDay(ctx, i+1, day, input, period, avoidNames, substitutes, usedInCycle)
+		if err != nil {
+			return domain.UserProgram{}, domain.GeneratedProgram{}, err
+		}
+		gen.Days = append(gen.Days, plan)
+
+		// НОВОЕ: добавляем упражнения этого дня в общий пул
+		for _, ex := range plan.Exercises {
+			key := normalizeName(ex.Name)
+			usedInCycle[key] = true
+		}
+	}
+
+	for i, day := range days {
+		plan, err := s.generateDay(ctx, i+1, day, input, period, avoidNames, substitutes, usedInCycle)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
@@ -214,6 +231,7 @@ func (s *TrainingProgramService) generateDay(
 	period domain.Periodization,
 	avoidNames map[string]bool,
 	substitutes map[string][]domain.Exercise,
+	usedInCycle map[string]bool,
 ) (domain.GeneratedDay, error) {
 	groups := normalizeGroups(day.MuscleGroups)
 	exercises, err := s.exercises.ListByMuscleGroups(ctx, groups, input.Level, input.Injuries)
@@ -224,7 +242,7 @@ func (s *TrainingProgramService) generateDay(
 	used := map[string]bool{}
 
 	selected := make([]domain.Exercise, 0, 6)
-	selected = append(selected, pickByPriority(grouped, "main", groups, 1, used)...)
+	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used)...)
 	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used)...)
 	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used)...)
 
@@ -234,6 +252,10 @@ func (s *TrainingProgramService) generateDay(
 
 	if len(avoidNames) > 0 {
 		selected = replaceWithSubstitutes(selected, substitutes, avoidNames, used)
+	}
+
+	if len(usedInCycle) > 0 {
+		selected = replaceWithSubstitutes(selected, substitutes, usedInCycle, used)
 	}
 
 	if len(input.Injuries) > 0 {
