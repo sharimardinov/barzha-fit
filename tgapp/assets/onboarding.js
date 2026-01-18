@@ -331,8 +331,8 @@ export async function initOnboardingWizard() {
         pinLabel.appendChild(input);
         pinLabel.appendChild(pinWrap.firstElementChild);
     
-        row.appendChild(text);
         row.appendChild(pinLabel);
+        row.appendChild(text);
     
         list.appendChild(row);
       });
