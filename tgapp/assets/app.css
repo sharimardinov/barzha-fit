@@ -76,9 +76,16 @@ body {
   gap: 4px;
 }
 
-.tabs * {
-  .tabs .tab { position: relative; z-index: 2; }
-  .tabs .glider { z-index: 1; pointer-events: none; }
+.tabs { position: relative; }
+
+.tabs .tab{
+  position: relative;
+  z-index: 2;
+}
+
+.tabs .glider{
+  z-index: 1;
+  pointer-events: none;
 }
 
 .tabs input[type="radio"] {
