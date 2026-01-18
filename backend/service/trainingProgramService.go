@@ -234,9 +234,9 @@ func (s *TrainingProgramService) generateDay(
 	used := map[string]bool{}
 
 	selected := make([]domain.Exercise, 0, 6)
-	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used)...)
-	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used)...)
-	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used)...)
+	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used, usedInCycle)...)
+	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used, usedInCycle)...)
+	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used, usedInCycle)...)
 
 	if len(selected) < 5 {
 		selected = append(selected, pickFallback(grouped, groups, 5-len(selected), used)...)
@@ -244,10 +244,6 @@ func (s *TrainingProgramService) generateDay(
 
 	if len(avoidNames) > 0 {
 		selected = replaceWithSubstitutes(selected, substitutes, avoidNames, used)
-	}
-
-	if len(usedInCycle) > 0 {
-		selected = replaceWithSubstitutes(selected, substitutes, usedInCycle, used)
 	}
 
 	if len(input.Injuries) > 0 {
@@ -362,7 +358,14 @@ func groupByPriority(items []domain.Exercise) map[string]map[string][]domain.Exe
 	return out
 }
 
-func pickByPriority(grouped map[string]map[string][]domain.Exercise, priority string, groups []string, count int, used map[string]bool) []domain.Exercise {
+func pickByPriority(
+	grouped map[string]map[string][]domain.Exercise,
+	priority string,
+	groups []string,
+	count int,
+	used map[string]bool,
+	usedInCycle map[string]bool, // ✅ НОВЫЙ ПАРАМЕТР
+) []domain.Exercise {
 	if count <= 0 {
 		return nil
 	}
@@ -377,11 +380,14 @@ func pickByPriority(grouped map[string]map[string][]domain.Exercise, priority st
 		for _, group := range groups {
 			list := byGroup[group]
 			i := index[group]
-			for i < len(list) && used[list[i].ID] {
-				i++
-			}
-			if i < len(list) {
+			for i < len(list) {
 				ex := list[i]
+				key := normalizeName(ex.Name)
+				// ✅ Пропускаем если уже использован В ЭТОМ ДНЕ или В ЦИКЛЕ
+				if used[ex.ID] || usedInCycle[key] {
+					i++
+					continue
+				}
 				index[group] = i + 1
 				used[ex.ID] = true
 				selected = append(selected, ex)
@@ -389,6 +395,10 @@ func pickByPriority(grouped map[string]map[string][]domain.Exercise, priority st
 				if len(selected) >= count {
 					break
 				}
+				break
+			}
+			if len(selected) >= count {
+				break
 			}
 		}
 		if !added {
@@ -595,7 +605,12 @@ func (s *TrainingProgramService) fetchSubstitutes(ctx context.Context, names []s
 	return out, nil
 }
 
-func replaceWithSubstitutes(selected []domain.Exercise, substitutes map[string][]domain.Exercise, avoidNames map[string]bool, used map[string]bool) []domain.Exercise {
+func replaceWithSubstitutes(
+	selected []domain.Exercise,
+	substitutes map[string][]domain.Exercise,
+	avoidNames map[string]bool,
+	used map[string]bool,
+) []domain.Exercise {
 	if len(selected) == 0 || len(avoidNames) == 0 {
 		return selected
 	}
