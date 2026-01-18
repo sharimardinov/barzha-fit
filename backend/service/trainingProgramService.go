@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -229,10 +230,25 @@ func (s *TrainingProgramService) generateDay(
 	if err != nil {
 		return domain.GeneratedDay{}, err
 	}
-	grouped := groupByPriority(exercises)
-	used := map[string]bool{}
 
+	log.Printf("[DEBUG] Day %d: total exercises from DB: %d", dayIndex, len(exercises))
+	log.Printf("[DEBUG] Day %d: usedInCycle before: %v", dayIndex, usedInCycle)
+
+	grouped := groupByPriority(exercises)
+
+	for priority, byGroup := range grouped {
+		for group, exs := range byGroup {
+			log.Printf("[DEBUG] Day %d: %s/%s has %d exercises", dayIndex, priority, group, len(exs))
+		}
+	}
+
+	used := map[string]bool{}
 	selected := make([]domain.Exercise, 0, 6)
+
+	mainPicks := pickByPriority(grouped, "main", groups, 2, used, usedInCycle)
+	log.Printf("[DEBUG] Day %d: picked %d main exercises: %v", dayIndex, len(mainPicks), extractNames(mainPicks))
+	selected = append(selected, mainPicks...)
+
 	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used, usedInCycle)...)
 	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used, usedInCycle)...)
 	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used, usedInCycle)...)
@@ -298,6 +314,14 @@ func (s *TrainingProgramService) generateDay(
 		Type:      "train",
 		Exercises: items,
 	}, nil
+}
+
+func extractNames(exercises []domain.Exercise) []string {
+	names := make([]string, len(exercises))
+	for i, ex := range exercises {
+		names[i] = ex.Name
+	}
+	return names
 }
 
 func normalizeGroups(groups []string) []string {
