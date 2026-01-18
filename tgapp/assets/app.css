@@ -1241,3 +1241,4 @@ button {
 .tabs.accent-text input[type="radio"]:checked + .tab-with-icon .tab-icon {
   background-color: var(--accent);
 }
+
