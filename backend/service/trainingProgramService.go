@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -109,20 +108,25 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
 
+	// week progression (example: weeks 1..3)
 	if has && existing.CurrentWeek < 3 {
 		nextWeek := existing.CurrentWeek + 1
 		period := s.resolvePeriodization(ctx, nextWeek)
+
 		prev, err := decodeGeneratedProgram(existing.DaysGenerated)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
+
 		updatedProgram := applyPeriodization(prev, input.Goal, period)
 		raw, err := json.Marshal(updatedProgram)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
+
 		existing.CurrentWeek = nextWeek
 		existing.DaysGenerated = raw
+
 		updated, err := s.programs.Update(ctx, existing)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
@@ -134,6 +138,7 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
+
 	template, ok, err := s.templates.GetByName(ctx, templateName)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
@@ -152,6 +157,7 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 
 	week := 1
 	period := s.resolvePeriodization(ctx, week)
+
 	avoidNames := map[string]bool{}
 	avoidList := []string{}
 	if has {
@@ -180,6 +186,7 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
+
 		gen.Days = append(gen.Days, plan)
 
 		for _, ex := range plan.Exercises {
@@ -192,16 +199,20 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
+
 	startDate := s.now().UTC().Truncate(24 * time.Hour)
+
 	if has {
 		existing.CurrentWeek = week
 		existing.DaysGenerated = raw
+
 		updated, err := s.programs.Update(ctx, existing)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
 		return updated, gen, nil
 	}
+
 	inserted, err := s.programs.Insert(ctx, domain.UserProgram{
 		UserID:        userID,
 		TemplateID:    template.ID,
@@ -215,6 +226,8 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 	return inserted, gen, nil
 }
 
+// -------------------- DAY GENERATION (FIXED) --------------------
+
 func (s *TrainingProgramService) generateDay(
 	ctx context.Context,
 	dayIndex int,
@@ -226,51 +239,62 @@ func (s *TrainingProgramService) generateDay(
 	usedInCycle map[string]bool,
 ) (domain.GeneratedDay, error) {
 	groups := normalizeGroups(day.MuscleGroups)
+
+	// IMPORTANT: we still fetch by template groups, but selection strategy differs for full_body
 	exercises, err := s.exercises.ListByMuscleGroups(ctx, groups, input.Level, input.Injuries)
 	if err != nil {
 		return domain.GeneratedDay{}, err
 	}
 
-	log.Printf("[DEBUG] Day %d: total exercises from DB: %d", dayIndex, len(exercises))
-	log.Printf("[DEBUG] Day %d: usedInCycle before: %v", dayIndex, usedInCycle)
-
 	grouped := groupByPriority(exercises)
 
-	for priority, byGroup := range grouped {
-		for group, exs := range byGroup {
-			log.Printf("[DEBUG] Day %d: %s/%s has %d exercises", dayIndex, priority, group, len(exs))
+	used := map[string]bool{}
+	targetCount := 5 // choose 5 for beginner-friendly full body; change to 6 if you want
+
+	isFullBody := strings.EqualFold(strings.TrimSpace(day.Type), "full_body")
+	var selected []domain.Exercise
+
+	if isFullBody {
+		// "правильно": slots by movement/region, with lower-body enforced each day
+		selected = buildFullBodySelection(grouped, used, usedInCycle, targetCount, dayIndex)
+	} else {
+		// keep old strategy for non-full_body templates (PPL, UL, etc.)
+		selected = make([]domain.Exercise, 0, targetCount)
+		mainPicks := pickByPriority(grouped, "main", groups, 2, used, usedInCycle)
+		selected = append(selected, mainPicks...)
+		selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used, usedInCycle)...)
+		selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used, usedInCycle)...)
+
+		if len(selected) < targetCount {
+			selected = append(selected, pickFallback(grouped, groups, targetCount-len(selected), used, usedInCycle)...)
+		}
+		if len(selected) > targetCount {
+			selected = selected[:targetCount]
 		}
 	}
 
-	used := map[string]bool{}
-	selected := make([]domain.Exercise, 0, 6)
-
-	mainPicks := pickByPriority(grouped, "main", groups, 2, used, usedInCycle)
-	log.Printf("[DEBUG] Day %d: picked %d main exercises: %v", dayIndex, len(mainPicks), extractNames(mainPicks))
-
-	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used, usedInCycle)...)
-	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used, usedInCycle)...)
-	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used, usedInCycle)...)
-
-	if len(selected) < 5 {
-		selected = append(selected, pickFallback(grouped, groups, 5-len(selected), used, usedInCycle)...)
-	}
-
+	// avoid repeats vs previous cycle -> replace with substitutes when possible
 	if len(avoidNames) > 0 {
 		selected = replaceWithSubstitutes(selected, substitutes, avoidNames, used)
 	}
 
+	// add ONE prehab by injury target, but keep within targetCount (replace last)
 	if len(input.Injuries) > 0 {
 		prehab, err := s.exercises.ListPrehabByTargets(ctx, input.Injuries, input.Level, input.Injuries)
 		if err != nil {
 			return domain.GeneratedDay{}, err
 		}
 		for _, ex := range prehab {
-			if !used[ex.ID] {
-				selected = append(selected, ex)
-				used[ex.ID] = true
-				break
+			if used[ex.ID] {
+				continue
 			}
+			used[ex.ID] = true
+			if len(selected) >= targetCount {
+				selected[len(selected)-1] = ex
+			} else {
+				selected = append(selected, ex)
+			}
+			break
 		}
 	}
 
@@ -306,6 +330,7 @@ func (s *TrainingProgramService) generateDay(
 	if name == "" {
 		name = fmt.Sprintf("Day %d", dayIndex)
 	}
+
 	return domain.GeneratedDay{
 		Day:       dayIndex,
 		Name:      name,
@@ -315,13 +340,149 @@ func (s *TrainingProgramService) generateDay(
 	}, nil
 }
 
-func extractNames(exercises []domain.Exercise) []string {
-	names := make([]string, len(exercises))
-	for i, ex := range exercises {
-		names[i] = ex.Name
+// -------------------- FULL BODY "RIGHT" SELECTION --------------------
+
+var (
+	pushGroups     = []string{"chest", "triceps", "shoulders_front", "shoulders_side"}
+	pullGroups     = []string{"back", "biceps", "shoulders_rear"}
+	lowerAllGroups = []string{"quads", "hamstrings", "glutes"}
+	shoulderGroups = []string{"shoulders_front", "shoulders_side", "shoulders_rear"}
+	armsGroups     = []string{"biceps", "triceps"}
+)
+
+func buildFullBodySelection(
+	grouped map[string]map[string][]domain.Exercise,
+	used map[string]bool,
+	usedInCycle map[string]bool,
+	targetCount int,
+	dayIndex int,
+) []domain.Exercise {
+	selected := make([]domain.Exercise, 0, targetCount)
+
+	// Rotate main lower emphasis across days:
+	// Day1 -> quads (knee dominant), Day2 -> hamstrings (hinge), Day3 -> glutes (hip extension)
+	primaryLower := []string{"quads"}
+	switch ((dayIndex - 1) % 3) + 1 {
+	case 1:
+		primaryLower = []string{"quads"}
+	case 2:
+		primaryLower = []string{"hamstrings"}
+	case 3:
+		primaryLower = []string{"glutes"}
 	}
-	return names
+
+	// Slot 1: Lower (main/secondary) [emphasis]
+	if ex, ok := pickOne(grouped, primaryLower, []string{"main", "secondary"}, used, usedInCycle); ok {
+		selected = append(selected, ex)
+	} else if ex, ok := pickOne(grouped, lowerAllGroups, []string{"main", "secondary"}, used, usedInCycle); ok {
+		selected = append(selected, ex)
+	}
+
+	// Slot 2: Push (main/secondary)
+	if len(selected) < targetCount {
+		if ex, ok := pickOne(grouped, pushGroups, []string{"main", "secondary"}, used, usedInCycle); ok {
+			selected = append(selected, ex)
+		}
+	}
+
+	// Slot 3: Pull (main/secondary)
+	if len(selected) < targetCount {
+		if ex, ok := pickOne(grouped, pullGroups, []string{"main", "secondary"}, used, usedInCycle); ok {
+			selected = append(selected, ex)
+		}
+	}
+
+	// Slot 4: Second Lower (lighter) (secondary/accessory)
+	if len(selected) < targetCount {
+		if ex, ok := pickOne(grouped, lowerAllGroups, []string{"secondary", "accessory"}, used, usedInCycle); ok {
+			selected = append(selected, ex)
+		}
+	}
+
+	// Slot 5: Shoulders accessory (or upper accessory if no shoulders)
+	if len(selected) < targetCount {
+		if ex, ok := pickOne(grouped, shoulderGroups, []string{"accessory", "secondary"}, used, usedInCycle); ok {
+			selected = append(selected, ex)
+		}
+	}
+
+	// Optional Slot 6: Arms accessory (if targetCount == 6)
+	if len(selected) < targetCount {
+		if ex, ok := pickOne(grouped, armsGroups, []string{"accessory"}, used, usedInCycle); ok {
+			selected = append(selected, ex)
+		}
+	}
+
+	// Hard guarantee: at least one lower in the day
+	if !hasLower(selected) {
+		if ex, ok := pickOne(grouped, lowerAllGroups, []string{"secondary", "accessory", "main"}, used, usedInCycle); ok {
+			if len(selected) >= 1 {
+				// replace last to keep stable count
+				if len(selected) >= targetCount {
+					selected[len(selected)-1] = ex
+				} else {
+					selected = append(selected, ex)
+				}
+			}
+		}
+	}
+
+	// Fill remaining slots with anything (still respecting used + usedInCycle)
+	if len(selected) < targetCount {
+		all := []string{"chest", "back", "quads", "hamstrings", "glutes", "shoulders_front", "shoulders_side", "shoulders_rear", "biceps", "triceps"}
+		for len(selected) < targetCount {
+			ex, ok := pickOne(grouped, all, []string{"main", "secondary", "accessory"}, used, usedInCycle)
+			if !ok {
+				break
+			}
+			selected = append(selected, ex)
+		}
+	}
+
+	if len(selected) > targetCount {
+		selected = selected[:targetCount]
+	}
+	return selected
 }
+
+func hasLower(selected []domain.Exercise) bool {
+	for _, ex := range selected {
+		g := strings.ToLower(strings.TrimSpace(ex.MuscleGroup))
+		if g == "quads" || g == "hamstrings" || g == "glutes" {
+			return true
+		}
+	}
+	return false
+}
+
+func pickOne(
+	grouped map[string]map[string][]domain.Exercise,
+	groups []string,
+	allowedPriorities []string,
+	used map[string]bool,
+	usedInCycle map[string]bool,
+) (domain.Exercise, bool) {
+	for _, pr := range allowedPriorities {
+		byGroup := grouped[pr]
+		if len(byGroup) == 0 {
+			continue
+		}
+		for _, g := range groups {
+			list := byGroup[g]
+			for _, ex := range list {
+				key := normalizeName(ex.Name)
+				if used[ex.ID] || usedInCycle[key] {
+					continue
+				}
+				used[ex.ID] = true
+				return ex, true
+			}
+		}
+	}
+	return domain.Exercise{}, false
+}
+
+// -------------------- EXISTING HELPERS (unchanged / minimal fixes) --------------------
 
 func normalizeGroups(groups []string) []string {
 	out := make([]string, 0, len(groups))
@@ -395,8 +556,10 @@ func pickByPriority(
 	if len(byGroup) == 0 {
 		return nil
 	}
+
 	selected := make([]domain.Exercise, 0, count)
 	index := map[string]int{}
+
 	for len(selected) < count {
 		added := false
 		for _, group := range groups {
@@ -405,7 +568,6 @@ func pickByPriority(
 			for i < len(list) {
 				ex := list[i]
 				key := normalizeName(ex.Name)
-				// Пропускаем если уже использован в этом дне или в цикле
 				if used[ex.ID] || usedInCycle[key] {
 					i++
 					continue
@@ -414,9 +576,6 @@ func pickByPriority(
 				used[ex.ID] = true
 				selected = append(selected, ex)
 				added = true
-				if len(selected) >= count {
-					break
-				}
 				break
 			}
 			if len(selected) >= count {
@@ -442,6 +601,7 @@ func pickFallback(
 	}
 	order := []string{"main", "secondary", "accessory"}
 	selected := make([]domain.Exercise, 0, count)
+
 	for _, pr := range order {
 		byGroup := grouped[pr]
 		if len(byGroup) == 0 {
@@ -450,7 +610,6 @@ func pickFallback(
 		for _, group := range groups {
 			for _, ex := range byGroup[group] {
 				key := normalizeName(ex.Name)
-				// Пропускаем если уже использован в этом дне или в цикле
 				if used[ex.ID] || usedInCycle[key] {
 					continue
 				}
