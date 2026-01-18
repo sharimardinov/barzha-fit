@@ -247,7 +247,6 @@ func (s *TrainingProgramService) generateDay(
 
 	mainPicks := pickByPriority(grouped, "main", groups, 2, used, usedInCycle)
 	log.Printf("[DEBUG] Day %d: picked %d main exercises: %v", dayIndex, len(mainPicks), extractNames(mainPicks))
-	selected = append(selected, mainPicks...)
 
 	selected = append(selected, pickByPriority(grouped, "main", groups, 2, used, usedInCycle)...)
 	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used, usedInCycle)...)
