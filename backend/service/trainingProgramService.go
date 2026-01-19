@@ -4,16 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	// "math/rand"
 	"sort"
 	"strings"
 	"time"
 
 	"barzhafit/backend/domain"
 )
-
-// -------------------- INTERFACES --------------------
 
 type TrainingInputReader interface {
 	GetByUserID(ctx context.Context, userID string) (domain.TrainingInput, bool, error)
@@ -39,8 +35,6 @@ type UserProgramStorage interface {
 	GetLatestByUserID(ctx context.Context, userID string) (domain.UserProgram, bool, error)
 }
 
-// -------------------- SERVICE --------------------
-
 type TrainingProgramService struct {
 	users         UserIdentityStorage
 	inputs        TrainingInputReader
@@ -56,15 +50,17 @@ func NewTrainingProgramService(
 	inputs TrainingInputReader,
 	templates ProgramTemplateStorage,
 	exercises ExerciseStorage,
+	periodization PeriodizationStorage,
 	programs UserProgramStorage,
 ) *TrainingProgramService {
 	return &TrainingProgramService{
-		users:     users,
-		inputs:    inputs,
-		templates: templates,
-		exercises: exercises,
-		programs:  programs,
-		now:       time.Now,
+		users:         users,
+		inputs:        inputs,
+		templates:     templates,
+		exercises:     exercises,
+		periodization: periodization,
+		programs:      programs,
+		now:           time.Now,
 	}
 }
 
@@ -74,538 +70,31 @@ func (s *TrainingProgramService) SetNowFunc(fn func() time.Time) {
 	}
 }
 
-// -------------------- WEEK STATE --------------------
-
-type WeekState struct {
-	UsedExerciseIDs map[string]bool
-	UsedNames       map[string]bool
-	UsedByGroup     map[string]int
-	UsedByPattern   map[string]int
-}
-
-func newWeekState() *WeekState {
-	return &WeekState{
-		UsedExerciseIDs: map[string]bool{},
-		UsedNames:       map[string]bool{},
-		UsedByGroup:     map[string]int{},
-		UsedByPattern:   map[string]int{},
-	}
-}
-
-// -------------------- DAY CAPS --------------------
-
-var dayCaps = map[string]int{
-	"chest":           1,
-	"back":            2,
-	"quads":           1,
-	"hamstrings":      1,
-	"glutes":          1,
-	"shoulders_front": 1,
-	"shoulders_side":  1,
-	"shoulders_rear":  1,
-	"biceps":          1,
-	"triceps":         1,
-}
-
-type DayState struct {
-	UsedByGroup map[string]int
-	UsedIDs     map[string]bool
-}
-
-func newDayState() *DayState {
-	return &DayState{
-		UsedByGroup: map[string]int{},
-		UsedIDs:     map[string]bool{},
-	}
-}
-
-func (ds *DayState) canUse(ex domain.Exercise, ws *WeekState) bool {
-	if ds.UsedIDs[ex.ID] {
-		return false
-	}
-	if ws.UsedExerciseIDs[ex.ID] {
-		return false
-	}
-	key := normalizeName(ex.Name)
-	if ws.UsedNames[key] {
-		return false
-	}
-	group := strings.ToLower(strings.TrimSpace(ex.MuscleGroup))
-	if cap, ok := dayCaps[group]; ok {
-		if ds.UsedByGroup[group] >= cap {
-			return false
+func SelectTemplateName(days int, level domain.FitnessLevel) (string, error) {
+	switch days {
+	case 2:
+		return "full_body", nil
+	case 3:
+		if level == domain.FitnessBeginner {
+			return "full_body", nil
 		}
-	}
-	return true
-}
-
-func (ds *DayState) markUsed(ex domain.Exercise, ws *WeekState) {
-	ds.UsedIDs[ex.ID] = true
-	ws.UsedExerciseIDs[ex.ID] = true
-	ws.UsedNames[normalizeName(ex.Name)] = true
-	group := strings.ToLower(strings.TrimSpace(ex.MuscleGroup))
-	ds.UsedByGroup[group]++
-	ws.UsedByGroup[group]++
-	for _, t := range ex.Type {
-		ws.UsedByPattern[strings.ToLower(t)]++
-	}
-}
-
-// -------------------- EXERCISE HELPERS --------------------
-
-func hasTag(ex domain.Exercise, tag string) bool {
-	tag = strings.ToLower(strings.TrimSpace(tag))
-	for _, t := range ex.Type {
-		if strings.ToLower(strings.TrimSpace(t)) == tag {
-			return true
-		}
-	}
-	return false
-}
-
-func priorityRank(p string) int {
-	switch strings.ToLower(strings.TrimSpace(p)) {
-	case "main":
-		return 3
-	case "secondary":
-		return 2
-	case "accessory":
-		return 1
+		return "push_pull_legs", nil
+	case 4:
+		return "upper_lower_x2", nil
+	case 5:
+		return "upper_lower_arm_day", nil
+	case 6:
+		return "ppl_x2", nil
 	default:
-		return 0
+		return "", fmt.Errorf("unsupported days_per_week")
 	}
 }
-
-// -------------------- SLOT DEFINITIONS --------------------
-
-type Slot struct {
-	Name            string
-	RequiredGroup   []string
-	RequiredPattern []string
-	PreferPriority  string
-	PreferCompound  bool
-}
-
-// FULL BODY (3 days)
-func getSlotsFullBody(dayIndex int) []Slot {
-	slots := make([]Slot, 6)
-
-	// Rotate lower patterns: Day1=squat, Day2=hinge, Day3=squat
-	lowerPattern := "squat"
-	lowerGroups := []string{"quads", "glutes"}
-	if dayIndex == 2 {
-		lowerPattern = "hinge"
-		lowerGroups = []string{"hamstrings", "glutes"}
-	}
-
-	slots[0] = Slot{
-		Name:            "lower_primary",
-		RequiredGroup:   lowerGroups,
-		RequiredPattern: []string{lowerPattern, "lower", "compound"},
-		PreferPriority:  "main",
-		PreferCompound:  true,
-	}
-
-	// Rotate push: Day1=chest, Day2=chest, Day3=shoulders_front
-	pushGroup := "chest"
-	if dayIndex == 3 {
-		pushGroup = "shoulders_front"
-	}
-	slots[1] = Slot{
-		Name:            "push_primary",
-		RequiredGroup:   []string{pushGroup},
-		RequiredPattern: []string{"push", "compound"},
-		PreferPriority:  "main",
-		PreferCompound:  true,
-	}
-
-	slots[2] = Slot{
-		Name:            "pull_primary",
-		RequiredGroup:   []string{"back"},
-		RequiredPattern: []string{"pull", "compound"},
-		PreferPriority:  "main",
-		PreferCompound:  true,
-	}
-
-	slots[3] = Slot{
-		Name:            "lower_secondary",
-		RequiredGroup:   []string{"hamstrings", "glutes"},
-		RequiredPattern: []string{"isolation", "lower"},
-		PreferPriority:  "secondary",
-		PreferCompound:  false,
-	}
-
-	slots[4] = Slot{
-		Name:            "delts",
-		RequiredGroup:   []string{"shoulders_side", "shoulders_rear"},
-		RequiredPattern: []string{"isolation"},
-		PreferPriority:  "accessory",
-		PreferCompound:  false,
-	}
-
-	armGroup := "biceps"
-	if dayIndex%2 == 0 {
-		armGroup = "triceps"
-	}
-	slots[5] = Slot{
-		Name:            "arms",
-		RequiredGroup:   []string{armGroup},
-		RequiredPattern: []string{"isolation"},
-		PreferPriority:  "accessory",
-		PreferCompound:  false,
-	}
-
-	return slots
-}
-
-// PUSH DAY
-func getSlotsPush() []Slot {
-	return []Slot{
-		{
-			Name:            "chest_main",
-			RequiredGroup:   []string{"chest"},
-			RequiredPattern: []string{"push", "compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "shoulders_main",
-			RequiredGroup:   []string{"shoulders_front"},
-			RequiredPattern: []string{"push", "compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "chest_secondary",
-			RequiredGroup:   []string{"chest"},
-			RequiredPattern: []string{"push"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "shoulders_side",
-			RequiredGroup:   []string{"shoulders_side"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "triceps_1",
-			RequiredGroup:   []string{"triceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "triceps_2",
-			RequiredGroup:   []string{"triceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-	}
-}
-
-// PULL DAY
-func getSlotsPull() []Slot {
-	return []Slot{
-		{
-			Name:            "back_vertical",
-			RequiredGroup:   []string{"back"},
-			RequiredPattern: []string{"pull", "compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "back_horizontal",
-			RequiredGroup:   []string{"back"},
-			RequiredPattern: []string{"pull", "compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "back_secondary",
-			RequiredGroup:   []string{"back"},
-			RequiredPattern: []string{"pull"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "shoulders_rear",
-			RequiredGroup:   []string{"shoulders_rear"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "biceps_1",
-			RequiredGroup:   []string{"biceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "biceps_2",
-			RequiredGroup:   []string{"biceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-	}
-}
-
-// LEGS DAY
-func getSlotsLegs() []Slot {
-	return []Slot{
-		{
-			Name:            "quads_main",
-			RequiredGroup:   []string{"quads"},
-			RequiredPattern: []string{"squat", "compound", "lower"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "hamstrings_main",
-			RequiredGroup:   []string{"hamstrings"},
-			RequiredPattern: []string{"hinge", "compound", "lower"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "glutes_main",
-			RequiredGroup:   []string{"glutes"},
-			RequiredPattern: []string{"compound", "lower"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "quads_secondary",
-			RequiredGroup:   []string{"quads"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "hamstrings_secondary",
-			RequiredGroup:   []string{"hamstrings"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "glutes_accessory",
-			RequiredGroup:   []string{"glutes"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-	}
-}
-
-// UPPER DAY
-func getSlotsUpper() []Slot {
-	return []Slot{
-		{
-			Name:            "chest_main",
-			RequiredGroup:   []string{"chest"},
-			RequiredPattern: []string{"push", "compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "back_main",
-			RequiredGroup:   []string{"back"},
-			RequiredPattern: []string{"pull", "compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "shoulders_main",
-			RequiredGroup:   []string{"shoulders_front"},
-			RequiredPattern: []string{"push", "compound"},
-			PreferPriority:  "secondary",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "back_secondary",
-			RequiredGroup:   []string{"back"},
-			RequiredPattern: []string{"pull"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "shoulders_accessory",
-			RequiredGroup:   []string{"shoulders_side", "shoulders_rear"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "arms",
-			RequiredGroup:   []string{"biceps", "triceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-	}
-}
-
-// ARMS DAY
-func getSlotsArms() []Slot {
-	return []Slot{
-		{
-			Name:            "biceps_1",
-			RequiredGroup:   []string{"biceps"},
-			RequiredPattern: []string{"compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "triceps_1",
-			RequiredGroup:   []string{"triceps"},
-			RequiredPattern: []string{"compound"},
-			PreferPriority:  "main",
-			PreferCompound:  true,
-		},
-		{
-			Name:            "biceps_2",
-			RequiredGroup:   []string{"biceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "triceps_2",
-			RequiredGroup:   []string{"triceps"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "secondary",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "shoulders_side",
-			RequiredGroup:   []string{"shoulders_side"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-		{
-			Name:            "shoulders_rear",
-			RequiredGroup:   []string{"shoulders_rear"},
-			RequiredPattern: []string{"isolation"},
-			PreferPriority:  "accessory",
-			PreferCompound:  false,
-		},
-	}
-}
-
-func getSlotsByType(dayType string, dayIndex int) []Slot {
-	switch dayType {
-	case "full_body":
-		return getSlotsFullBody(dayIndex)
-	case "push":
-		return getSlotsPush()
-	case "pull":
-		return getSlotsPull()
-	case "legs":
-		return getSlotsLegs()
-	case "upper":
-		return getSlotsUpper()
-	case "arms":
-		return getSlotsArms()
-	default:
-		return getSlotsFullBody(dayIndex)
-	}
-}
-
-// -------------------- SCORING --------------------
-
-func scoreExercise(ex domain.Exercise, slot Slot, ds *DayState, ws *WeekState) int {
-	if !ds.canUse(ex, ws) {
-		return -9999
-	}
-
-	score := 0
-	group := strings.ToLower(strings.TrimSpace(ex.MuscleGroup))
-
-	// +3 if priority matches
-	if ex.Priority == slot.PreferPriority {
-		score += 3
-	} else if ex.Priority == "main" {
-		score += 2
-	} else if ex.Priority == "secondary" {
-		score += 1
-	}
-
-	// +2 if compound and slot prefers compound
-	if slot.PreferCompound && hasTag(ex, "compound") {
-		score += 2
-	}
-
-	// +2 if pattern matches
-	for _, reqPattern := range slot.RequiredPattern {
-		if hasTag(ex, reqPattern) {
-			score += 2
-			break
-		}
-	}
-
-	// +1 if group matches
-	for _, reqGroup := range slot.RequiredGroup {
-		if group == strings.ToLower(reqGroup) {
-			score += 1
-			break
-		}
-	}
-
-	// -2 if this is already 2nd back in day
-	if group == "back" && ds.UsedByGroup["back"] >= 1 {
-		score -= 2
-	}
-
-	// +1 if this group is underutilized in week
-	if ws.UsedByGroup[group] < 2 {
-		score += 1
-	}
-
-	return score
-}
-
-func pickBestExercise(pool []domain.Exercise, slot Slot, ds *DayState, ws *WeekState) (domain.Exercise, bool) {
-	type candidate struct {
-		ex    domain.Exercise
-		score int
-	}
-
-	candidates := make([]candidate, 0, len(pool))
-	for _, ex := range pool {
-		score := scoreExercise(ex, slot, ds, ws)
-		if score > -9999 {
-			candidates = append(candidates, candidate{ex: ex, score: score})
-		}
-	}
-
-	if len(candidates) == 0 {
-		return domain.Exercise{}, false
-	}
-
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].score != candidates[j].score {
-			return candidates[i].score > candidates[j].score
-		}
-		return candidates[i].ex.Name < candidates[j].ex.Name
-	})
-
-	return candidates[0].ex, true
-}
-
-// -------------------- MAIN GENERATOR --------------------
 
 func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (domain.UserProgram, domain.GeneratedProgram, error) {
 	userID, err := s.users.EnsureByTelegramChatID(ctx, chatID)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
-
 	input, ok, err := s.inputs.GetByUserID(ctx, userID)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
@@ -619,25 +108,20 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
 
-	// Week progression
 	if has && existing.CurrentWeek < 3 {
 		nextWeek := existing.CurrentWeek + 1
 		period := s.resolvePeriodization(ctx, nextWeek)
-
 		prev, err := decodeGeneratedProgram(existing.DaysGenerated)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
-
 		updatedProgram := applyPeriodization(prev, input.Goal, period)
 		raw, err := json.Marshal(updatedProgram)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
-
 		existing.CurrentWeek = nextWeek
 		existing.DaysGenerated = raw
-
 		updated, err := s.programs.Update(ctx, existing)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
@@ -645,12 +129,10 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		return updated, updatedProgram, nil
 	}
 
-	// Generate new program
 	templateName, err := SelectTemplateName(input.DaysPerWeek, input.Level)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
-
 	template, ok, err := s.templates.GetByName(ctx, templateName)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
@@ -659,52 +141,58 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		return domain.UserProgram{}, domain.GeneratedProgram{}, fmt.Errorf("template_not_found")
 	}
 
+	days := template.Structure.Days
+	if len(days) < input.DaysPerWeek {
+		return domain.UserProgram{}, domain.GeneratedProgram{}, fmt.Errorf("template_days_mismatch")
+	}
+	if len(days) > input.DaysPerWeek {
+		days = days[:input.DaysPerWeek]
+	}
+
 	week := 1
 	period := s.resolvePeriodization(ctx, week)
-
-	// Fetch ALL exercises once
-	allGroups := []string{"chest", "back", "quads", "hamstrings", "glutes",
-		"shoulders_front", "shoulders_side", "shoulders_rear", "biceps", "triceps"}
-	pool, err := s.exercises.ListByMuscleGroups(ctx, allGroups, input.Level, input.Injuries)
+	avoidNames := map[string]bool{}
+	avoidList := []string{}
+	if has {
+		prev, err := decodeGeneratedProgram(existing.DaysGenerated)
+		if err != nil {
+			return domain.UserProgram{}, domain.GeneratedProgram{}, err
+		}
+		avoidNames, avoidList = collectExerciseNames(prev)
+	}
+	substitutes, err := s.fetchSubstitutes(ctx, avoidList, input)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
-
-	ws := newWeekState()
 
 	gen := domain.GeneratedProgram{
 		Template:      template.Name,
 		Week:          week,
 		Periodization: period,
-		Days:          make([]domain.GeneratedDay, 0, len(template.Structure.Days)),
+		Days:          make([]domain.GeneratedDay, 0, len(days)),
 	}
-
-	for dayIdx, templateDay := range template.Structure.Days {
-		day, err := s.generateDayBySlots(dayIdx+1, templateDay, pool, input, period, ws)
+	for i, day := range days {
+		plan, err := s.generateDay(ctx, i+1, day, input, period, avoidNames, substitutes)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
-		gen.Days = append(gen.Days, day)
+		gen.Days = append(gen.Days, plan)
 	}
 
 	raw, err := json.Marshal(gen)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
-
 	startDate := s.now().UTC().Truncate(24 * time.Hour)
-
 	if has {
 		existing.CurrentWeek = week
 		existing.DaysGenerated = raw
-
 		updated, err := s.programs.Update(ctx, existing)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
 		return updated, gen, nil
 	}
-
 	inserted, err := s.programs.Insert(ctx, domain.UserProgram{
 		UserID:        userID,
 		TemplateID:    template.ID,
@@ -718,47 +206,50 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 	return inserted, gen, nil
 }
 
-func (s *TrainingProgramService) generateDayBySlots(
+func (s *TrainingProgramService) generateDay(
+	ctx context.Context,
 	dayIndex int,
-	templateDay domain.TemplateDay,
-	pool []domain.Exercise,
+	day domain.TemplateDay,
 	input domain.TrainingInput,
 	period domain.Periodization,
-	ws *WeekState,
+	avoidNames map[string]bool,
+	substitutes map[string][]domain.Exercise,
 ) (domain.GeneratedDay, error) {
-	ds := newDayState()
+	groups := normalizeGroups(day.MuscleGroups)
+	exercises, err := s.exercises.ListByMuscleGroups(ctx, groups, input.Level, input.Injuries)
+	if err != nil {
+		return domain.GeneratedDay{}, err
+	}
+	grouped := groupByPriority(exercises)
+	used := map[string]bool{}
 
-	dayType := templateDay.Type
-	if dayType == "" {
-		dayType = "full_body"
+	selected := make([]domain.Exercise, 0, 6)
+	selected = append(selected, pickByPriority(grouped, "main", groups, 1, used)...)
+	selected = append(selected, pickByPriority(grouped, "secondary", groups, 2, used)...)
+	selected = append(selected, pickByPriority(grouped, "accessory", groups, 2, used)...)
+
+	if len(selected) < 5 {
+		selected = append(selected, pickFallback(grouped, groups, 5-len(selected), used)...)
 	}
 
-	slots := getSlotsByType(dayType, dayIndex)
-	selected := make([]domain.Exercise, 0, len(slots))
-
-	for _, slot := range slots {
-		ex, ok := pickBestExercise(pool, slot, ds, ws)
-		if ok {
-			selected = append(selected, ex)
-			ds.markUsed(ex, ws)
-		}
+	if len(avoidNames) > 0 {
+		selected = replaceWithSubstitutes(selected, substitutes, avoidNames, used)
 	}
 
-	// Add prehab if needed
 	if len(input.Injuries) > 0 {
-		prehab, err := s.exercises.ListPrehabByTargets(context.Background(), input.Injuries, input.Level, input.Injuries)
-		if err == nil {
-			for _, ex := range prehab {
-				if !ds.UsedIDs[ex.ID] && !ws.UsedExerciseIDs[ex.ID] {
-					selected = append(selected, ex)
-					ds.markUsed(ex, ws)
-					break
-				}
+		prehab, err := s.exercises.ListPrehabByTargets(ctx, input.Injuries, input.Level, input.Injuries)
+		if err != nil {
+			return domain.GeneratedDay{}, err
+		}
+		for _, ex := range prehab {
+			if !used[ex.ID] {
+				selected = append(selected, ex)
+				used[ex.ID] = true
+				break
 			}
 		}
 	}
 
-	// Build prescription
 	items := make([]domain.GeneratedExercise, 0, len(selected))
 	for _, ex := range selected {
 		sets, reps, rpe, rest, percent := buildPrescription(input.Goal, ex.Priority, period)
@@ -783,21 +274,142 @@ func (s *TrainingProgramService) generateDayBySlots(
 		})
 	}
 
-	dayName := templateDay.Name
-	if dayName == "" {
-		dayName = fmt.Sprintf("Day %d", dayIndex)
+	focus := day.Type
+	if focus == "" {
+		focus = strings.Join(groups, "/")
 	}
-
+	name := day.Name
+	if name == "" {
+		name = fmt.Sprintf("Day %d", dayIndex)
+	}
 	return domain.GeneratedDay{
 		Day:       dayIndex,
-		Name:      dayName,
-		Focus:     dayType,
+		Name:      name,
+		Focus:     focus,
 		Type:      "train",
 		Exercises: items,
 	}, nil
 }
 
-// -------------------- HELPERS --------------------
+func normalizeGroups(groups []string) []string {
+	out := make([]string, 0, len(groups))
+	seen := map[string]bool{}
+	add := func(value string) {
+		if value == "" || seen[value] {
+			return
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	for _, g := range groups {
+		v := strings.TrimSpace(strings.ToLower(g))
+		if v == "" {
+			continue
+		}
+		switch v {
+		case "shoulders", "shoulder":
+			add("shoulders_front")
+			add("shoulders_side")
+			add("shoulders_rear")
+		case "legs":
+			add("quads")
+			add("hamstrings")
+			add("glutes")
+		case "arms":
+			add("biceps")
+			add("triceps")
+		default:
+			add(v)
+		}
+	}
+	return out
+}
+
+func groupByPriority(items []domain.Exercise) map[string]map[string][]domain.Exercise {
+	out := map[string]map[string][]domain.Exercise{}
+	for _, item := range items {
+		p := strings.ToLower(strings.TrimSpace(item.Priority))
+		if p == "" {
+			p = "accessory"
+		}
+		if _, ok := out[p]; !ok {
+			out[p] = map[string][]domain.Exercise{}
+		}
+		group := strings.ToLower(strings.TrimSpace(item.MuscleGroup))
+		out[p][group] = append(out[p][group], item)
+	}
+	for _, byGroup := range out {
+		for k := range byGroup {
+			sort.Slice(byGroup[k], func(i, j int) bool {
+				return byGroup[k][i].Name < byGroup[k][j].Name
+			})
+		}
+	}
+	return out
+}
+
+func pickByPriority(grouped map[string]map[string][]domain.Exercise, priority string, groups []string, count int, used map[string]bool) []domain.Exercise {
+	if count <= 0 {
+		return nil
+	}
+	byGroup := grouped[priority]
+	if len(byGroup) == 0 {
+		return nil
+	}
+	selected := make([]domain.Exercise, 0, count)
+	index := map[string]int{}
+	for len(selected) < count {
+		added := false
+		for _, group := range groups {
+			list := byGroup[group]
+			i := index[group]
+			for i < len(list) && used[list[i].ID] {
+				i++
+			}
+			if i < len(list) {
+				ex := list[i]
+				index[group] = i + 1
+				used[ex.ID] = true
+				selected = append(selected, ex)
+				added = true
+				if len(selected) >= count {
+					break
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return selected
+}
+
+func pickFallback(grouped map[string]map[string][]domain.Exercise, groups []string, count int, used map[string]bool) []domain.Exercise {
+	if count <= 0 {
+		return nil
+	}
+	order := []string{"main", "secondary", "accessory"}
+	selected := make([]domain.Exercise, 0, count)
+	for _, pr := range order {
+		byGroup := grouped[pr]
+		if len(byGroup) == 0 {
+			continue
+		}
+		for _, group := range groups {
+			for _, ex := range byGroup[group] {
+				if used[ex.ID] {
+					continue
+				}
+				used[ex.ID] = true
+				selected = append(selected, ex)
+				if len(selected) >= count {
+					return selected
+				}
+			}
+		}
+	}
+	return selected
+}
 
 func buildPrescription(goal domain.FitnessGoal, priority string, period domain.Periodization) (int, string, string, string, string) {
 	sets := 3
@@ -880,10 +492,6 @@ func prehabPrescription() (int, string, string, string, string) {
 	return 2, "12-15", "6-7", "60-90s", ""
 }
 
-func normalizeName(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
 func decodeGeneratedProgram(raw json.RawMessage) (domain.GeneratedProgram, error) {
 	if len(raw) == 0 {
 		return domain.GeneratedProgram{}, fmt.Errorf("empty program payload")
@@ -927,6 +535,103 @@ func (s *TrainingProgramService) resolvePeriodization(ctx context.Context, week 
 	return period
 }
 
+func collectExerciseNames(program domain.GeneratedProgram) (map[string]bool, []string) {
+	out := map[string]bool{}
+	list := make([]string, 0)
+	seenOriginal := map[string]bool{}
+	for _, day := range program.Days {
+		for _, ex := range day.Exercises {
+			key := normalizeName(ex.Name)
+			if key == "" {
+				continue
+			}
+			out[key] = true
+			if !seenOriginal[ex.Name] {
+				seenOriginal[ex.Name] = true
+				list = append(list, ex.Name)
+			}
+		}
+	}
+	return out, list
+}
+
+func (s *TrainingProgramService) fetchSubstitutes(ctx context.Context, names []string, input domain.TrainingInput) (map[string][]domain.Exercise, error) {
+	if len(names) == 0 {
+		return map[string][]domain.Exercise{}, nil
+	}
+	items, err := s.exercises.ListSubstitutes(ctx, names, input.Level, input.Injuries)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]domain.Exercise{}
+	for _, item := range items {
+		for _, target := range item.SubstituteFor {
+			key := normalizeName(target)
+			if key == "" {
+				continue
+			}
+			out[key] = append(out[key], item)
+		}
+	}
+	for key := range out {
+		sort.Slice(out[key], func(i, j int) bool {
+			return out[key][i].Name < out[key][j].Name
+		})
+	}
+	return out, nil
+}
+
+func replaceWithSubstitutes(selected []domain.Exercise, substitutes map[string][]domain.Exercise, avoidNames map[string]bool, used map[string]bool) []domain.Exercise {
+	if len(selected) == 0 || len(avoidNames) == 0 {
+		return selected
+	}
+	out := make([]domain.Exercise, 0, len(selected))
+	for _, ex := range selected {
+		key := normalizeName(ex.Name)
+		if !avoidNames[key] {
+			out = append(out, ex)
+			continue
+		}
+		candidates := substitutes[key]
+		if replacement, ok := pickSubstitute(candidates, ex, used); ok {
+			used[replacement.ID] = true
+			out = append(out, replacement)
+			continue
+		}
+		out = append(out, ex)
+	}
+	return out
+}
+
+func pickSubstitute(candidates []domain.Exercise, original domain.Exercise, used map[string]bool) (domain.Exercise, bool) {
+	if len(candidates) == 0 {
+		return domain.Exercise{}, false
+	}
+	firstMatch := func(matchGroup bool) (domain.Exercise, bool) {
+		for _, cand := range candidates {
+			if used[cand.ID] {
+				continue
+			}
+			if matchGroup && cand.MuscleGroup != original.MuscleGroup {
+				continue
+			}
+			if cand.Priority != "" && original.Priority != "" && cand.Priority != original.Priority {
+				continue
+			}
+			return cand, true
+		}
+		return domain.Exercise{}, false
+	}
+	if ex, ok := firstMatch(true); ok {
+		return ex, true
+	}
+	return firstMatch(false)
+}
+
+func normalizeName(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
 func fallbackPeriodization() domain.Periodization {
 	return domain.Periodization{
 		Week:       1,
@@ -934,25 +639,5 @@ func fallbackPeriodization() domain.Periodization {
 		Percent1RM: "45-50%",
 		Reps:       "20-25",
 		Rest:       "1:00-1:30",
-	}
-}
-
-func SelectTemplateName(days int, level domain.FitnessLevel) (string, error) {
-	switch days {
-	case 2:
-		return "full_body", nil
-	case 3:
-		if level == domain.FitnessBeginner {
-			return "full_body", nil
-		}
-		return "push_pull_legs", nil
-	case 4:
-		return "upper_lower_x2", nil
-	case 5:
-		return "upper_lower_arm_day", nil
-	case 6:
-		return "ppl_x2", nil
-	default:
-		return "", fmt.Errorf("unsupported days_per_week")
 	}
 }

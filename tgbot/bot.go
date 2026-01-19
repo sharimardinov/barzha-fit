@@ -1,0 +1,419 @@
+package bot
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"strings"
+	"time"
+
+	"barzhafit/backend/domain"
+	"barzhafit/backend/input"
+	"barzhafit/backend/service"
+	"barzhafit/backend/util"
+	"barzhafit/tgbot/handlers"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
+
+type Bot struct {
+	api       *tgbotapi.BotAPI
+	router    *Router
+	state     *StateStore
+	plan      *service.PlanService
+	workout   *service.WorkoutService
+	users     *service.BotUsersService
+	tz        string
+	profile   *service.ProfileService
+	targets   *service.TargetsService
+	nutrition *service.NutritionService
+	steps     *service.StepsService
+	ai        *service.ActivityAI
+	callbacks *CallbackService
+	planView  *service.PlanViewService
+	statsView *service.StatsViewService
+	drafts    *service.ProfileDraftStore
+}
+
+func New(
+	api *tgbotapi.BotAPI,
+	plan *service.PlanService,
+	workout *service.WorkoutService,
+	users *service.BotUsersService,
+	tz string,
+	profile *service.ProfileService,
+	targets *service.TargetsService,
+	nutrition *service.NutritionService,
+	steps *service.StepsService,
+	ai *service.ActivityAI,
+) *Bot {
+	planView := service.NewPlanViewService(plan, nutrition, steps, tz)
+	statsView := service.NewStatsViewService(nutrition, workout, steps, targets, tz)
+	callbacks := NewCallbackService(workout, nutrition, planView, statsView, tz)
+	b := &Bot{
+		api:       api,
+		router:    NewRouter(),
+		state:     NewStateStore(),
+		plan:      plan,
+		workout:   workout,
+		users:     users,
+		tz:        tz,
+		profile:   profile,
+		targets:   targets,
+		nutrition: nutrition,
+		steps:     steps,
+		ai:        ai,
+		callbacks: callbacks,
+		planView:  planView,
+		statsView: statsView,
+		drafts:    service.NewProfileDraftStore(),
+	}
+	b.registerRoutes()
+	return b
+}
+
+func (b *Bot) registerRoutes() {
+	start := handlers.NewStart(b.api, b.users)
+	b.router.Handle("/start", start.Handle)
+}
+
+func (b *Bot) Run(ctx context.Context) error {
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 30
+
+	updates := b.api.GetUpdatesChan(u)
+
+	log.Printf("bot started: @%s", b.api.Self.UserName)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case upd := <-updates:
+
+			if upd.CallbackQuery != nil {
+				b.handleCallback(upd.CallbackQuery)
+				continue
+			}
+
+			if upd.Message == nil {
+				continue
+			}
+
+			if b.handleState(upd.Message) {
+				continue
+			}
+			if ok := b.router.Dispatch(upd.Message); ok {
+				continue
+			}
+
+			b.reply(upd.Message.Chat.ID, "Открой приложение: https://t.me/"+b.api.Self.UserName+"?startapp")
+		}
+	}
+}
+
+func (b *Bot) reply(chatID int64, text string) {
+	msg := tgbotapi.NewMessage(chatID, text)
+	_, err := b.api.Send(msg)
+	if err != nil {
+		fmt.Println("send error:", err)
+	}
+}
+
+func (b *Bot) handleState(m *tgbotapi.Message) bool {
+	chatID := m.Chat.ID
+	st := b.state.Get(chatID)
+
+	if st == domain.StateNone {
+		return false
+	}
+	if m.IsCommand() {
+		return false
+	}
+
+	switch st {
+	case domain.StateWaitMealText:
+		text := m.Text
+		b.state.Clear(chatID)
+
+		loc := util.MustLocation(b.tz)
+		now := util.NowIn(loc)
+
+		log.Printf("DEBUG saving meal: chatID=%d now=%s text=%s",
+			chatID, now.Format("2006-01-02 15:04:05 MST"), text)
+
+		meal, err := b.nutrition.AddMealFromText(context.Background(), chatID, now, text)
+		if err != nil {
+			log.Printf("ERROR saving meal: chatID=%d err=%v", chatID, err)
+			if errors.Is(err, service.ErrNutritionAI) {
+				b.reply(chatID, "Записал, но AI упал (сохранил как 0).")
+				return true
+			}
+			b.reply(chatID, "Не в силах сохранить...")
+			return true
+		}
+
+		log.Printf("DEBUG meal saved: chatID=%d id=%d eatenAt=%s kcal=%d",
+			chatID, meal.ID, meal.EatenAt.Format("2006-01-02 15:04:05 MST"), meal.Kcal)
+
+		if meal.Kcal == 0 && meal.ProteinG == 0 && meal.FatG == 0 && meal.CarbsG == 0 {
+			b.reply(chatID, "Не в силах распознать КБЖУ, давай ка ещё разок (если нужно — /undo)")
+			return true
+		}
+		b.reply(chatID, fmt.Sprintf("Ок, записал:\n%dkcal (Б%d Ж%d У%d)\n%s",
+			meal.Kcal, meal.ProteinG, meal.FatG, meal.CarbsG, meal.Text))
+		return true
+
+	case domain.StateWaitPlanText:
+		planText := m.Text
+		b.state.Clear(chatID)
+
+		if err := b.plan.Save(context.Background(), chatID, planText); err != nil {
+			log.Printf("plan save failed: chat_id=%d err=%v", chatID, err)
+			b.reply(chatID, "Ошибка сохранения плана")
+			return true
+		}
+
+		b.reply(chatID, "План сохранён")
+		return true
+
+	case domain.StateWaitProfileSex:
+		sex := strings.ToLower(strings.TrimSpace(m.Text))
+		if sex == "м" || sex == "m" || sex == "male" {
+			sex = "m"
+		} else if sex == "ж" || sex == "f" || sex == "female" {
+			sex = "f"
+		} else {
+			b.reply(chatID, "Введи пол: м или ж.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.Sex = sex
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileHeight)
+		b.reply(chatID, "Теперь рост в см, например 180")
+		return true
+
+	case domain.StateWaitProfileHeight:
+		height, ok := input.ParseIntInRange(strings.TrimSpace(m.Text), 50, 260)
+		if !ok {
+			b.reply(chatID, "Введи рост в см, например 180")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.HeightCM = height
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileWeight)
+		b.reply(chatID, "Теперь вес в кг, например 82.5")
+		return true
+
+	case domain.StateWaitProfileWeight:
+		weight, ok := input.ParseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
+		if !ok {
+			b.reply(chatID, "Введи вес в кг, например 82.5.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.WeightKG = weight
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileBodyFat)
+		b.reply(chatID, "Процент жира, например 15")
+		return true
+
+	case domain.StateWaitProfileBodyFat:
+		bf, ok := input.ParseFloatInRange(strings.TrimSpace(m.Text), 3, 80)
+		if !ok {
+			b.reply(chatID, "Введи процент жира, например 15.")
+			return true
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.BodyFatPct = bf
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.state.Set(chatID, domain.StateWaitProfileAge)
+		b.reply(chatID, "Возраст, например 30")
+		return true
+
+	case domain.StateWaitStepsCount:
+		steps, ok := input.ParseIntInRange(strings.TrimSpace(m.Text), 0, 100000)
+		if !ok {
+			b.reply(chatID, "Напиши количество шагов числом, например 8500")
+			return true
+		}
+		b.state.Clear(chatID)
+		loc := util.MustLocation(b.tz)
+		dayDate := util.LocalDateStr(util.NowIn(loc), loc)
+		if err := b.steps.SetSteps(context.Background(), chatID, dayDate, steps); err != nil {
+			log.Printf("steps save failed: chat_id=%d err=%v", chatID, err)
+			b.reply(chatID, "Не удалось сохранить твои шаги за гиги.")
+			return true
+		}
+		b.reply(chatID, fmt.Sprintf("Ок, записал: %d шагов", steps))
+		return true
+
+	case domain.StateWaitWeightUpdate:
+		weight, ok := input.ParseFloatInRange(strings.TrimSpace(m.Text), 20, 400)
+		if !ok {
+			b.reply(chatID, "Введи вес в кг, например 82.5")
+			return true
+		}
+		b.state.Clear(chatID)
+		p, ok, err := b.profile.UpdateWeight(context.Background(), chatID, weight)
+		if err != nil {
+			b.reply(chatID, "Ошибка сохранения")
+			return true
+		}
+		if !ok {
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+		b.reply(chatID, fmt.Sprintf("Вес обновлён: %.1f кг. Если нужно — /targetsrefresh", p.WeightKG))
+		return true
+
+	case domain.StateWaitProfileAge:
+		age, ok := input.ParseIntInRange(strings.TrimSpace(m.Text), 10, 100)
+		if !ok {
+			b.reply(chatID, "Введи возраст, например 30")
+			return true
+		}
+
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.Age = age
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+
+		b.state.Set(chatID, domain.StateWaitProfileGoal)
+		b.reply(chatID, "Цель: похудение / баланс / набор?")
+		return true
+
+	case domain.StateWaitProfileGoal:
+		goal := strings.ToLower(strings.TrimSpace(m.Text))
+		switch {
+		case strings.HasPrefix(goal, "похуд") || strings.HasPrefix(goal, "суш") || strings.HasPrefix(goal, "cut"):
+			goal = "cut"
+		case strings.HasPrefix(goal, "набор") || strings.HasPrefix(goal, "bulk") || strings.HasPrefix(goal, "мас"):
+			goal = "bulk"
+		default:
+			goal = "balance"
+		}
+		if !b.drafts.Update(chatID, func(d *service.ProfileDraft) {
+			d.Goal = goal
+		}) {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+
+		draft, ch, ok := b.drafts.Snapshot(chatID)
+		if !ok {
+			b.state.Clear(chatID)
+			b.reply(chatID, "Сначала /profileset")
+			return true
+		}
+
+		if ch != nil && !draft.ActivityReady {
+			select {
+			case <-ch:
+				draft, _, _ = b.drafts.Snapshot(chatID)
+			case <-time.After(2 * time.Second):
+			}
+		}
+
+		p := domain.Profile{
+			ChatID:     chatID,
+			Sex:        draft.Sex,
+			HeightCM:   draft.HeightCM,
+			WeightKG:   draft.WeightKG,
+			BodyFatPct: draft.BodyFatPct,
+			Age:        draft.Age,
+			Activity:   draft.Activity,
+			Goal:       draft.Goal,
+		}
+
+		if err := b.profile.Save(context.Background(), p); err != nil {
+			b.reply(chatID, "Ошибка сохранения профиля.")
+			return true
+		}
+
+		b.state.Clear(chatID)
+		b.drafts.Clear(chatID)
+
+		activityNote := draft.Activity
+		if strings.HasPrefix(strings.ToLower(draft.Activity), "ai:") {
+			activityNote = strings.TrimPrefix(draft.Activity, "ai:") + " (ai)"
+		}
+
+		if draft.ActivityErr != nil {
+			activityNote += " (AI не смог оценить)"
+		}
+
+		sex := p.Sex
+		if sex == "" {
+			sex = "—"
+		}
+		goalLabel := p.Goal
+		if goalLabel == "" {
+			goalLabel = "balance"
+		}
+		b.reply(chatID, fmt.Sprintf(
+			"Профиль сохранён:\nПол: %s\nВозраст: %d\nРост: %d см\nВес: %.1f кг\nЖир: %.1f%%\nАктивность: %s\nЦель: %s",
+			sex, p.Age, p.HeightCM, p.WeightKG, p.BodyFatPct, activityNote, goalLabel,
+		))
+		return true
+
+	default:
+		b.state.Clear(chatID)
+		return false
+	}
+}
+
+func (b *Bot) handleCallback(q *tgbotapi.CallbackQuery) {
+	cfg := tgbotapi.CallbackConfig{CallbackQueryID: q.ID}
+	_, _ = b.api.Request(cfg)
+
+	if q.Message == nil || q.Message.Chat == nil {
+		return
+	}
+
+	chatID := q.Message.Chat.ID
+	data := q.Data
+	res, noop, err := b.callbacks.Handle(context.Background(), chatID, data)
+	if noop {
+		return
+	}
+	if err != nil {
+		log.Printf("callback failed: chat_id=%d data=%s err=%v", chatID, data, err)
+		b.reply(chatID, "Ошибка обработки")
+		return
+	}
+	if res.Text == "" {
+		return
+	}
+	msg := tgbotapi.NewMessage(chatID, res.Text)
+	if res.Markup != nil {
+		msg.ReplyMarkup = *res.Markup
+	}
+	if res.Mode != "" {
+		msg.ParseMode = res.Mode
+	}
+	_, _ = b.api.Send(msg)
+}

@@ -76,16 +76,8 @@ body {
   gap: 4px;
 }
 
-.tabs { position: relative; }
-
-.tabs .tab{
-  position: relative;
+.tabs * {
   z-index: 2;
-}
-
-.tabs .glider{
-  z-index: 1;
-  pointer-events: none;
 }
 
 .tabs input[type="radio"] {
@@ -131,7 +123,7 @@ body {
 }
 
 .tabs input[id="goal-bulk"]:checked ~ .glider {
-  transform: translateX(200%);
+  transform: translateX(230%);
 }
 
 .glider {
@@ -1179,53 +1171,24 @@ button {
   bottom: auto;
   transform: none;
 }
-
-.tabs.profile-goal-tabs{
-  position: relative;
-  display: flex;
+.tabs.profile-goal-tabs {
   width: 100%;
-  height: 30px;
+  gap: 0;
+  padding: 0;
   background: #f2f2f2;
-  border-radius: 999px;
-  overflow: hidden;
 }
 
-.tabs.profile-goal-tabs input[type="radio"]{
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-/* ВАЖНО: табы выше глайдера и кликабельны */
-.tabs.profile-goal-tabs .tab{
-  width: auto;        /* ВАЖНО, иначе 92px */
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
+.tabs.profile-goal-tabs .tab {
+  width: 100%;
+  flex: 1;
   justify-content: center;
-  z-index: 2;
-  cursor: pointer;
-  user-select: none;
+  text-align: center;
 }
 
-/* глайдер не должен ловить клики */
-.tabs.profile-goal-tabs .glider{
-  position: absolute;
-  inset: 0 auto 0 0;         /* top:0; bottom:0; left:0 */
+.tabs.profile-goal-tabs .glider {
   width: calc(100% / 3);
-  background: var(--accent);
-  border-radius: 999px;
-  transition: transform .25s ease-out;
-  z-index: 1;
-  pointer-events: none;      /* ключ */
+  left: 0;
 }
-
-.tabs.profile-goal-tabs input#goal-cut:checked ~ .glider { transform: translateX(0%); }
-.tabs.profile-goal-tabs input#goal-balance:checked ~ .glider { transform: translateX(100%); }
-.tabs.profile-goal-tabs input#goal-bulk:checked ~ .glider { transform: translateX(200%); }
-
-
 .tabs.accent-text input[type="radio"]:checked + label {
   color: var(--accent);
 }
@@ -1240,79 +1203,4 @@ button {
 
 .tabs.accent-text input[type="radio"]:checked + .tab-with-icon .tab-icon {
   background-color: var(--accent);
-}
-
-/* ===== Injuries (no borders + pin checkbox) ===== */
-
-.injury-options {
-  display: grid;
-  gap: 10px;
-}
-
-/* одна строка: текст слева, пин справа */
-.injury-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  padding: 10px 6px;
-  border: 0;
-  background: transparent;
-  border-radius: 12px;
-}
-
-/* текст без рамок, просто аккуратно */
-.injury-label {
-  font-weight: 700;
-  color: var(--black);
-  user-select: none;
-}
-
-/* pin checkbox */
-.pinbox {
-  width: 45px;
-  height: 45px;
-  background-color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: 10px;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-}
-
-.pinbox input {
-  display: none;
-}
-
-.pin {
-  width: 15px;
-  height: auto;
-  transform: rotate(35deg);
-}
-
-/* checked state */
-.pinbox input:checked ~ .pin {
-  fill: rgb(255, 3, 62);
-  stroke: white;
-}
-
-.pinbox input:checked ~ .pin line {
-  stroke: rgb(255, 3, 62);
-}
-
-.pinbox input:checked ~ .pin path {
-  stroke: rgb(255, 3, 62);
-}
-
-/* hover/active */
-.pinbox:hover {
-  background-color: rgb(255, 255, 255);
-  box-shadow: 0px 0px 10px rgba(255, 3, 62, 0.15);
-}
-
-.pinbox:active {
-  transform: scale(0.9);
 }

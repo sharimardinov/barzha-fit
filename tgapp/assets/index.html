@@ -209,12 +209,12 @@
             </label>
           </div>
           <div class="form-grid">
-            <label>Слабые места
-              <div class="injury-options" id="training-injuries"></div>
+            <label>Травмы
+              <div class="option-list injury-options" id="training-injuries"></div>
             </label>
             <label>Цель
               <div class="tabs-container" id="profile-goal">
-                  <div class="tabs wide profile-goal-tabs">
+                <div class="tabs profile-goal-tabs">
                   <input type="radio" id="goal-cut" name="goal-tabs" value="cut">
                   <label class="tab" for="goal-cut">CUT</label>
                   <input type="radio" id="goal-balance" name="goal-tabs" value="balance" checked>
@@ -224,6 +224,13 @@
                   <span class="glider"></span>
                 </div>
               </div>
+            </label>
+            <label>Фармакология
+              <select id="training-pharma">
+                <option value="">Выбери</option>
+                <option value="yes">Да</option>
+                <option value="no">Нет</option>
+              </select>
             </label>
             <label>Тренировок в неделю
               <input type="number" id="training-times">

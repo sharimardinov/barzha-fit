@@ -27,6 +27,7 @@ func ActivityMultiplier(a string) float64 {
 	}
 }
 
+// CalcTargets: Katch–McArdle (если есть %жира), иначе грубо по Mifflin (fallback)
 func CalcTargets(p domain.Profile) domain.Targets {
 	mult := ActivityMultiplier(p.Activity)
 
@@ -38,6 +39,9 @@ func CalcTargets(p domain.Profile) domain.Targets {
 		lbm = p.WeightKG * (1.0 - bf)
 		bmr = 370.0 + 21.6*lbm
 	} else {
+		// fallback: Mifflin-St Jeor (не идеал, но лучше чем 0)
+		// BMR = 10W + 6.25H - 5A + S
+		// S: +5 male, -161 female
 		s := 0.0
 		if p.Sex == "m" {
 			s = 5
@@ -57,6 +61,7 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	case "bulk":
 		kcal = int(math.Round(float64(kcal) * 1.1))
 	default:
+		// balance: no change
 	}
 
 	// макросы: белок от сухой массы (если есть), жир от общей массы
@@ -69,9 +74,12 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	case "cut":
 		proteinRate = 2.2
 	case "bulk":
-		proteinRate = 2.0
+		proteinRate = 1.8
 	default:
 		proteinRate = 1.8
+	}
+	if p.TrainingYears <= 0 && proteinRate > 1.6 {
+		proteinRate = 1.6
 	}
 	protein := int(math.Round(proteinRate * proteinWeight))
 
