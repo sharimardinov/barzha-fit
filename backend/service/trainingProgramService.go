@@ -56,17 +56,15 @@ func NewTrainingProgramService(
 	inputs TrainingInputReader,
 	templates ProgramTemplateStorage,
 	exercises ExerciseStorage,
-	periodization PeriodizationStorage,
 	programs UserProgramStorage,
 ) *TrainingProgramService {
 	return &TrainingProgramService{
-		users:         users,
-		inputs:        inputs,
-		templates:     templates,
-		exercises:     exercises,
-		periodization: periodization,
-		programs:      programs,
-		now:           time.Now,
+		users:     users,
+		inputs:    inputs,
+		templates: templates,
+		exercises: exercises,
+		programs:  programs,
+		now:       time.Now,
 	}
 }
 

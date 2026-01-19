@@ -74,13 +74,7 @@ func main() {
 	templateRepo := db.NewProgramTemplateRepo(pool)
 	exerciseRepo := db.NewExerciseRepo(pool)
 	userProgramRepo := db.NewUserProgramRepo(pool)
-	trainingProgramSvc := service.NewTrainingProgramService(
-		appUserRepo,
-		trainingInputRepo,
-		templateRepo,
-		exerciseRepo,
-		userProgramRepo,
-	)
+	trainingProgramSvc := service.NewTrainingProgramService(appUserRepo, trainingInputRepo, templateRepo, exerciseRepo, userProgramRepo)
 	injuryTypeRepo := db.NewInjuryTypeRepo(pool)
 	injuryTypeSvc := service.NewInjuryTypeService(injuryTypeRepo)
 
