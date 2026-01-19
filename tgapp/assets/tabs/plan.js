@@ -16,6 +16,7 @@ function buildWeekPlanTemplate(defaultItem = "") {
   for (let day = 1; day <= 7; day += 1) {
     weekPlan.push({
       day,
+      name: `День ${day}`,
       focus: "",
       type: "rest",
       items: defaultItem ? [defaultItem] : [],
@@ -41,6 +42,7 @@ export function normalizeWeekPlanForSave(weekPlan) {
     const isRest = hasRestWord || items.length === 0;
     out.push({
       day: i + 1,
+      name: `День ${i + 1}`,
       focus,
       type: isRest ? "rest" : "train",
       items: items.length ? items : ["Отдых"],
