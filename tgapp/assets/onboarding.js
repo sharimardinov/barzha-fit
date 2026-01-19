@@ -154,12 +154,12 @@ export async function initOnboardingWizard() {
       title: "Как получим план?",
       type: "options",
       options: [
-        { value: "ai", label: "Сгенерировать" },
+        { value: "ai", label: "Сгенерировать", disabled: true },
         { value: "manual", label: "Вставить вручную" },
       ],
-      help: "Соберём данные и сгенерируем план либо вставь свой",
+      help: "Генерация тренировок временно недоступна. Можно вставить план вручную.",
       required: true,
-    },
+    },        
     {
       id: "injuries",
       title: "Слабые места",
@@ -274,12 +274,19 @@ export async function initOnboardingWizard() {
         btn.className = className;
         btn.textContent = opt.label;
         btn.classList.toggle("active", data[step.id] === opt.value);
-        btn.addEventListener("click", () => {
-          data[step.id] = opt.value;
-          renderStep();
+
+          if (opt.disabled) {
+          btn.classList.add("option-disabled");
+          btn.disabled = true;
+          } else {
+          btn.addEventListener("click", () => {
+            data[step.id] = opt.value;
+            renderStep();
+          });
+          }
         });
         list.appendChild(btn);
-      });
+      };
       bodyEl.appendChild(list);
     }
 
@@ -676,7 +683,7 @@ export async function initOnboardingWizard() {
       nextBtn.click();
     }
   });
-}
+
 
 const PIN_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 75 100" class="pin">

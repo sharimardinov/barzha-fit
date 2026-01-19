@@ -15,7 +15,7 @@ import (
 	"barzhafit/backend/storage/db"
 	"barzhafit/backend/util"
 	"barzhafit/tgapp"
-	"barzhafit/tgbot"
+	bot "barzhafit/tgbot"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -73,14 +73,12 @@ func main() {
 	trainingInputSvc := service.NewTrainingInputService(trainingInputRepo, appUserRepo)
 	templateRepo := db.NewProgramTemplateRepo(pool)
 	exerciseRepo := db.NewExerciseRepo(pool)
-	periodizationRepo := db.NewPeriodizationRepo(pool)
 	userProgramRepo := db.NewUserProgramRepo(pool)
 	trainingProgramSvc := service.NewTrainingProgramService(
 		appUserRepo,
 		trainingInputRepo,
 		templateRepo,
 		exerciseRepo,
-		periodizationRepo,
 		userProgramRepo,
 	)
 	injuryTypeRepo := db.NewInjuryTypeRepo(pool)
