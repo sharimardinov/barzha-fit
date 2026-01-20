@@ -1,10 +1,10 @@
 package tgapp
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 const authSessionTTL = 30 * 24 * time.Hour
@@ -30,8 +30,13 @@ func newSessionStore() *sessionStore {
 
 func (s *sessionStore) Create(userID int64, username string) authSession {
 	now := time.Now()
+	token := make([]byte, 32)
+	if _, err := rand.Read(token); err != nil {
+		// Fallback to time-based token if RNG fails (should be extremely rare).
+		token = []byte(time.Now().Format(time.RFC3339Nano))
+	}
 	session := authSession{
-		Token:     uuid.NewString(),
+		Token:     hex.EncodeToString(token),
 		UserID:    userID,
 		Username:  username,
 		CreatedAt: now,
