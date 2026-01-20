@@ -23,6 +23,7 @@ type telegramLogin struct {
 
 func (s *Server) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("/auth/telegram", s.handleTelegramAuth)
+	mux.HandleFunc("/auth/verify", s.handleAuthVerify)
 }
 
 func (s *Server) handleTelegramAuth(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +61,30 @@ func (s *Server) handleTelegramAuth(w http.ResponseWriter, r *http.Request) {
 		"user_id":    session.UserID,
 		"username":   session.Username,
 		"expires_at": session.ExpiresAt.Unix(),
+	}})
+}
+
+func (s *Server) handleAuthVerify(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	token := bearerToken(r.Header.Get("Authorization"))
+	if token == "" {
+		writeJSON(w, http.StatusUnauthorized, apiResponse{OK: false, Error: "missing_token"})
+		return
+	}
+
+	session, ok := s.sessions.Get(token)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, apiResponse{OK: false, Error: "invalid_token"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"user_id":  session.UserID,
+		"username": session.Username,
 	}})
 }
 

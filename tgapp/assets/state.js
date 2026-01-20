@@ -6,6 +6,8 @@ if (tokenFromQuery) {
   localStorage.setItem("auth_token", tokenFromQuery);
 }
 export const authToken = tokenFromQuery || localStorage.getItem("auth_token") || "";
+const isTelegram = Boolean(tg && initData);
+document.documentElement.classList.toggle("no-telegram", !isTelegram);
 
 export const $ = (id) => document.getElementById(id);
 

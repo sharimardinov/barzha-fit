@@ -35,6 +35,16 @@ body {
   }
 }
 
+.no-telegram .app {
+  padding-top: calc(16px + env(safe-area-inset-top));
+}
+
+@media (max-width: 720px) {
+  .no-telegram .app {
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+}
+
 .app-header {
   display: flex;
   align-items: center;
