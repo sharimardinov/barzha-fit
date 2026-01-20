@@ -57,7 +57,7 @@ func cleanWorkoutLine(line string) string {
 }
 
 func looksLikeWorkoutLine(line string) bool {
-	if strings.Contains(line, "/") {
+	if strings.Contains(line, "|") || slashFieldRe.MatchString(line) {
 		return true
 	}
 	if workoutSetsRe.MatchString(line) || workoutDurationRe.MatchString(line) {
@@ -72,12 +72,12 @@ func isRestLine(line string) bool {
 }
 
 func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
-	fields := strings.Split(line, "|")
+	fields := splitWorkoutFields(line)
 	for i := range fields {
 		fields[i] = strings.TrimSpace(fields[i])
 	}
 	if len(fields) < 2 {
-		return domain.WorkoutExercise{}, "используй формат: Название / 3x10 / 60 / 120"
+		return domain.WorkoutExercise{}, "используй формат: Название | 3x10 | 60 | 120 (или через /)"
 	}
 	if len(fields) > 4 {
 		return domain.WorkoutExercise{}, "слишком много секций, ожидается максимум 4"
@@ -137,6 +137,18 @@ func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
 	}
 
 	return domain.WorkoutExercise{}, "не удалось распознать формат (пример: Название | 3x10 | 60 | 120)"
+}
+
+var slashFieldRe = regexp.MustCompile(`\s*/\s*`)
+
+func splitWorkoutFields(line string) []string {
+	if strings.Contains(line, "|") {
+		return strings.Split(line, "|")
+	}
+	if slashFieldRe.MatchString(line) {
+		return slashFieldRe.Split(line, -1)
+	}
+	return []string{line}
 }
 
 func stripNotes(value string) string {

@@ -75,7 +75,7 @@ export function renderPlanEditor(container, weekPlan, onChange) {
     wrapper.appendChild(focusInput);
 
     const itemsArea = document.createElement("textarea");
-    itemsArea.placeholder = "По одному на строку. Формат: Название | 3x10 | 60 | 120. Кардио: Название | 25 мин";
+    itemsArea.placeholder = "По одному на строку. Формат: Название | 3x10 | 60 | 120 (или через /). Кардио: Название | 25 мин";
     itemsArea.value = Array.isArray(day.items) ? day.items.join("\n") : "";
     itemsArea.addEventListener("input", () => {
       day.items = itemsArea.value
@@ -144,7 +144,7 @@ function renderTrainingEditor(payload) {
     wrapper.appendChild(focusInput);
 
     const itemsArea = document.createElement("textarea");
-    itemsArea.placeholder = "По одному на строку. Формат: Название | 3x10 | 60 | 120. Кардио: Название | 25 мин";
+    itemsArea.placeholder = "По одному на строку. Формат: Название | 3x10 | 60 | 120 (или через /). Кардио: Название | 25 мин";
     itemsArea.value = Array.isArray(day.items) ? day.items.join("\n") : "";
     itemsArea.dataset.field = "items";
     wrapper.appendChild(itemsArea);
