@@ -983,6 +983,8 @@ button {
     var(--white) var(--timer-progress),
     var(--white) 100%
   );
+  background-clip: padding-box;
+  background-origin: padding-box;
   transition: background 0.4s linear;
 }
 
