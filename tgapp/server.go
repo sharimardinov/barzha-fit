@@ -97,7 +97,11 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	fileServer := http.FileServer(http.FS(sub))
 	serveMiniapp := func(prefix string) {
 		mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, prefix+"/", http.StatusMovedPermanently)
+			target := prefix + "/"
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
 		})
 		mux.Handle(prefix+"/", http.StripPrefix(prefix+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := strings.TrimPrefix(r.URL.Path, "/")
