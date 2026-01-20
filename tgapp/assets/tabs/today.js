@@ -1,6 +1,9 @@
 import { $, api, state, toast, setProgress, setActiveTab } from "../core.js";
 import { parsePlan, renderTrainingAccordion } from "../plan-utils.js";
 
+let workoutCardProgress = 0;
+let workoutCardAnim = null;
+
 export async function loadToday() {
   const data = await api("/api/today");
   state.today = data;
@@ -41,10 +44,7 @@ export async function loadToday() {
     workout.classList.toggle("is-empty", label === "—");
   }
 
-  const workoutCard = $("workout-day-card");
-  if (workoutCard) {
-    workoutCard.classList.toggle("is-done", data.workout === "done");
-  }
+  setWorkoutCardProgress(data.workout === "done" ? 1 : 0);
 
   const doneBtn = $("workout-done");
   if (doneBtn) {
@@ -69,6 +69,40 @@ export async function loadToday() {
 
   $("steps-summary").textContent = `${data.steps} / ${data.targets.steps}`;
   setProgress("progress-steps-screen", data.steps, data.targets.steps);
+}
+
+function setWorkoutCardProgress(target) {
+  const card = $("workout-day-card");
+  if (!card) return;
+  const clamped = Math.max(0, Math.min(1, target));
+  const current = workoutCardProgress;
+  if (Math.abs(current - clamped) < 0.001) {
+    workoutCardProgress = clamped;
+    card.style.setProperty("--workout-progress", `${clamped * 100}%`);
+    card.classList.toggle("is-filled", clamped > 0);
+    return;
+  }
+  card.classList.add("is-filled");
+  if (workoutCardAnim) cancelAnimationFrame(workoutCardAnim);
+  const start = performance.now();
+  const duration = 360;
+  const delta = clamped - current;
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const value = current + delta * eased;
+    workoutCardProgress = value;
+    card.style.setProperty("--workout-progress", `${value * 100}%`);
+    if (t < 1) {
+      workoutCardAnim = requestAnimationFrame(tick);
+      return;
+    }
+    workoutCardAnim = null;
+    if (clamped <= 0.001) {
+      card.classList.remove("is-filled");
+    }
+  };
+  workoutCardAnim = requestAnimationFrame(tick);
 }
 
 export function initTodayTab() {
