@@ -77,19 +77,9 @@ func TestGenerateTrainingProgramStrength(t *testing.T) {
 			{ID: "p1", Name: "Band External Rotation", MuscleGroup: "shoulders_rear", Priority: "accessory", PrehabTarget: "shoulder"},
 		},
 	}
-	periods := &fakePeriodizationStorage{
-		period: domain.Periodization{
-			Week:       1,
-			Intensity:  "heavy",
-			Percent1RM: "85-90%",
-			Reps:       "3-5",
-			Rest:       "150-180s",
-		},
-		ok: true,
-	}
 	programs := &fakeUserProgramStorage{}
 
-	svc := service.NewTrainingProgramService(users, inputs, templates, exercises, periods, programs)
+	svc := service.NewTrainingProgramService(users, inputs, templates, exercises, programs)
 	svcNow := time.Date(2024, 1, 2, 15, 0, 0, 0, time.UTC)
 	svc.SetNowFunc(func() time.Time { return svcNow })
 
@@ -117,83 +107,7 @@ func TestGenerateTrainingProgramStrength(t *testing.T) {
 	}
 }
 
-func TestContinueProgramWeek2KeepsExercises(t *testing.T) {
-	users := &fakeUserIdentity{userID: "user-1"}
-	inputs := &fakeTrainingInputReader{
-		input: domain.TrainingInput{
-			UserID:      "user-1",
-			Level:       domain.FitnessBeginner,
-			Goal:        domain.GoalHypertrophy,
-			DaysPerWeek: 1,
-		},
-		ok: true,
-	}
-	templates := &fakeTemplateStorage{}
-	exercises := &fakeExerciseStorage{}
-	periods := &fakePeriodizationStorage{
-		period: domain.Periodization{
-			Week:       2,
-			Intensity:  "medium",
-			Percent1RM: "60-70%",
-			Reps:       "10-12",
-			Rest:       "2:00-2:30",
-		},
-		ok: true,
-	}
-
-	existingProgram := domain.GeneratedProgram{
-		Template: "full_body",
-		Week:     1,
-		Days: []domain.GeneratedDay{
-			{
-				Day:   1,
-				Name:  "Day 1",
-				Focus: "push",
-				Type:  "train",
-				Exercises: []domain.GeneratedExercise{
-					{
-						ExerciseID:  "e1",
-						Name:        "Bench Press",
-						MuscleGroup: "chest",
-						Priority:    "main",
-						Sets:        4,
-						Reps:        "8-12",
-						RPE:         "7-8",
-						Rest:        "90-120s",
-					},
-				},
-			},
-		},
-	}
-	raw, _ := json.Marshal(existingProgram)
-	programs := &fakeUserProgramStorage{
-		getOK: true,
-		existing: domain.UserProgram{
-			ID:            "prog-1",
-			UserID:        "user-1",
-			TemplateID:    "tpl-1",
-			CurrentWeek:   1,
-			DaysGenerated: raw,
-		},
-	}
-
-	svc := service.NewTrainingProgramService(users, inputs, templates, exercises, periods, programs)
-	updated, gen, err := svc.Generate(context.Background(), 42)
-	if err != nil {
-		t.Fatalf("Generate error: %v", err)
-	}
-	if updated.CurrentWeek != 2 {
-		t.Fatalf("expected current_week 2, got %d", updated.CurrentWeek)
-	}
-	if gen.Week != 2 {
-		t.Fatalf("expected program week 2, got %d", gen.Week)
-	}
-	if gen.Days[0].Exercises[0].Name != "Bench Press" {
-		t.Fatalf("expected same exercise, got %q", gen.Days[0].Exercises[0].Name)
-	}
-}
-
-func TestAntiAdaptationSubstitution(t *testing.T) {
+func TestSubstitutionWhenExerciseWasUsed(t *testing.T) {
 	users := &fakeUserIdentity{userID: "user-1"}
 	inputs := &fakeTrainingInputReader{
 		input: domain.TrainingInput{
@@ -227,20 +141,9 @@ func TestAntiAdaptationSubstitution(t *testing.T) {
 			{ID: "e6", Name: "Pec Deck", MuscleGroup: "chest", Priority: "accessory"},
 		},
 	}
-	periods := &fakePeriodizationStorage{
-		period: domain.Periodization{
-			Week:       1,
-			Intensity:  "light",
-			Percent1RM: "45-50%",
-			Reps:       "20-25",
-			Rest:       "1:00-1:30",
-		},
-		ok: true,
-	}
 
 	prevProgram := domain.GeneratedProgram{
 		Template: "full_body",
-		Week:     3,
 		Days: []domain.GeneratedDay{
 			{
 				Day:   1,
@@ -287,12 +190,11 @@ func TestAntiAdaptationSubstitution(t *testing.T) {
 			ID:            "prog-1",
 			UserID:        "user-1",
 			TemplateID:    "tpl-1",
-			CurrentWeek:   3,
 			DaysGenerated: raw,
 		},
 	}
 
-	svc := service.NewTrainingProgramService(users, inputs, templates, exercises, periods, programs)
+	svc := service.NewTrainingProgramService(users, inputs, templates, exercises, programs)
 	_, gen, err := svc.Generate(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("Generate error: %v", err)
@@ -371,16 +273,6 @@ func (f *fakeExerciseStorage) ListSubstitutes(ctx context.Context, names []strin
 		}
 	}
 	return out, nil
-}
-
-type fakePeriodizationStorage struct {
-	period domain.Periodization
-	ok     bool
-	err    error
-}
-
-func (f *fakePeriodizationStorage) GetByWeek(ctx context.Context, week int) (domain.Periodization, bool, error) {
-	return f.period, f.ok, f.err
 }
 
 type fakeUserProgramStorage struct {

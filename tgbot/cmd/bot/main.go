@@ -60,14 +60,12 @@ func main() {
 
 	templateRepo := db.NewProgramTemplateRepo(pool)
 	exerciseRepo := db.NewExerciseRepo(pool)
-	periodizationRepo := db.NewPeriodizationRepo(pool)
 	userProgramRepo := db.NewUserProgramRepo(pool)
 	trainingProgramSvc := service.NewTrainingProgramService(
 		appUserRepo,
 		trainingInputRepo,
 		templateRepo,
 		exerciseRepo,
-		periodizationRepo,
 		userProgramRepo,
 	)
 
@@ -88,20 +86,20 @@ func main() {
 	workoutTimerSvc := service.NewWorkoutTimerService(workoutPlanRepo, workoutSessionRepo, workoutSetRepo)
 
 	webServer := tgapp.NewServer(tgapp.Deps{
-		Addr:      cfg.WebAddr,
-		BotToken:  cfg.BotToken,
-		TZ:        cfg.TZ,
-		Plan:      planSvc,
-		Workout:   workoutSvc,
-		Targets:   targetsSvc,
-		Nutrition: nutSvc,
-		Steps:     stepsSvc,
-		Profile:   profileSvc,
-		Training:  trainingProfileSvc,
-		Inputs:    trainingInputSvc,
-		Programs:  trainingProgramSvc,
-		Injuries:  injuryTypeSvc,
-		Activity:  activityAI,
+		Addr:         cfg.WebAddr,
+		BotToken:     cfg.BotToken,
+		TZ:           cfg.TZ,
+		Plan:         planSvc,
+		Workout:      workoutSvc,
+		Targets:      targetsSvc,
+		Nutrition:    nutSvc,
+		Steps:        stepsSvc,
+		Profile:      profileSvc,
+		Training:     trainingProfileSvc,
+		Inputs:       trainingInputSvc,
+		Programs:     trainingProgramSvc,
+		Injuries:     injuryTypeSvc,
+		Activity:     activityAI,
 		WorkoutTimer: workoutTimerSvc,
 	})
 	go func() {

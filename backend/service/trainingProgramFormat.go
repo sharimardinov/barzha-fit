@@ -9,20 +9,6 @@ import (
 
 func FormatGeneratedProgram(program domain.GeneratedProgram) string {
 	var b strings.Builder
-	if program.Periodization.Week > 0 {
-		intensity := titleCase(program.Periodization.Intensity)
-		header := fmt.Sprintf(
-			"Week %d — %s | %%1RM %s | Reps %s | Rest %s",
-			program.Periodization.Week,
-			intensity,
-			emptyFallback(program.Periodization.Percent1RM, "—"),
-			emptyFallback(program.Periodization.Reps, "—"),
-			emptyFallback(program.Periodization.Rest, "—"),
-		)
-		b.WriteString(header)
-		b.WriteString("\n\n")
-	}
-
 	for i, day := range program.Days {
 		if i > 0 {
 			b.WriteString("\n")
@@ -59,21 +45,6 @@ func FormatGeneratedProgram(program domain.GeneratedProgram) string {
 	}
 
 	return strings.TrimSpace(b.String())
-}
-
-func titleCase(value string) string {
-	if value == "" {
-		return value
-	}
-	lower := strings.ToLower(value)
-	return strings.ToUpper(lower[:1]) + lower[1:]
-}
-
-func emptyFallback(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
 }
 
 func formatTags(tags []string) string {

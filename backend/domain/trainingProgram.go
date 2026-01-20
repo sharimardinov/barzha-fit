@@ -36,30 +36,19 @@ type Exercise struct {
 	PrehabTarget      string
 }
 
-type Periodization struct {
-	Week       int    `json:"week"`
-	Intensity  string `json:"intensity"`
-	Percent1RM string `json:"percent_1rm"`
-	Reps       string `json:"reps"`
-	Rest       string `json:"rest"`
-}
-
 type UserProgram struct {
 	ID            string
 	UserID        string
 	TemplateID    string
 	StartDate     time.Time
-	CurrentWeek   int
 	DaysGenerated json.RawMessage
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
 
 type GeneratedProgram struct {
-	Template      string         `json:"template"`
-	Week          int            `json:"week"`
-	Periodization Periodization  `json:"periodization"`
-	Days          []GeneratedDay `json:"days"`
+	Template string         `json:"template"`
+	Days     []GeneratedDay `json:"days"`
 }
 
 type GeneratedDay struct {

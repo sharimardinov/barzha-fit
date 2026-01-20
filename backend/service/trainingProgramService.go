@@ -25,10 +25,6 @@ type ExerciseStorage interface {
 	ListSubstitutes(ctx context.Context, names []string, level domain.FitnessLevel, injuries []string) ([]domain.Exercise, error)
 }
 
-type PeriodizationStorage interface {
-	GetByWeek(ctx context.Context, week int) (domain.Periodization, bool, error)
-}
-
 type UserProgramStorage interface {
 	Insert(ctx context.Context, program domain.UserProgram) (domain.UserProgram, error)
 	Update(ctx context.Context, program domain.UserProgram) (domain.UserProgram, error)
@@ -36,13 +32,12 @@ type UserProgramStorage interface {
 }
 
 type TrainingProgramService struct {
-	users         UserIdentityStorage
-	inputs        TrainingInputReader
-	templates     ProgramTemplateStorage
-	exercises     ExerciseStorage
-	periodization PeriodizationStorage
-	programs      UserProgramStorage
-	now           func() time.Time
+	users     UserIdentityStorage
+	inputs    TrainingInputReader
+	templates ProgramTemplateStorage
+	exercises ExerciseStorage
+	programs  UserProgramStorage
+	now       func() time.Time
 }
 
 func NewTrainingProgramService(
@@ -50,17 +45,15 @@ func NewTrainingProgramService(
 	inputs TrainingInputReader,
 	templates ProgramTemplateStorage,
 	exercises ExerciseStorage,
-	periodization PeriodizationStorage,
 	programs UserProgramStorage,
 ) *TrainingProgramService {
 	return &TrainingProgramService{
-		users:         users,
-		inputs:        inputs,
-		templates:     templates,
-		exercises:     exercises,
-		periodization: periodization,
-		programs:      programs,
-		now:           time.Now,
+		users:     users,
+		inputs:    inputs,
+		templates: templates,
+		exercises: exercises,
+		programs:  programs,
+		now:       time.Now,
 	}
 }
 
@@ -108,27 +101,6 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
 	}
 
-	if has && existing.CurrentWeek < 3 {
-		nextWeek := existing.CurrentWeek + 1
-		period := s.resolvePeriodization(ctx, nextWeek)
-		prev, err := decodeGeneratedProgram(existing.DaysGenerated)
-		if err != nil {
-			return domain.UserProgram{}, domain.GeneratedProgram{}, err
-		}
-		updatedProgram := applyPeriodization(prev, input.Goal, period)
-		raw, err := json.Marshal(updatedProgram)
-		if err != nil {
-			return domain.UserProgram{}, domain.GeneratedProgram{}, err
-		}
-		existing.CurrentWeek = nextWeek
-		existing.DaysGenerated = raw
-		updated, err := s.programs.Update(ctx, existing)
-		if err != nil {
-			return domain.UserProgram{}, domain.GeneratedProgram{}, err
-		}
-		return updated, updatedProgram, nil
-	}
-
 	templateName, err := SelectTemplateName(input.DaysPerWeek, input.Level)
 	if err != nil {
 		return domain.UserProgram{}, domain.GeneratedProgram{}, err
@@ -149,8 +121,6 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		days = days[:input.DaysPerWeek]
 	}
 
-	week := 1
-	period := s.resolvePeriodization(ctx, week)
 	avoidNames := map[string]bool{}
 	avoidList := []string{}
 	if has {
@@ -166,13 +136,11 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 	}
 
 	gen := domain.GeneratedProgram{
-		Template:      template.Name,
-		Week:          week,
-		Periodization: period,
-		Days:          make([]domain.GeneratedDay, 0, len(days)),
+		Template: template.Name,
+		Days:     make([]domain.GeneratedDay, 0, len(days)),
 	}
 	for i, day := range days {
-		plan, err := s.generateDay(ctx, i+1, day, input, period, avoidNames, substitutes)
+		plan, err := s.generateDay(ctx, i+1, day, input, avoidNames, substitutes)
 		if err != nil {
 			return domain.UserProgram{}, domain.GeneratedProgram{}, err
 		}
@@ -185,7 +153,6 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 	}
 	startDate := s.now().UTC().Truncate(24 * time.Hour)
 	if has {
-		existing.CurrentWeek = week
 		existing.DaysGenerated = raw
 		updated, err := s.programs.Update(ctx, existing)
 		if err != nil {
@@ -197,7 +164,6 @@ func (s *TrainingProgramService) Generate(ctx context.Context, chatID int64) (do
 		UserID:        userID,
 		TemplateID:    template.ID,
 		StartDate:     startDate,
-		CurrentWeek:   week,
 		DaysGenerated: raw,
 	})
 	if err != nil {
@@ -211,7 +177,6 @@ func (s *TrainingProgramService) generateDay(
 	dayIndex int,
 	day domain.TemplateDay,
 	input domain.TrainingInput,
-	period domain.Periodization,
 	avoidNames map[string]bool,
 	substitutes map[string][]domain.Exercise,
 ) (domain.GeneratedDay, error) {
@@ -252,13 +217,9 @@ func (s *TrainingProgramService) generateDay(
 
 	items := make([]domain.GeneratedExercise, 0, len(selected))
 	for _, ex := range selected {
-		sets, reps, rpe, rest, percent := buildPrescription(input.Goal, ex.Priority, period)
+		sets, reps, rpe, rest, percent := buildPrescription(input.Goal, ex.Priority)
 		if ex.PrehabTarget != "" && len(input.Injuries) > 0 {
 			sets, reps, rpe, rest, percent = prehabPrescription()
-		}
-		tags := []string{}
-		if period.Week == 3 {
-			tags = []string{"antiadaptation"}
 		}
 		items = append(items, domain.GeneratedExercise{
 			ExerciseID:  ex.ID,
@@ -270,7 +231,6 @@ func (s *TrainingProgramService) generateDay(
 			RPE:         rpe,
 			Rest:        rest,
 			Percent1RM:  percent,
-			Tags:        tags,
 		})
 	}
 
@@ -411,7 +371,7 @@ func pickFallback(grouped map[string]map[string][]domain.Exercise, groups []stri
 	return selected
 }
 
-func buildPrescription(goal domain.FitnessGoal, priority string, period domain.Periodization) (int, string, string, string, string) {
+func buildPrescription(goal domain.FitnessGoal, priority string) (int, string, string, string, string) {
 	sets := 3
 	switch priority {
 	case "main":
@@ -422,29 +382,19 @@ func buildPrescription(goal domain.FitnessGoal, priority string, period domain.P
 		sets = 2
 	}
 
-	reps := goalReps(goal, period)
-	rpe := intensityRPE(period.Intensity, goal)
-	rest := period.Rest
-	if rest == "" {
-		rest = goalRest(goal)
-	}
+	reps := goalReps(goal)
+	rpe := goalRPE(goal)
+	rest := goalRest(goal)
 	percent := ""
 	if goal == domain.GoalStrength {
-		if period.Percent1RM != "" {
-			percent = period.Percent1RM
-		} else {
-			percent = "80-90%"
-		}
+		percent = "80-90%"
 	}
 	return sets, reps, rpe, rest, percent
 }
 
-func goalReps(goal domain.FitnessGoal, period domain.Periodization) string {
+func goalReps(goal domain.FitnessGoal) string {
 	switch goal {
 	case domain.GoalStrength:
-		if period.Reps != "" {
-			return period.Reps
-		}
 		return "3-6"
 	case domain.GoalHypertrophy:
 		return "8-12"
@@ -468,23 +418,14 @@ func goalRest(goal domain.FitnessGoal) string {
 	}
 }
 
-func intensityRPE(intensity string, goal domain.FitnessGoal) string {
-	switch strings.ToLower(strings.TrimSpace(intensity)) {
-	case "light":
-		return "6-7"
-	case "medium":
-		return "7-8"
-	case "heavy":
+func goalRPE(goal domain.FitnessGoal) string {
+	switch goal {
+	case domain.GoalStrength:
 		return "8-9"
+	case domain.GoalFatLoss:
+		return "6-7"
 	default:
-		switch goal {
-		case domain.GoalStrength:
-			return "8-9"
-		case domain.GoalFatLoss:
-			return "6-7"
-		default:
-			return "7-8"
-		}
+		return "7-8"
 	}
 }
 
@@ -501,38 +442,6 @@ func decodeGeneratedProgram(raw json.RawMessage) (domain.GeneratedProgram, error
 		return domain.GeneratedProgram{}, err
 	}
 	return out, nil
-}
-
-func applyPeriodization(program domain.GeneratedProgram, goal domain.FitnessGoal, period domain.Periodization) domain.GeneratedProgram {
-	program.Week = period.Week
-	program.Periodization = period
-	for i := range program.Days {
-		day := &program.Days[i]
-		for j := range day.Exercises {
-			ex := &day.Exercises[j]
-			sets, reps, rpe, rest, percent := buildPrescription(goal, ex.Priority, period)
-			ex.Sets = sets
-			ex.Reps = reps
-			ex.RPE = rpe
-			ex.Rest = rest
-			ex.Percent1RM = percent
-			ex.Tags = nil
-			if period.Week == 3 {
-				ex.Tags = []string{"antiadaptation"}
-			}
-		}
-	}
-	return program
-}
-
-func (s *TrainingProgramService) resolvePeriodization(ctx context.Context, week int) domain.Periodization {
-	period, ok, err := s.periodization.GetByWeek(ctx, week)
-	if err != nil || !ok {
-		fallback := fallbackPeriodization()
-		fallback.Week = week
-		return fallback
-	}
-	return period
 }
 
 func collectExerciseNames(program domain.GeneratedProgram) (map[string]bool, []string) {
@@ -630,14 +539,4 @@ func pickSubstitute(candidates []domain.Exercise, original domain.Exercise, used
 
 func normalizeName(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func fallbackPeriodization() domain.Periodization {
-	return domain.Periodization{
-		Week:       1,
-		Intensity:  "light",
-		Percent1RM: "45-50%",
-		Reps:       "20-25",
-		Rest:       "1:00-1:30",
-	}
 }

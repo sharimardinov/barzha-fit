@@ -18,7 +18,7 @@ func NewUserProgramRepo(db *pgxpool.Pool) *UserProgramRepo { return &UserProgram
 func (r *UserProgramRepo) GetLatestByUserID(ctx context.Context, userID string) (domain.UserProgram, bool, error) {
 	var out domain.UserProgram
 	err := r.db.QueryRow(ctx, `
-		select id, user_id, template_id, start_date, current_week, days_generated, created_at, updated_at
+		select id, user_id, template_id, start_date, days_generated, created_at, updated_at
 		from user_programs
 		where user_id=$1
 		order by created_at desc
@@ -28,7 +28,6 @@ func (r *UserProgramRepo) GetLatestByUserID(ctx context.Context, userID string) 
 		&out.UserID,
 		&out.TemplateID,
 		&out.StartDate,
-		&out.CurrentWeek,
 		&out.DaysGenerated,
 		&out.CreatedAt,
 		&out.UpdatedAt,
@@ -45,15 +44,14 @@ func (r *UserProgramRepo) GetLatestByUserID(ctx context.Context, userID string) 
 func (r *UserProgramRepo) Insert(ctx context.Context, program domain.UserProgram) (domain.UserProgram, error) {
 	var out domain.UserProgram
 	err := r.db.QueryRow(ctx, `
-		insert into user_programs (user_id, template_id, start_date, current_week, days_generated)
-		values ($1,$2,$3,$4,$5)
-		returning id, user_id, template_id, start_date, current_week, days_generated, created_at, updated_at
-	`, program.UserID, program.TemplateID, program.StartDate, program.CurrentWeek, program.DaysGenerated).Scan(
+		insert into user_programs (user_id, template_id, start_date, days_generated)
+		values ($1,$2,$3,$4)
+		returning id, user_id, template_id, start_date, days_generated, created_at, updated_at
+	`, program.UserID, program.TemplateID, program.StartDate, program.DaysGenerated).Scan(
 		&out.ID,
 		&out.UserID,
 		&out.TemplateID,
 		&out.StartDate,
-		&out.CurrentWeek,
 		&out.DaysGenerated,
 		&out.CreatedAt,
 		&out.UpdatedAt,
@@ -68,17 +66,15 @@ func (r *UserProgramRepo) Update(ctx context.Context, program domain.UserProgram
 	var out domain.UserProgram
 	err := r.db.QueryRow(ctx, `
 		update user_programs
-		set current_week=$2,
-		    days_generated=$3,
+		set days_generated=$2,
 		    updated_at=now()
 		where id=$1
-		returning id, user_id, template_id, start_date, current_week, days_generated, created_at, updated_at
-	`, program.ID, program.CurrentWeek, program.DaysGenerated).Scan(
+		returning id, user_id, template_id, start_date, days_generated, created_at, updated_at
+	`, program.ID, program.DaysGenerated).Scan(
 		&out.ID,
 		&out.UserID,
 		&out.TemplateID,
 		&out.StartDate,
-		&out.CurrentWeek,
 		&out.DaysGenerated,
 		&out.CreatedAt,
 		&out.UpdatedAt,
