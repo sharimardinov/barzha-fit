@@ -336,6 +336,59 @@ body {
   color: var(--black);
 }
 
+.workout-day-card.is-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--white);
+}
+
+.workout-day-card.is-done .card-title,
+.workout-day-card.is-done .status-row,
+.workout-day-card.is-done .status-pill,
+.workout-day-card.is-done .plan,
+.workout-day-card.is-done .accordion-toggle,
+.workout-day-card.is-done .accordion-body,
+.workout-day-card.is-done .accordion-group-title,
+.workout-day-card.is-done .accordion-list {
+  color: var(--white);
+}
+
+.workout-day-card.is-done .status-pill {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.workout-day-card.is-done .plan {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.workout-day-card.is-done .accordion-item {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.workout-day-card.is-done .accordion-toggle {
+  background: transparent;
+}
+
+.workout-day-card.is-done .accordion-body {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.workout-day-card.is-done .burger span {
+  background: var(--white);
+}
+
+.workout-day-card.is-done #workout-done {
+  background: var(--white);
+  color: var(--accent);
+}
+
+.workout-day-card.is-done #workout-skip {
+  background: transparent;
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
 .indicator {
   display: inline-block;
   width: 10px;

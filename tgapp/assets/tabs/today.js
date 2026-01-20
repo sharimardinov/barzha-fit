@@ -35,9 +35,20 @@ export async function loadToday() {
   }
   const workout = $("today-workout");
   if (workout) {
-    const icon = data.workoutIcon || "";
-    workout.textContent = icon === "—" ? "" : icon;
-    workout.classList.toggle("is-empty", icon === "" || icon === "—");
+    const status = String(data.workout || "");
+    const label = status === "done" ? "Сделано" : status === "skip" ? "Пропущено" : "—";
+    workout.textContent = label;
+    workout.classList.toggle("is-empty", label === "—");
+  }
+
+  const workoutCard = $("workout-day-card");
+  if (workoutCard) {
+    workoutCard.classList.toggle("is-done", data.workout === "done");
+  }
+
+  const doneBtn = $("workout-done");
+  if (doneBtn) {
+    doneBtn.textContent = data.workout === "done" ? "Сделано" : "Сделал";
   }
 
   const setMetricValue = (id, text, icon) => {
@@ -82,7 +93,7 @@ export function initTodayTab() {
     workoutDone.addEventListener("click", async () => {
       await api("/api/workout/set", { status: "done" });
       await loadToday();
-      toast("Отмечено ✅");
+      toast("Отмечено");
     });
   }
 
@@ -91,7 +102,7 @@ export function initTodayTab() {
     workoutSkip.addEventListener("click", async () => {
       await api("/api/workout/set", { status: "skip" });
       await loadToday();
-      toast("Отмечено ❌");
+      toast("Отмечено");
     });
   }
 }
