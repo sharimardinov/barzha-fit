@@ -402,13 +402,32 @@ body {
 }
 
 .workout-day-card.is-filled #workout-done {
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
 }
 
 .workout-day-card.is-filled #workout-skip {
   background: transparent;
-  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.workout-day-card.is-filled .workout-ink-box {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.16) 0,
+      rgba(255, 255, 255, 0.16) var(--workout-progress),
+      transparent var(--workout-progress),
+      transparent 100%
+    ) padding-box,
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.9) 0,
+      rgba(255, 255, 255, 0.9) var(--workout-progress),
+      var(--black) var(--workout-progress),
+      var(--black) 100%
+    ) border-box;
+  background-size: var(--workout-card-width) 100%;
+  background-position: var(--workout-ink-offset, 0) 0, var(--workout-ink-offset, 0) 0;
 }
 
 .workout-day-card .accordion {
@@ -445,10 +464,29 @@ body {
 .today-actions {
   align-items: center;
   flex-wrap: nowrap;
+  gap: 12px;
 }
 
+.today-actions #workout-done,
 .today-actions #workout-skip {
-  margin-left: auto;
+  flex: 0 0 auto;
+  min-width: 128px;
+}
+
+.today-skip-toast {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.today-skip-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .row.action-row {

@@ -3,6 +3,7 @@ import { parsePlan, renderTrainingAccordion } from "../plan-utils.js";
 
 let workoutCardProgress = 0;
 let workoutCardAnim = null;
+let skipToastTimer = null;
 
 export async function loadToday() {
   const data = await api("/api/today");
@@ -150,7 +151,7 @@ export function initTodayTab() {
     workoutSkip.addEventListener("click", async () => {
       await api("/api/workout/set", { status: "skip" });
       await loadToday();
-      toast("Отмечено");
+      showSkipToast();
     });
   }
 
@@ -168,4 +169,16 @@ export function initTodayTab() {
     if (!card) return;
     updateWorkoutInkPositions(card);
   });
+}
+
+function showSkipToast() {
+  const toastEl = $("today-skip-toast");
+  if (!toastEl) return;
+  toastEl.classList.add("is-visible");
+  if (skipToastTimer) {
+    clearTimeout(skipToastTimer);
+  }
+  skipToastTimer = setTimeout(() => {
+    toastEl.classList.remove("is-visible");
+  }, 1400);
 }
