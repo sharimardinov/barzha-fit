@@ -888,7 +888,7 @@ func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authC
 }
 
 func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	plan, _, err := s.workout.GetPlan(context.Background(), auth.User.ID)
+	plan, _, err := s.workoutTimer.GetPlan(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -909,7 +909,7 @@ func (s *Server) handleWorkoutPlanSave(w http.ResponseWriter, r *http.Request, a
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
-	if _, err := s.workout.SavePlan(context.Background(), auth.User.ID, &payload.Plan); err != nil {
+	if _, err := s.workoutTimer.SavePlan(context.Background(), auth.User.ID, &payload.Plan); err != nil {
 		if writeWorkoutError(w, err) {
 			return
 		}
@@ -920,7 +920,7 @@ func (s *Server) handleWorkoutPlanSave(w http.ResponseWriter, r *http.Request, a
 }
 
 func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workout.GetSession(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.GetSession(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -935,7 +935,7 @@ func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, existing, err := s.workout.StartSession(context.Background(), auth.User.ID)
+	session, plan, existing, err := s.workoutTimer.StartSession(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -951,7 +951,7 @@ func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleWorkoutWarmupEnd(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workout.FinishWarmup(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.FinishWarmup(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -976,7 +976,7 @@ func (s *Server) handleWorkoutSetFinish(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
-	session, plan, err := s.workout.FinishSet(context.Background(), auth.User.ID, payload.ExerciseIndex, payload.SetIndex, payload.ActualWeight, payload.ActualReps)
+	session, plan, err := s.workoutTimer.FinishSet(context.Background(), auth.User.ID, payload.ExerciseIndex, payload.SetIndex, payload.ActualWeight, payload.ActualReps)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -991,7 +991,7 @@ func (s *Server) handleWorkoutSetFinish(w http.ResponseWriter, r *http.Request, 
 }
 
 func (s *Server) handleWorkoutSessionPause(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workout.Pause(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.Pause(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1006,7 +1006,7 @@ func (s *Server) handleWorkoutSessionPause(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleWorkoutSessionResume(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workout.Resume(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.Resume(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return

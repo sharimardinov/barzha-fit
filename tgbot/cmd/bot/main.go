@@ -102,7 +102,7 @@ func main() {
 		Programs:  trainingProgramSvc,
 		Injuries:  injuryTypeSvc,
 		Activity:  activityAI,
-		Workout:   workoutTimerSvc,
+		WorkoutTimer: workoutTimerSvc,
 	})
 	go func() {
 		if err := webServer.ListenAndServe(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -135,7 +135,7 @@ func runLinkBot(ctx context.Context, api *tgbotapi.BotAPI) error {
 				if upd.CallbackQuery.Message != nil {
 					sendAppLink(api, upd.CallbackQuery.Message.Chat.ID)
 				}
-				_ = api.Request(tgbotapi.NewCallback(upd.CallbackQuery.ID, ""))
+				_, _ = api.Request(tgbotapi.NewCallback(upd.CallbackQuery.ID, ""))
 			}
 		}
 	}
