@@ -1,4 +1,4 @@
-import { initData, tg, toast, setActiveTab, updateNavHighlight, loadTargets } from "./core.js";
+import { authToken, initData, tg, toast, setActiveTab, updateNavHighlight, loadTargets } from "./core.js";
 import {
   loadToday,
   initTodayTab,
@@ -52,7 +52,7 @@ function initNav() {
 }
 
 async function bootstrap() {
-  if (!initData) {
+  if (!initData && !authToken) {
     toast("Открой мини-апп из Telegram");
     return;
   }
