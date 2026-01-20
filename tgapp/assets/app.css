@@ -359,7 +359,9 @@ body {
 .workout-day-card.is-filled .plan,
 .workout-day-card.is-filled .accordion-toggle span,
 .workout-day-card.is-filled .accordion-group-title,
-.workout-day-card.is-filled .accordion-list li {
+.workout-day-card.is-filled .accordion-list li,
+.workout-day-card.is-filled #workout-done,
+.workout-day-card.is-filled #workout-skip {
   color: transparent;
   -webkit-text-fill-color: transparent;
   background-image: linear-gradient(
@@ -399,13 +401,12 @@ body {
 }
 
 .workout-day-card.is-filled #workout-done {
-  background: var(--white);
-  color: var(--accent);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .workout-day-card.is-filled #workout-skip {
   background: transparent;
-  color: var(--white);
   border-color: rgba(255, 255, 255, 0.8);
 }
 
@@ -438,6 +439,15 @@ body {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.today-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.today-actions #workout-skip {
+  margin-left: auto;
 }
 
 .row.action-row {
