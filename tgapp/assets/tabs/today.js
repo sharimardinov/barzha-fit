@@ -48,7 +48,10 @@ export async function loadToday() {
 
   const doneBtn = $("workout-done");
   if (doneBtn) {
-    doneBtn.textContent = data.workout === "done" ? "Сделано" : "Сделал";
+    const label = doneBtn.querySelector(".workout-ink");
+    if (label) {
+      label.textContent = data.workout === "done" ? "Сделано" : "Сделал";
+    }
   }
 
   const setMetricValue = (id, text, icon) => {
@@ -76,6 +79,7 @@ function setWorkoutCardProgress(target) {
   if (!card) return;
   const clamped = Math.max(0, Math.min(1, target));
   const current = workoutCardProgress;
+  updateWorkoutInkPositions(card);
   if (Math.abs(current - clamped) < 0.001) {
     workoutCardProgress = clamped;
     card.style.setProperty("--workout-progress", `${clamped * 100}%`);
@@ -103,6 +107,16 @@ function setWorkoutCardProgress(target) {
     }
   };
   workoutCardAnim = requestAnimationFrame(tick);
+}
+
+function updateWorkoutInkPositions(card) {
+  const rect = card.getBoundingClientRect();
+  card.style.setProperty("--workout-card-width", `${rect.width}px`);
+  card.querySelectorAll(".workout-ink").forEach((el) => {
+    const elRect = el.getBoundingClientRect();
+    const offset = elRect.left - rect.left;
+    el.style.setProperty("--workout-ink-offset", `${-offset}px`);
+  });
 }
 
 export function initTodayTab() {
@@ -139,4 +153,19 @@ export function initTodayTab() {
       toast("Отмечено");
     });
   }
+
+  const accordion = $("today-accordion");
+  if (accordion) {
+    accordion.addEventListener("click", () => {
+      const card = $("workout-day-card");
+      if (!card) return;
+      requestAnimationFrame(() => updateWorkoutInkPositions(card));
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    const card = $("workout-day-card");
+    if (!card) return;
+    updateWorkoutInkPositions(card);
+  });
 }

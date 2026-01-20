@@ -203,6 +203,7 @@ export function renderTrainingAccordion(items, containerId = "training-accordion
     toggle.type = "button";
     toggle.className = "accordion-toggle";
     const label = document.createElement("span");
+    label.className = "workout-ink";
     label.textContent = `${title}`;
     toggle.appendChild(label);
     const burger = document.createElement("span");
@@ -256,6 +257,7 @@ export function renderTrainingAccordion(items, containerId = "training-accordion
         hasExercises = true;
         counter += 1;
         const li = document.createElement("li");
+        li.className = "workout-ink";
         li.textContent = text;
         list.appendChild(li);
       });
@@ -268,6 +270,7 @@ export function renderTrainingAccordion(items, containerId = "training-accordion
       if (groupName) {
         const h = document.createElement("div");
         h.className = "accordion-group-title";
+        h.classList.add("workout-ink");
         h.textContent = groupName;
         body.appendChild(h);
       }
@@ -290,6 +293,7 @@ export function renderTrainingAccordion(items, containerId = "training-accordion
         if (tail) text += ` — ${tail}`;
         if (notes) text += ` (${notes})`;
         const li = document.createElement("li");
+        li.className = "workout-ink";
         li.textContent = text;
         list.appendChild(li);
       });
@@ -305,6 +309,7 @@ export function renderTrainingAccordion(items, containerId = "training-accordion
           const text = String(act || "").trim();
           if (!text) return;
           const li = document.createElement("li");
+          li.className = "workout-ink";
           li.textContent = text;
           list.appendChild(li);
         });
