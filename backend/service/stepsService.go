@@ -9,6 +9,7 @@ type StepsStorage interface {
 	Upsert(ctx context.Context, userID int64, dayDate string, steps int) error
 	Get(ctx context.Context, userID int64, dayDate string) (int, bool, error)
 	ListByRange(ctx context.Context, userID int64, fromDate, toDate string) (map[string]int, error)
+	SumAllTime(ctx context.Context, userID int64) (int, error)
 }
 
 type StepsService struct {
@@ -30,4 +31,8 @@ func (s *StepsService) GetByDate(ctx context.Context, userID int64, dayDate stri
 
 func (s *StepsService) ListByRange(ctx context.Context, userID int64, fromDate, toDate string) (map[string]int, error) {
 	return s.steps.ListByRange(ctx, userID, fromDate, toDate)
+}
+
+func (s *StepsService) SumAllTime(ctx context.Context, userID int64) (int, error) {
+	return s.steps.SumAllTime(ctx, userID)
 }

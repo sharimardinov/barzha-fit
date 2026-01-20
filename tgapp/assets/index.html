@@ -300,16 +300,11 @@
         <div class="card">
           <div class="card-title">Дисциплина</div>
           <div class="row stats-controls">
-            <button class="btn btn-accent" id="stats-week">Неделя</button>
-            <button class="btn btn-outline" id="stats-month">Месяц</button>
+            <button class="btn btn-outline" id="discipline-prev">‹</button>
+            <div class="stats-month-label" id="discipline-month-label">—</div>
+            <button class="btn btn-outline" id="discipline-next">›</button>
           </div>
-          <div class="stats-section active" id="stats-week-section">
-            <div class="stats-subtitle">Еда</div>
-            <div class="calendar-grid week-grid" id="week-food-calendar"></div>
-            <div class="stats-subtitle">Шаги</div>
-            <div class="calendar-grid week-grid" id="week-steps-calendar"></div>
-          </div>
-          <div class="stats-section" id="stats-month-section">
+          <div class="stats-section active" id="discipline-month-section">
             <div class="stats-subtitle">Еда</div>
             <div class="calendar-grid month-grid" id="month-food-calendar"></div>
             <div class="stats-subtitle">Шаги</div>
@@ -319,6 +314,27 @@
       </section>
 
       <section class="screen" id="screen-stats">
+        <div class="card">
+          <div class="card-title">Общее</div>
+          <div class="stats-overview">
+            <div class="stat-tile">
+              <div class="stat-label">Шаги</div>
+              <div class="stat-value" id="stats-steps-total">0</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Белки</div>
+              <div class="stat-value" id="stats-protein-total">0 г</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Жиры</div>
+              <div class="stat-value" id="stats-fat-total">0 г</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Углеводы</div>
+              <div class="stat-value" id="stats-carbs-total">0 г</div>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-title">Статистика силовых</div>
           <div class="muted stats-note">Период: всё время</div>

@@ -14,10 +14,21 @@ export function initStrengthStatsTab() {
 }
 
 function renderStrengthStats(data) {
-  renderTotals(data?.totals);
-  renderStatsList($("strength-top-tonnage"), data?.topByTonnage, "tonnage");
-  renderStatsList($("strength-top-reps"), data?.topByReps, "reps");
-  renderRecent($("strength-recent"), data?.recent);
+  const strength = data?.strength || data;
+  renderOverall(data);
+  renderTotals(strength?.totals);
+  renderStatsList($("strength-top-tonnage"), strength?.topByTonnage, "tonnage");
+  renderStatsList($("strength-top-reps"), strength?.topByReps, "reps");
+  renderRecent($("strength-recent"), strength?.recent);
+}
+
+function renderOverall(data) {
+  const steps = data?.stepsTotal;
+  const macros = data?.macros || {};
+  setText("stats-steps-total", formatSteps(steps));
+  setText("stats-protein-total", formatGrams(macros.protein));
+  setText("stats-fat-total", formatGrams(macros.fat));
+  setText("stats-carbs-total", formatGrams(macros.carbs));
 }
 
 function renderTotals(totals) {
@@ -109,6 +120,17 @@ function formatWeight(value) {
   if (num <= 0) return "—";
   const rounded = Math.round(num * 10) / 10;
   return `${rounded.toLocaleString("ru-RU")} кг`;
+}
+
+function formatGrams(value) {
+  const num = Number(value) || 0;
+  return `${Math.round(num).toLocaleString("ru-RU")} г`;
+}
+
+function formatSteps(value) {
+  const num = Number(value) || 0;
+  if (num <= 0) return "0";
+  return `${Math.round(num).toLocaleString("ru-RU")}`;
 }
 
 function formatDate(value) {

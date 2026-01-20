@@ -136,6 +136,19 @@ func (r *MealRepo) SumByDay(ctx context.Context, chatID int64, from, to time.Tim
 	return
 }
 
+func (r *MealRepo) SumAllTime(ctx context.Context, chatID int64) (kcal, p, f, c int, err error) {
+	err = r.db.QueryRow(ctx, `
+		select
+			coalesce(sum(protein_g*4 + fat_g*9 + carbs_g*4),0),
+			coalesce(sum(protein_g),0),
+			coalesce(sum(fat_g),0),
+			coalesce(sum(carbs_g),0)
+		from meals
+		where chat_id=$1
+	`, chatID).Scan(&kcal, &p, &f, &c)
+	return
+}
+
 type DayNutrition struct {
 	Kcal int
 	P    int

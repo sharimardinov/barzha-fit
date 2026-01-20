@@ -64,3 +64,16 @@ func (r *StepsRepo) ListByRange(ctx context.Context, userID int64, fromDate, toD
 	}
 	return res, rows.Err()
 }
+
+func (r *StepsRepo) SumAllTime(ctx context.Context, userID int64) (int, error) {
+	var total int
+	err := r.db.QueryRow(ctx, `
+		select coalesce(sum(steps), 0)
+		from steps_days
+		where user_id=$1
+	`, userID).Scan(&total)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}

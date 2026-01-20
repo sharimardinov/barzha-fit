@@ -802,10 +802,18 @@ func (s *Server) handleStatsWeek(w http.ResponseWriter, r *http.Request, auth au
 }
 
 func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth authContext) {
+	var payload struct {
+		Offset int `json:"offset"`
+	}
+	_ = decodeJSON(r, &payload)
+	if payload.Offset > 0 {
+		payload.Offset = 0
+	}
+
 	ctx := context.Background()
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc).AddDate(0, payload.Offset, 0)
 	monthDays := daysInMonth(monthStart)
 	monthEnd := monthStart.AddDate(0, 0, monthDays-1)
 	offset := util.Weekday1to7(monthStart) - 1
@@ -843,8 +851,9 @@ func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth a
 	}
 
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"offset": offset,
-		"days":   days,
+		"offset":     offset,
+		"days":       days,
+		"monthStart": monthStart.Format("2006-01-02"),
 	}})
 }
 
@@ -860,7 +869,33 @@ func (s *Server) handleStrengthStats(w http.ResponseWriter, r *http.Request, aut
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
 		return
 	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: stats})
+	stepsTotal := 0
+	if s.steps != nil {
+		stepsTotal, err = s.steps.SumAllTime(ctx, auth.User.ID)
+		if err != nil {
+			log.Printf("steps stats failed: chat_id=%d err=%v", auth.User.ID, err)
+			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
+			return
+		}
+	}
+	protein, fat, carbs := 0, 0, 0
+	if s.nutrition != nil {
+		_, protein, fat, carbs, err = s.nutrition.SumAllTime(ctx, auth.User.ID)
+		if err != nil {
+			log.Printf("nutrition stats failed: chat_id=%d err=%v", auth.User.ID, err)
+			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"strength":   stats,
+		"stepsTotal": stepsTotal,
+		"macros": map[string]int{
+			"protein": protein,
+			"fat":     fat,
+			"carbs":   carbs,
+		},
+	}})
 }
 
 func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authContext) {

@@ -73,13 +73,8 @@ func CalcTargets(p domain.Profile) domain.Targets {
 	switch p.Goal {
 	case "cut":
 		proteinRate = 2.2
-	case "bulk":
-		proteinRate = 1.8
 	default:
 		proteinRate = 1.8
-	}
-	if p.TrainingYears <= 0 && proteinRate > 1.6 {
-		proteinRate = 1.6
 	}
 	protein := int(math.Round(proteinRate * proteinWeight))
 

@@ -27,6 +27,7 @@ type MealStorage interface {
 	ListByDay(ctx context.Context, chatID int64, from, to time.Time) ([]db.Meal, error)
 	ListRecent(ctx context.Context, chatID int64, limit int) ([]db.Meal, error)
 	SumByDay(ctx context.Context, chatID int64, from, to time.Time) (kcal, p, f, c int, err error)
+	SumAllTime(ctx context.Context, chatID int64) (kcal, p, f, c int, err error)
 	SumByRangeDaily(ctx context.Context, chatID int64, from, to time.Time, tz string) (map[string]db.DayNutrition, error)
 }
 
@@ -101,6 +102,10 @@ func (s *NutritionService) SumByWeek(ctx context.Context, chatID int64, from, to
 
 func (s *NutritionService) SumByRangeDaily(ctx context.Context, chatID int64, from, to time.Time, tz string) (map[string]db.DayNutrition, error) {
 	return s.meals.SumByRangeDaily(ctx, chatID, from, to, tz)
+}
+
+func (s *NutritionService) SumAllTime(ctx context.Context, chatID int64) (kcal, p, f, c int, err error) {
+	return s.meals.SumAllTime(ctx, chatID)
 }
 
 func dayStart(t time.Time, loc *time.Location) time.Time {
