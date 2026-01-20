@@ -70,6 +70,8 @@ func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, authCont
 		if err != nil {
 			errCode := "unauthorized"
 			switch {
+			case errors.Is(err, errMissingAuth):
+				errCode = "missing_auth"
 			case errors.Is(err, errMissingInit):
 				errCode = "missing_init_data"
 			case errors.Is(err, errBadHash):

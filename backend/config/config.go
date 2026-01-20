@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	BotToken    string
-	TZ          string
-	Debug       bool
-	DatabaseURL string
-	WebAddr     string
+	BotToken     string
+	AuthBotToken string
+	TZ           string
+	Debug        bool
+	DatabaseURL  string
+	WebAddr      string
 }
 
 func Load() (*Config, error) {
@@ -21,6 +22,11 @@ func Load() (*Config, error) {
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
 		return nil, fmt.Errorf("BOT_TOKEN is required")
+	}
+
+	authToken := os.Getenv("AUTH_BOT_TOKEN")
+	if authToken == "" {
+		return nil, fmt.Errorf("AUTH_BOT_TOKEN is required")
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
@@ -41,10 +47,11 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		BotToken:    token,
-		TZ:          tz,
-		Debug:       debug,
-		DatabaseURL: dbURL,
-		WebAddr:     webAddr,
+		BotToken:     token,
+		AuthBotToken: authToken,
+		TZ:           tz,
+		Debug:        debug,
+		DatabaseURL:  dbURL,
+		WebAddr:      webAddr,
 	}, nil
 }

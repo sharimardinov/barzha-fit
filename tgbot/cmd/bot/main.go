@@ -89,6 +89,7 @@ func main() {
 	webServer := tgapp.NewServer(tgapp.Deps{
 		Addr:          cfg.WebAddr,
 		BotToken:      cfg.BotToken,
+		AuthBotToken:  cfg.AuthBotToken,
 		TZ:            cfg.TZ,
 		Plan:          planSvc,
 		Workout:       workoutSvc,

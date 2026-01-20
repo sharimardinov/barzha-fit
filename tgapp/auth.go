@@ -17,6 +17,7 @@ import (
 
 var (
 	errUnauthorized   = errors.New("unauthorized")
+	errMissingAuth    = errors.New("missing_auth")
 	errMissingInit    = errors.New("missing_init_data")
 	errBadHash        = errors.New("bad_hash")
 	errStaleAuthDate  = errors.New("stale_auth_date")
@@ -37,11 +38,19 @@ type authContext struct {
 
 func (s *Server) authenticate(r *http.Request) (authContext, error) {
 	initData := strings.TrimSpace(r.Header.Get("X-Tg-Init-Data"))
-	if initData == "" {
-		log.Printf("miniapp auth: missing init data")
-		return authContext{}, errMissingInit
+	if initData != "" {
+		return s.authenticateWebApp(initData)
 	}
 
+	if token := bearerToken(r.Header.Get("Authorization")); token != "" {
+		return s.authenticateSession(token)
+	}
+
+	log.Printf("auth: missing init data and bearer token")
+	return authContext{}, errMissingAuth
+}
+
+func (s *Server) authenticateWebApp(initData string) (authContext, error) {
 	values, err := validateInitData(initData, s.botToken)
 	if err != nil {
 		log.Printf("miniapp auth: validate failed: %v", err)
@@ -62,6 +71,28 @@ func (s *Server) authenticate(r *http.Request) (authContext, error) {
 	}
 
 	return authContext{User: user}, nil
+}
+
+func (s *Server) authenticateSession(token string) (authContext, error) {
+	session, ok := s.sessions.Get(token)
+	if !ok {
+		return authContext{}, errUnauthorized
+	}
+	return authContext{User: webUser{ID: session.UserID, Username: session.Username}}, nil
+}
+
+func bearerToken(header string) string {
+	if header == "" {
+		return ""
+	}
+	parts := strings.SplitN(header, " ", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	if !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
 }
 
 func validateInitData(initData, botToken string) (url.Values, error) {

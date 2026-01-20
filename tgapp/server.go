@@ -15,10 +15,14 @@ import (
 //go:embed assets/*
 var assets embed.FS
 
+//go:embed authweb/*
+var authAssets embed.FS
+
 type Server struct {
-	addr     string
-	botToken string
-	tz       string
+	addr         string
+	botToken     string
+	authBotToken string
+	tz           string
 
 	plan          *service.PlanService
 	workout       *service.WorkoutService
@@ -33,11 +37,13 @@ type Server struct {
 	activity      *service.ActivityAI
 	workoutTimer  *service.WorkoutTimerService
 	strengthStats *service.WorkoutStatsService
+	sessions      *sessionStore
 }
 
 type Deps struct {
 	Addr          string
 	BotToken      string
+	AuthBotToken  string
 	TZ            string
 	Plan          *service.PlanService
 	Workout       *service.WorkoutService
@@ -58,6 +64,7 @@ func NewServer(d Deps) *Server {
 	return &Server{
 		addr:          d.Addr,
 		botToken:      d.BotToken,
+		authBotToken:  d.AuthBotToken,
 		tz:            d.TZ,
 		plan:          d.Plan,
 		workout:       d.Workout,
@@ -72,12 +79,17 @@ func NewServer(d Deps) *Server {
 		activity:      d.Activity,
 		workoutTimer:  d.WorkoutTimer,
 		strengthStats: d.StrengthStats,
+		sessions:      newSessionStore(),
 	}
 }
 
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux := http.NewServeMux()
 
+	authSub, err := fs.Sub(authAssets, "authweb")
+	if err != nil {
+		return fmt.Errorf("auth assets: %w", err)
+	}
 	sub, err := fs.Sub(assets, "assets")
 	if err != nil {
 		return fmt.Errorf("miniapp assets: %w", err)
@@ -99,6 +111,30 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	}
 	serveMiniapp("/miniapp")
 
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if r.URL.Path != "/login" {
+			http.NotFound(w, r)
+			return
+		}
+		data, err := fs.ReadFile(authSub, "login.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	})
+	mux.HandleFunc("/login/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/login", http.StatusMovedPermanently)
+	})
+
+	s.registerAuth(mux)
 	s.registerAPI(mux)
 
 	server := &http.Server{
