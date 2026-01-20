@@ -1,43 +1,15 @@
-import { $, api, toast, setButtonLoading, parseNumberInput, formatApiError } from "../core.js";
+import { $, api, toast, parseNumberInput, formatApiError } from "../core.js";
 
 const defaultRestSec = 120;
 
 let plan = null;
+let planIssues = [];
 let session = null;
 let tickHandle = null;
 let refreshPending = false;
 let lastSetKey = null;
 
 export function initWorkoutTab() {
-  const addBtn = $("workout-add-exercise");
-  if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      const list = $("workout-plan-list");
-      if (!list) return;
-      list.appendChild(createExerciseRow());
-      updatePlanEmptyState();
-    });
-  }
-
-  const saveBtn = $("workout-plan-save");
-  if (saveBtn) {
-    saveBtn.addEventListener("click", async () => {
-      const payload = collectPlanFromEditor();
-      if (!payload) return;
-      setButtonLoading(saveBtn, true, "Сохраняю...");
-      try {
-        await api("/api/workout/plan/save", { plan: payload });
-        plan = payload;
-        toast("План тренировки сохранен");
-        await loadWorkout();
-      } catch (err) {
-        toast(formatApiError(err, "Не удалось сохранить план"));
-      } finally {
-        setButtonLoading(saveBtn, false);
-      }
-    });
-  }
-
   const startBtn = $("workout-start");
   if (startBtn) {
     startBtn.addEventListener("click", async () => {
@@ -106,21 +78,46 @@ export function initWorkoutTab() {
       }
     });
   }
+
+  const stopBtn = $("workout-stop");
+  if (stopBtn) {
+    stopBtn.addEventListener("click", async () => {
+      try {
+        const data = await api("/api/workout/session/stop");
+        applySession(data);
+      } catch (err) {
+        toast(formatApiError(err, "Не удалось выйти из тренировки"));
+      }
+    });
+  }
 }
 
 export async function loadWorkout() {
   plan = await fetchPlan();
-  session = await fetchSession();
-  renderPlanEditor();
+  const sessionData = await fetchSession();
+  session = sessionData?.session || null;
+  if (sessionData?.plan) {
+    plan = sessionData.plan;
+    planIssues = [];
+  }
+  renderPlanSection();
   renderSession();
 }
 
 async function fetchPlan() {
+  planIssues = [];
   try {
     const data = await api("/api/workout/plan/get");
     return data.plan || null;
   } catch (err) {
+    if (err.message === "workout_plan_invalid") {
+      if (Array.isArray(err.data?.issues)) {
+        planIssues = err.data.issues;
+      }
+      return null;
+    }
     if (err.message === "workout_plan_not_found") {
+      planIssues = ["План тренировок не найден"];
       return null;
     }
     toast(formatApiError(err, "Не удалось загрузить план"));
@@ -131,7 +128,7 @@ async function fetchPlan() {
 async function fetchSession() {
   try {
     const data = await api("/api/workout/session/get");
-    return data.session || null;
+    return { session: data.session || null, plan: data.plan || null };
   } catch (err) {
     if (err.message === "workout_session_not_found") {
       return null;
@@ -150,165 +147,75 @@ function applySession(data) {
     session = data?.session || null;
   }
   renderSession();
-  renderPlanEditor();
+  renderPlanSection();
 }
 
-function renderPlanEditor() {
+function renderPlanSection() {
   const list = $("workout-plan-list");
   if (!list) return;
   list.innerHTML = "";
 
-  const exercises = plan?.exercises || [];
-  if (exercises.length === 0) {
-    list.appendChild(createExerciseRow());
-  } else {
-    exercises.forEach((ex) => list.appendChild(createExerciseRow(ex)));
+  const errors = $("workout-plan-errors");
+  if (errors) {
+    errors.innerHTML = "";
+    if (planIssues.length > 0) {
+      planIssues.forEach((issue) => {
+        const item = document.createElement("div");
+        item.textContent = issue;
+        errors.appendChild(item);
+      });
+      errors.classList.remove("hidden");
+    } else {
+      errors.classList.add("hidden");
+    }
   }
 
+  const exercises = plan?.exercises || [];
+  if (exercises.length === 0) {
+    updatePlanEmptyState();
+    return;
+  }
+
+  exercises.forEach((ex) => list.appendChild(createPlanItem(ex)));
   updatePlanEmptyState();
-  setPlanEditingEnabled(!session);
 }
 
 function updatePlanEmptyState() {
   const empty = $("workout-plan-empty");
   const list = $("workout-plan-list");
   if (!empty || !list) return;
-  const hasRows = list.querySelectorAll(".workout-exercise-row").length > 0;
-  empty.classList.toggle("hidden", hasRows);
+  const hasRows = list.querySelectorAll(".workout-plan-item").length > 0;
+  empty.classList.toggle("hidden", hasRows || planIssues.length > 0);
 }
 
-function setPlanEditingEnabled(enabled) {
-  const list = $("workout-plan-list");
-  const addBtn = $("workout-add-exercise");
-  const saveBtn = $("workout-plan-save");
-  if (list) {
-    list.querySelectorAll("input, select, button").forEach((el) => {
-      el.disabled = !enabled;
-    });
+function createPlanItem(exercise) {
+  const item = document.createElement("div");
+  item.className = "list-item workout-plan-item";
+
+  const body = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "workout-plan-item-title";
+  title.textContent = exercise.name || "—";
+  body.appendChild(title);
+
+  const meta = document.createElement("div");
+  meta.className = "workout-plan-item-meta";
+  if (exercise.type === "cardio") {
+    meta.textContent = `Длительность: ${formatMinutes(exercise.durationSec)} мин`;
+  } else {
+    const weightText = exercise.weight ? `${exercise.weight} кг` : "—";
+    const restText = formatRest(exercise.restSec || defaultRestSec);
+    meta.textContent = `Подходы: ${exercise.sets}x${exercise.reps} · Вес: ${weightText} · Отдых: ${restText}`;
   }
-  if (addBtn) addBtn.disabled = !enabled;
-  if (saveBtn) saveBtn.disabled = !enabled;
-  const note = $("workout-plan-note");
-  if (note) {
-    note.textContent = enabled
-      ? "Отдых между подходами — 2 мин. Между упражнениями — +1 мин."
-      : "План заблокирован — тренировка уже идет.";
-  }
-}
+  body.appendChild(meta);
 
-function createExerciseRow(exercise = {}) {
-  const row = document.createElement("div");
-  row.className = "workout-exercise-row";
-  const type = exercise.type || "strength";
-  row.dataset.type = type;
+  const tag = document.createElement("div");
+  tag.className = "workout-plan-item-tag";
+  tag.textContent = exercise.type === "cardio" ? "Кардио" : "Силовое";
 
-  const durationMin = exercise.durationSec ? Math.round(exercise.durationSec / 60) : "";
-  const restValue = exercise.restSec || defaultRestSec;
-
-  row.innerHTML = `
-    <div class="row">
-      <input type="text" class="workout-exercise-name" placeholder="Название" value="${escapeHtml(exercise.name || "")}">
-      <select class="workout-exercise-type">
-        <option value="strength" ${type === "strength" ? "selected" : ""}>Силовое</option>
-        <option value="cardio" ${type === "cardio" ? "selected" : ""}>Кардио</option>
-      </select>
-      <button class="btn btn-outline workout-exercise-remove" type="button">Удалить</button>
-    </div>
-    <div class="workout-exercise-fields">
-      <label class="strength-only">Вес (кг)
-        <input type="number" step="0.5" class="workout-exercise-weight" placeholder="Например 60" value="${toInputValue(exercise.weight)}">
-      </label>
-      <label class="strength-only">Повторы
-        <input type="number" class="workout-exercise-reps" placeholder="Например 10" value="${toInputValue(exercise.reps)}">
-      </label>
-      <label class="strength-only">Подходы
-        <input type="number" class="workout-exercise-sets" placeholder="Например 3" value="${toInputValue(exercise.sets)}">
-      </label>
-      <label class="strength-only">Отдых (сек)
-        <input type="number" class="workout-exercise-rest" placeholder="${defaultRestSec}" value="${toInputValue(restValue)}">
-      </label>
-      <label class="cardio-only">Длительность (мин)
-        <input type="number" class="workout-exercise-duration" placeholder="Например 25" value="${toInputValue(durationMin)}">
-      </label>
-    </div>
-  `;
-
-  const typeSelect = row.querySelector(".workout-exercise-type");
-  if (typeSelect) {
-    typeSelect.addEventListener("change", (e) => {
-      row.dataset.type = e.target.value || "strength";
-    });
-  }
-
-  const removeBtn = row.querySelector(".workout-exercise-remove");
-  if (removeBtn) {
-    removeBtn.addEventListener("click", () => {
-      row.remove();
-      updatePlanEmptyState();
-    });
-  }
-
-  return row;
-}
-
-function collectPlanFromEditor() {
-  const list = $("workout-plan-list");
-  if (!list) return null;
-  const rows = Array.from(list.querySelectorAll(".workout-exercise-row"));
-  if (rows.length === 0) {
-    toast("Добавь хотя бы одно упражнение");
-    return null;
-  }
-
-  const exercises = [];
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i];
-    const name = row.querySelector(".workout-exercise-name")?.value.trim();
-    if (!name) {
-      toast(`Упражнение ${i + 1}: укажи название`);
-      return null;
-    }
-    const type = row.querySelector(".workout-exercise-type")?.value || "strength";
-    if (type === "cardio") {
-      const durationMin = parseNumberInput(row.querySelector(".workout-exercise-duration")?.value);
-      if (durationMin <= 0) {
-        toast(`Упражнение ${i + 1}: укажи длительность`);
-        return null;
-      }
-      exercises.push({
-        name,
-        type,
-        durationSec: Math.round(durationMin * 60),
-        restSec: defaultRestSec,
-      });
-      continue;
-    }
-
-    const weight = parseNumberInput(row.querySelector(".workout-exercise-weight")?.value);
-    const reps = Math.round(parseNumberInput(row.querySelector(".workout-exercise-reps")?.value));
-    const sets = Math.round(parseNumberInput(row.querySelector(".workout-exercise-sets")?.value));
-    const restRaw = parseNumberInput(row.querySelector(".workout-exercise-rest")?.value);
-    const restSec = restRaw > 0 ? Math.round(restRaw) : defaultRestSec;
-
-    if (reps <= 0 || sets <= 0) {
-      toast(`Упражнение ${i + 1}: укажи подходы и повторы`);
-      return null;
-    }
-
-    exercises.push({
-      name,
-      type,
-      weight,
-      reps,
-      sets,
-      restSec,
-    });
-  }
-
-  return {
-    defaultRestSec,
-    exercises,
-  };
+  item.appendChild(body);
+  item.appendChild(tag);
+  return item;
 }
 
 function renderSession() {
@@ -316,24 +223,19 @@ function renderSession() {
   const sessionActive = $("workout-session-active");
   const startRow = $("workout-start-row");
 
-  if (!plan || !(plan.exercises || []).length) {
-    if (sessionEmpty) {
-      sessionEmpty.textContent = "Сначала собери план тренировки";
-      sessionEmpty.classList.remove("hidden");
-    }
-    if (sessionActive) sessionActive.classList.add("hidden");
-    if (startRow) startRow.classList.add("hidden");
-    clearTick();
-    return;
-  }
-
   if (!session) {
     if (sessionEmpty) {
-      sessionEmpty.textContent = "Нет активной тренировки";
+      if (planIssues.length > 0) {
+        sessionEmpty.textContent = "Проверь формат плана в разделе «План»";
+      } else if (!plan || !(plan.exercises || []).length) {
+        sessionEmpty.textContent = "Сегодня нет тренировки";
+      } else {
+        sessionEmpty.textContent = "Нет активной тренировки";
+      }
       sessionEmpty.classList.remove("hidden");
     }
     if (sessionActive) sessionActive.classList.add("hidden");
-    if (startRow) startRow.classList.remove("hidden");
+    if (startRow) startRow.classList.toggle("hidden", planIssues.length > 0 || !plan || !(plan.exercises || []).length);
     clearTick();
     return;
   }
@@ -352,8 +254,7 @@ function renderSession() {
     if (!ex) {
       exerciseTarget.textContent = "—";
     } else if (ex.type === "cardio") {
-      const mins = Math.round((ex.durationSec || 0) / 60);
-      exerciseTarget.textContent = `Длительность: ${mins} мин`;
+      exerciseTarget.textContent = `Длительность: ${formatMinutes(ex.durationSec)} мин`;
     } else {
       const weightText = ex.weight ? `${ex.weight} кг` : "—";
       exerciseTarget.textContent = `Вес: ${weightText} · Повторы: ${ex.reps} · Подходы: ${ex.sets}`;
@@ -363,10 +264,25 @@ function renderSession() {
   if (setLabel) {
     if (!ex || ex.type === "cardio") {
       setLabel.textContent = "";
-    } else if (session.setIndex === 0) {
-      setLabel.textContent = "Разминочный подход";
+    } else if (session.phase === "set") {
+      if (session.setIndex === 0) {
+        setLabel.textContent = "Разминочный подход";
+      } else {
+        setLabel.textContent = `Подход ${session.setIndex} из ${ex.sets}`;
+      }
+    } else if (session.phase === "rest") {
+      if (session.timerKind === "rest") {
+        const finishedSet = Math.max(0, session.setIndex - 1);
+        if (finishedSet === 0) {
+          setLabel.textContent = "Отдых после разминки";
+        } else {
+          setLabel.textContent = `Отдых после подхода ${finishedSet} из ${ex.sets}`;
+        }
+      } else {
+        setLabel.textContent = "Отдых между упражнениями";
+      }
     } else {
-      setLabel.textContent = `Подход ${session.setIndex} из ${ex.sets}`;
+      setLabel.textContent = "";
     }
   }
 
@@ -383,6 +299,7 @@ function updatePhaseControls() {
   const setDoneBtn = $("workout-set-done");
   const pauseBtn = $("workout-pause");
   const resumeBtn = $("workout-resume");
+  const stopBtn = $("workout-stop");
 
   const phase = session?.phase;
   const status = session?.status;
@@ -414,6 +331,7 @@ function updatePhaseControls() {
 
   if (pauseBtn) pauseBtn.classList.toggle("hidden", status !== "in_progress");
   if (resumeBtn) resumeBtn.classList.toggle("hidden", status !== "paused");
+  if (stopBtn) stopBtn.classList.toggle("hidden", !session);
 
   if (session?.setIndex > 0 && phase === "set") {
     const ex = plan?.exercises?.[session.exerciseIndex];
@@ -503,7 +421,7 @@ async function refreshSession() {
     const data = await api("/api/workout/session/get");
     refreshPending = false;
     applySession(data);
-  } catch (err) {
+  } catch (_) {
     refreshPending = false;
   }
 }
@@ -515,16 +433,15 @@ function formatDuration(seconds) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function toInputValue(value) {
-  if (value === undefined || value === null) return "";
-  if (Number.isNaN(value)) return "";
-  return value === 0 ? "" : value;
+function formatMinutes(seconds) {
+  const total = Math.max(0, Math.round(seconds || 0));
+  return Math.max(1, Math.round(total / 60));
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;");
+function formatRest(seconds) {
+  const total = Math.max(0, Math.round(seconds || 0));
+  if (total % 60 === 0) {
+    return `${total / 60} мин`;
+  }
+  return `${total} сек`;
 }

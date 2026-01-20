@@ -96,6 +96,54 @@ func (s *WorkoutTimerService) SavePlan(ctx context.Context, chatID int64, plan *
 	return s.plans.Upsert(ctx, chatID, payload)
 }
 
+func (s *WorkoutTimerService) StartSessionWithPlan(ctx context.Context, chatID int64, plan *domain.WorkoutPlan) (domain.WorkoutSession, bool, error) {
+	session, ok, err := s.sessions.GetActive(ctx, chatID)
+	if err != nil {
+		return domain.WorkoutSession{}, false, err
+	}
+	if ok {
+		parsed, err := decodePlan(session.PlanSnapshot)
+		if err != nil {
+			return domain.WorkoutSession{}, false, err
+		}
+		changed, err := s.advanceIfNeeded(ctx, &session, parsed)
+		if err != nil {
+			return domain.WorkoutSession{}, false, err
+		}
+		if changed {
+			if err := s.sessions.Update(ctx, &session); err != nil {
+				return domain.WorkoutSession{}, false, err
+			}
+		}
+		return session, true, nil
+	}
+	if plan == nil {
+		return domain.WorkoutSession{}, false, WorkoutPlanValidationError{Issues: []string{"plan_missing"}}
+	}
+	normalizePlan(plan)
+	if err := validatePlan(plan); err != nil {
+		return domain.WorkoutSession{}, false, err
+	}
+	payload, err := json.Marshal(plan)
+	if err != nil {
+		return domain.WorkoutSession{}, false, err
+	}
+	now := s.now()
+	session = domain.WorkoutSession{
+		ChatID:        chatID,
+		PlanSnapshot:  payload,
+		Status:        domain.WorkoutSessionStatusInProgress,
+		Phase:         domain.WorkoutSessionPhaseWarmup,
+		ExerciseIndex: 0,
+		SetIndex:      0,
+		StartedAt:     now,
+	}
+	if err := s.sessions.Create(ctx, &session); err != nil {
+		return domain.WorkoutSession{}, false, err
+	}
+	return session, false, nil
+}
+
 func (s *WorkoutTimerService) StartSession(ctx context.Context, chatID int64) (domain.WorkoutSession, *domain.WorkoutPlan, bool, error) {
 	session, ok, err := s.sessions.GetActive(ctx, chatID)
 	if err != nil {
@@ -163,6 +211,20 @@ func (s *WorkoutTimerService) GetSession(ctx context.Context, chatID int64) (dom
 		if err := s.sessions.Update(ctx, &session); err != nil {
 			return domain.WorkoutSession{}, nil, err
 		}
+	}
+	return session, plan, nil
+}
+
+func (s *WorkoutTimerService) StopSession(ctx context.Context, chatID int64) (domain.WorkoutSession, *domain.WorkoutPlan, error) {
+	session, plan, err := s.GetSession(ctx, chatID)
+	if err != nil {
+		return domain.WorkoutSession{}, nil, err
+	}
+	session.Status = domain.WorkoutSessionStatusCompleted
+	session.Phase = domain.WorkoutSessionPhaseDone
+	clearTimer(&session)
+	if err := s.sessions.Update(ctx, &session); err != nil {
+		return domain.WorkoutSession{}, nil, err
 	}
 	return session, plan, nil
 }

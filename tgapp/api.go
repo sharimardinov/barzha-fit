@@ -56,6 +56,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/workout/session/set/finish", s.withAuth(s.handleWorkoutSetFinish))
 	mux.HandleFunc("/api/workout/session/pause", s.withAuth(s.handleWorkoutSessionPause))
 	mux.HandleFunc("/api/workout/session/resume", s.withAuth(s.handleWorkoutSessionResume))
+	mux.HandleFunc("/api/workout/session/stop", s.withAuth(s.handleWorkoutSessionStop))
 }
 
 func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, authContext)) http.HandlerFunc {
@@ -888,7 +889,7 @@ func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authC
 }
 
 func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	plan, _, err := s.workoutTimer.GetPlan(context.Background(), auth.User.ID)
+	plan, err := s.workoutPlanFromToday(context.Background(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -935,7 +936,15 @@ func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, existing, err := s.workoutTimer.StartSession(context.Background(), auth.User.ID)
+	plan, err := s.workoutPlanFromToday(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_read_failed"})
+		return
+	}
+	session, existing, err := s.workoutTimer.StartSessionWithPlan(context.Background(), auth.User.ID, plan)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1018,6 +1027,47 @@ func (s *Server) handleWorkoutSessionResume(w http.ResponseWriter, r *http.Reque
 		"session": workoutSessionToDTO(session),
 		"plan":    plan,
 	}})
+}
+
+func (s *Server) handleWorkoutSessionStop(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, err := s.workoutTimer.StopSession(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_session_stop_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+func (s *Server) workoutPlanFromToday(ctx context.Context, chatID int64) (*domain.WorkoutPlan, error) {
+	planText, err := s.plan.Get(ctx, chatID)
+	if err != nil {
+		return nil, service.ErrWorkoutPlanNotFound
+	}
+	loc := util.MustLocation(s.tz)
+	now := util.NowIn(loc)
+	day := util.Weekday1to7(now)
+	days := service.SplitPlanByDays(planText)
+	block := strings.TrimSpace(days[day])
+	if block == "" {
+		raw := strings.TrimSpace(planText)
+		if raw != "" && !strings.HasPrefix(raw, "{") {
+			block = raw
+		}
+	}
+	if block == "" {
+		return nil, service.WorkoutPlanValidationError{Issues: []string{"Сегодня нет тренировки"}}
+	}
+	plan, issues := service.BuildWorkoutPlanFromText(block)
+	if len(issues) > 0 {
+		return nil, service.WorkoutPlanValidationError{Issues: issues}
+	}
+	return &plan, nil
 }
 
 type workoutSessionDTO struct {

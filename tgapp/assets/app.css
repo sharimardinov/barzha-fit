@@ -838,6 +838,46 @@ button {
   margin-bottom: 12px;
 }
 
+.workout-plan-errors {
+  border: 1px solid rgba(214, 59, 59, 0.35);
+  background: rgba(214, 59, 59, 0.08);
+  color: #b22525;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.workout-plan-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workout-plan-item-title {
+  font-weight: 700;
+}
+
+.workout-plan-item-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.workout-plan-item-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .workout-exercise-row {
   border: 1px solid var(--border);
   border-radius: 16px;
