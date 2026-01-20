@@ -299,7 +299,7 @@ body {
     var(--white) var(--timer-progress),
     var(--white) 100%
   );
-  transition: background 0.2s linear;
+  transition: background 0.4s linear;
 }
 
 .workout-timer-card .timer-ink {
@@ -313,6 +313,12 @@ body {
   );
   -webkit-background-clip: text;
   background-clip: text;
+}
+
+.workout-timer-card .workout-summary,
+.workout-timer-card .workout-exercise-block,
+.workout-timer-card .workout-timer-block {
+  background: transparent;
 }
 
 .card-title {
@@ -999,7 +1005,7 @@ button {
   display: grid;
   gap: 6px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.8);
+  background: transparent;
 }
 
 .workout-timer-label {

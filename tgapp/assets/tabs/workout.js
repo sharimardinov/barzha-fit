@@ -362,7 +362,7 @@ function startTick() {
   clearTick();
   if (!session) return;
   updateTimers();
-  tickHandle = setInterval(updateTimers, 1000);
+  tickHandle = setInterval(updateTimers, 120);
 }
 
 function clearTick() {
@@ -380,14 +380,16 @@ function updateTimers() {
   const timerCard = $("workout-timer-card");
   const timerValue = $("workout-timer-value");
   const showTimer = session.phase === "rest" || session.phase === "cardio";
-  let remaining = 0;
+  let remainingSec = 0;
+  let remainingMs = 0;
   let total = 0;
   if (showTimer && session.timerDurationSec > 0) {
-    remaining = getRemainingSeconds();
-    total = resolveTimerTotal(remaining);
+    remainingMs = getRemainingMs();
+    remainingSec = Math.ceil(remainingMs / 1000);
+    total = resolveTimerTotal(remainingSec);
     if (timerValue) {
-      timerValue.textContent = formatDuration(remaining);
-      if (remaining <= 0) {
+      timerValue.textContent = formatDuration(remainingSec);
+      if (remainingSec <= 0) {
         triggerRefresh();
       }
     }
@@ -395,8 +397,9 @@ function updateTimers() {
     timerValue.textContent = "00:00";
   }
   if (timerCard) {
-    const progress = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 0;
-    timerCard.style.setProperty("--timer-progress", `${Math.round(progress * 1000) / 10}%`);
+    const totalMs = total > 0 ? total * 1000 : 0;
+    const progress = totalMs > 0 ? Math.min(1, Math.max(0, 1 - remainingMs / totalMs)) : 0;
+    timerCard.style.setProperty("--timer-progress", `${progress * 100}%`);
   }
 }
 
@@ -422,6 +425,17 @@ function getRemainingSeconds() {
   if (!session.timerStartedAt || !session.timerDurationSec) return 0;
   const end = new Date(session.timerStartedAt).getTime() + session.timerDurationSec * 1000;
   const remaining = Math.ceil((end - Date.now()) / 1000);
+  return Math.max(0, remaining);
+}
+
+function getRemainingMs() {
+  if (!session) return 0;
+  if (session.status === "paused") {
+    return Math.max(0, (session.timerDurationSec || 0) * 1000);
+  }
+  if (!session.timerStartedAt || !session.timerDurationSec) return 0;
+  const end = new Date(session.timerStartedAt).getTime() + session.timerDurationSec * 1000;
+  const remaining = end - Date.now();
   return Math.max(0, remaining);
 }
 
