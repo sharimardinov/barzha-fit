@@ -356,13 +356,10 @@ body {
 }
 
 .workout-day-card.is-filled .card-title,
-.workout-day-card.is-filled .status-row,
-.workout-day-card.is-filled .status-pill,
 .workout-day-card.is-filled .plan,
-.workout-day-card.is-filled .accordion-toggle,
-.workout-day-card.is-filled .accordion-body,
+.workout-day-card.is-filled .accordion-toggle span,
 .workout-day-card.is-filled .accordion-group-title,
-.workout-day-card.is-filled .accordion-list {
+.workout-day-card.is-filled .accordion-list li {
   color: transparent;
   -webkit-text-fill-color: transparent;
   background-image: linear-gradient(
