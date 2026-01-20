@@ -151,8 +151,8 @@ function applySession(data) {
   if (!session) {
     lastTimerKey = null;
     lastTimerTotalSec = 0;
-    const timerCard = $("workout-timer-card");
-    if (timerCard) timerCard.style.setProperty("--timer-progress", "0%");
+    const timerBlock = $("workout-timer-block");
+    if (timerBlock) timerBlock.style.setProperty("--timer-progress", "0%");
   }
   renderSession();
   renderPlanSection();
@@ -377,7 +377,7 @@ function updateTimers() {
   if (!session) return;
   updateTotalTime();
 
-  const timerCard = $("workout-timer-card");
+  const timerBlock = $("workout-timer-block");
   const timerValue = $("workout-timer-value");
   const showTimer = session.phase === "rest" || session.phase === "cardio";
   let remainingSec = 0;
@@ -396,10 +396,10 @@ function updateTimers() {
   } else if (timerValue) {
     timerValue.textContent = "00:00";
   }
-  if (timerCard) {
+  if (timerBlock) {
     const totalMs = total > 0 ? total * 1000 : 0;
     const progress = totalMs > 0 ? Math.min(1, Math.max(0, 1 - remainingMs / totalMs)) : 0;
-    timerCard.style.setProperty("--timer-progress", `${progress * 100}%`);
+    timerBlock.style.setProperty("--timer-progress", `${progress * 100}%`);
   }
 }
 
