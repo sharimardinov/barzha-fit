@@ -48,6 +48,14 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
 	mux.HandleFunc("/api/streak", s.withAuth(s.handleStreak))
+	mux.HandleFunc("/api/workout/plan/get", s.withAuth(s.handleWorkoutPlanGet))
+	mux.HandleFunc("/api/workout/plan/save", s.withAuth(s.handleWorkoutPlanSave))
+	mux.HandleFunc("/api/workout/session/get", s.withAuth(s.handleWorkoutSessionGet))
+	mux.HandleFunc("/api/workout/session/start", s.withAuth(s.handleWorkoutSessionStart))
+	mux.HandleFunc("/api/workout/session/warmup/end", s.withAuth(s.handleWorkoutWarmupEnd))
+	mux.HandleFunc("/api/workout/session/set/finish", s.withAuth(s.handleWorkoutSetFinish))
+	mux.HandleFunc("/api/workout/session/pause", s.withAuth(s.handleWorkoutSessionPause))
+	mux.HandleFunc("/api/workout/session/resume", s.withAuth(s.handleWorkoutSessionResume))
 }
 
 func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, authContext)) http.HandlerFunc {
@@ -877,6 +885,196 @@ func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authC
 		"mealStreak":    noMealStreak,
 		"mealBar":       streakBar(noMealStreak, 7),
 	}})
+}
+
+func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	plan, _, err := s.workout.GetPlan(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_read_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"plan": plan,
+	}})
+}
+
+func (s *Server) handleWorkoutPlanSave(w http.ResponseWriter, r *http.Request, auth authContext) {
+	var payload struct {
+		Plan domain.WorkoutPlan `json:"plan"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+	if _, err := s.workout.SavePlan(context.Background(), auth.User.ID, &payload.Plan); err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_save_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true})
+}
+
+func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, err := s.workout.GetSession(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_session_read_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, existing, err := s.workout.StartSession(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_session_start_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session":  workoutSessionToDTO(session),
+		"plan":     plan,
+		"existing": existing,
+	}})
+}
+
+func (s *Server) handleWorkoutWarmupEnd(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, err := s.workout.FinishWarmup(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_warmup_finish_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+func (s *Server) handleWorkoutSetFinish(w http.ResponseWriter, r *http.Request, auth authContext) {
+	var payload struct {
+		ExerciseIndex int     `json:"exerciseIndex"`
+		SetIndex      int     `json:"setIndex"`
+		ActualWeight  float64 `json:"actualWeight"`
+		ActualReps    int     `json:"actualReps"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+	session, plan, err := s.workout.FinishSet(context.Background(), auth.User.ID, payload.ExerciseIndex, payload.SetIndex, payload.ActualWeight, payload.ActualReps)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_set_finish_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+func (s *Server) handleWorkoutSessionPause(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, err := s.workout.Pause(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_session_pause_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+func (s *Server) handleWorkoutSessionResume(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, err := s.workout.Resume(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_session_resume_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+type workoutSessionDTO struct {
+	ID               int64      `json:"id"`
+	Status           string     `json:"status"`
+	Phase            string     `json:"phase"`
+	ExerciseIndex    int        `json:"exerciseIndex"`
+	SetIndex         int        `json:"setIndex"`
+	TimerKind        string     `json:"timerKind,omitempty"`
+	TimerStartedAt   *time.Time `json:"timerStartedAt,omitempty"`
+	TimerDurationSec int        `json:"timerDurationSec,omitempty"`
+	WarmupEndedAt    *time.Time `json:"warmupEndedAt,omitempty"`
+	PausedAt         *time.Time `json:"pausedAt,omitempty"`
+	PausedTotalSec   int        `json:"pausedTotalSec"`
+	StartedAt        time.Time  `json:"startedAt"`
+}
+
+func workoutSessionToDTO(s domain.WorkoutSession) workoutSessionDTO {
+	return workoutSessionDTO{
+		ID:               s.ID,
+		Status:           s.Status,
+		Phase:            s.Phase,
+		ExerciseIndex:    s.ExerciseIndex,
+		SetIndex:         s.SetIndex,
+		TimerKind:        s.TimerKind,
+		TimerStartedAt:   s.TimerStartedAt,
+		TimerDurationSec: s.TimerDurationSec,
+		WarmupEndedAt:    s.WarmupEndedAt,
+		PausedAt:         s.PausedAt,
+		PausedTotalSec:   s.PausedTotalSec,
+		StartedAt:        s.StartedAt,
+	}
+}
+
+func writeWorkoutError(w http.ResponseWriter, err error) bool {
+	var ve service.WorkoutPlanValidationError
+	switch {
+	case errors.Is(err, service.ErrWorkoutPlanNotFound):
+		writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "workout_plan_not_found"})
+		return true
+	case errors.Is(err, service.ErrWorkoutSessionNotFound):
+		writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "workout_session_not_found"})
+		return true
+	case errors.Is(err, service.ErrWorkoutSessionState):
+		writeJSON(w, http.StatusConflict, apiResponse{OK: false, Error: "workout_session_state"})
+		return true
+	case errors.Is(err, service.ErrWorkoutSessionPaused):
+		writeJSON(w, http.StatusConflict, apiResponse{OK: false, Error: "workout_session_paused"})
+		return true
+	case errors.As(err, &ve):
+		writeJSON(w, http.StatusUnprocessableEntity, apiResponse{OK: false, Error: "workout_plan_invalid", Data: map[string]interface{}{
+			"issues": ve.Issues,
+		}})
+		return true
+	default:
+		return false
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, resp apiResponse) {

@@ -824,6 +824,140 @@ button {
   color: var(--muted);
 }
 
+.hidden {
+  display: none !important;
+}
+
+.workout-note {
+  margin-bottom: 10px;
+}
+
+.workout-plan-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.workout-exercise-row {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.workout-exercise-row .row {
+  align-items: center;
+}
+
+.workout-exercise-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workout-exercise-fields label,
+.workout-inputs label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.workout-exercise-row[data-type="cardio"] .strength-only {
+  display: none;
+}
+
+.workout-exercise-row[data-type="strength"] .cardio-only {
+  display: none;
+}
+
+.workout-session {
+  display: grid;
+  gap: 12px;
+}
+
+.workout-summary {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.workout-summary-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.workout-summary-time {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.workout-phase {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.workout-exercise-block {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.workout-exercise-name {
+  font-weight: 700;
+}
+
+.workout-exercise-target,
+.workout-set-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.workout-timer-block {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.workout-timer-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.workout-timer-value {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.workout-inputs {
+  display: grid;
+  gap: 12px;
+}
+
+.workout-actions .btn {
+  flex: 1;
+}
+
+.workout-start-row .btn {
+  flex: 1;
+}
+
+@media (max-width: 560px) {
+  .workout-exercise-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mono {
   font-family: "Aptos", Arial, sans-serif;
   background: var(--white);

@@ -68,6 +68,11 @@ export function formatApiError(err, fallback) {
   if (code === "plan_save_failed") return "Не удалось сохранить план";
   if (code === "training_profile_save_failed") return "Ошибка сохранения тренировочного профиля";
   if (code === "profile_save_failed") return "Ошибка сохранения профиля";
+  if (code === "workout_plan_not_found") return "План тренировки не найден";
+  if (code === "workout_plan_invalid") return "План тренировки заполнен неверно";
+  if (code === "workout_session_not_found") return "Активная тренировка не найдена";
+  if (code === "workout_session_state") return "Состояние тренировки изменилось";
+  if (code === "workout_session_paused") return "Тренировка на паузе";
   return fallback;
 }
 
@@ -82,6 +87,7 @@ export function setActiveScreen(name) {
     profile: "Профиль",
     plan: "План",
     stats: "Статистика",
+    workout: "Тренировка",
     onboarding: "",
     "onboarding-done": "",
   };

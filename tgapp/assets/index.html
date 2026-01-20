@@ -111,6 +111,59 @@
         </div>
       </section>
 
+      <section class="screen" id="screen-workout">
+        <div class="card">
+          <div class="card-title">План тренировки</div>
+          <div class="muted workout-note" id="workout-plan-note">Отдых между подходами — 2 мин. Между упражнениями — +1 мин.</div>
+          <div class="muted workout-plan-empty" id="workout-plan-empty">Добавь упражнения для тренировки.</div>
+          <div class="workout-plan-list" id="workout-plan-list"></div>
+          <div class="row">
+            <button class="btn btn-outline" id="workout-add-exercise">Добавить упражнение</button>
+            <button class="btn btn-accent" id="workout-plan-save" data-spinner="workout-plan-save-spinner">Сохранить</button>
+            <span class="btn-spinner" id="workout-plan-save-spinner" aria-hidden="true"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Таймер</div>
+          <div class="workout-session" id="workout-session">
+            <div class="muted" id="workout-session-empty">Нет активной тренировки</div>
+            <div class="workout-session-active" id="workout-session-active">
+              <div class="workout-summary">
+                <div class="workout-summary-label">Общее время</div>
+                <div class="workout-summary-time" id="workout-total-time">00:00</div>
+                <div class="workout-phase" id="workout-phase-label">—</div>
+              </div>
+              <div class="workout-exercise-block">
+                <div class="workout-exercise-name" id="workout-exercise-name">—</div>
+                <div class="workout-exercise-target" id="workout-exercise-target">—</div>
+                <div class="workout-set-label" id="workout-set-label">—</div>
+              </div>
+              <div class="workout-timer-block" id="workout-timer-block">
+                <div class="workout-timer-label" id="workout-timer-label">Отдых</div>
+                <div class="workout-timer-value" id="workout-timer-value">00:00</div>
+              </div>
+              <div class="workout-inputs" id="workout-inputs">
+                <label>Вес (кг)
+                  <input type="number" step="0.5" id="workout-actual-weight" placeholder="Например 60">
+                </label>
+                <label>Повторы
+                  <input type="number" id="workout-actual-reps" placeholder="Например 10">
+                </label>
+              </div>
+              <div class="row workout-actions">
+                <button class="btn btn-accent" id="workout-warmup-done">Разминка завершена</button>
+                <button class="btn btn-accent" id="workout-set-done">Подход завершён</button>
+                <button class="btn btn-outline" id="workout-pause">Пауза</button>
+                <button class="btn btn-outline" id="workout-resume">Продолжить</button>
+              </div>
+            </div>
+            <div class="row workout-start-row" id="workout-start-row">
+              <button class="btn btn-accent" id="workout-start">Начать тренировку</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="screen" id="screen-meals">
         <div class="card">
           <div class="card-title">Еда</div>
@@ -274,11 +327,12 @@
       <div class="nav-glass" aria-hidden="true"></div>
       <div class="nav-highlight" id="nav-highlight" aria-hidden="true"></div>
       <button class="nav-btn active" data-tab="today"><i data-lucide="home"></i><span>Сегодня</span></button>
+      <button class="nav-btn" data-tab="workout"><i data-lucide="timer"></i><span>Тренировка</span></button>
       <button class="nav-btn" data-tab="meals"><i data-lucide="utensils"></i><span>Еда</span></button>
       <button class="nav-btn" data-tab="steps"><i data-lucide="footprints"></i><span>Шаги</span></button>
       <button class="nav-btn" data-tab="stats"><i data-lucide="bar-chart-3"></i><span>Статистика</span></button>
-      <button class="nav-btn nav-bottom" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>
-      <button class="nav-btn nav-bottom" data-tab="plan"><i data-lucide="calendar"></i><span>План</span></button>
+      <button class="nav-btn" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>
+      <button class="nav-btn" data-tab="plan"><i data-lucide="calendar"></i><span>План</span></button>
     </nav>
 
     <div class="toast" id="toast"></div>

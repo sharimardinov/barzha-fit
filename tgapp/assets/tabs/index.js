@@ -4,3 +4,4 @@ export { loadPlan, initPlanTab, normalizeWeekPlanForSave, renderPlanEditor } fro
 export { loadProfile, loadTrainingProfile, initProfileTab } from "./profile.js";
 export { initStepsTab } from "./steps.js";
 export { loadStats, initStatsTab } from "./stats.js";
+export { loadWorkout, initWorkoutTab } from "./workout.js";

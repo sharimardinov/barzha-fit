@@ -82,6 +82,10 @@ func main() {
 	stepsSvc := service.NewStepsService(stepsRepo)
 
 	activityAI := service.NewActivityAI(aiClient)
+	workoutPlanRepo := db.NewWorkoutPlanRepo(pool)
+	workoutSessionRepo := db.NewWorkoutSessionRepo(pool)
+	workoutSetRepo := db.NewWorkoutSetRepo(pool)
+	workoutTimerSvc := service.NewWorkoutTimerService(workoutPlanRepo, workoutSessionRepo, workoutSetRepo)
 
 	webServer := tgapp.NewServer(tgapp.Deps{
 		Addr:      cfg.WebAddr,
@@ -98,6 +102,7 @@ func main() {
 		Programs:  trainingProgramSvc,
 		Injuries:  injuryTypeSvc,
 		Activity:  activityAI,
+		Workout:   workoutTimerSvc,
 	})
 	go func() {
 		if err := webServer.ListenAndServe(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {

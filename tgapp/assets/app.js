@@ -12,6 +12,8 @@ import {
   initStepsTab,
   loadStats,
   initStatsTab,
+  loadWorkout,
+  initWorkoutTab,
 } from "./tabs/index.js";
 import { ensureOnboarding, initOnboardingWizard } from "./onboarding.js";
 
@@ -36,6 +38,9 @@ function initNav() {
       if (tab === "stats") {
         await loadStats();
       }
+      if (tab === "workout") {
+        await loadWorkout();
+      }
     });
   });
   window.addEventListener("resize", () => requestAnimationFrame(updateNavHighlight));
@@ -56,6 +61,7 @@ async function bootstrap() {
   initStepsTab();
   initProfileTab();
   initStatsTab();
+  initWorkoutTab();
 
   const onboardingReady = await ensureOnboarding();
   if (!onboardingReady) {

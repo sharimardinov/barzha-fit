@@ -31,6 +31,7 @@ type Server struct {
 	programs  *service.TrainingProgramService
 	injuries  *service.InjuryTypeService
 	activity  *service.ActivityAI
+	workout   *service.WorkoutTimerService
 }
 
 type Deps struct {
@@ -48,6 +49,7 @@ type Deps struct {
 	Programs  *service.TrainingProgramService
 	Injuries  *service.InjuryTypeService
 	Activity  *service.ActivityAI
+	Workout   *service.WorkoutTimerService
 }
 
 func NewServer(d Deps) *Server {
@@ -66,6 +68,7 @@ func NewServer(d Deps) *Server {
 		programs:  d.Programs,
 		injuries:  d.Injuries,
 		activity:  d.Activity,
+		workout:   d.Workout,
 	}
 }
 
