@@ -1,22 +1,22 @@
 import { $, api } from "../core.js";
 
-async function loadStatsWeek() {
+async function loadDisciplineWeek() {
   const data = await api("/api/stats/week");
   renderWeekCalendars(data);
 }
 
-async function loadStatsMonth() {
+async function loadDisciplineMonth() {
   const data = await api("/api/stats/month");
   renderMonthCalendars(data);
 }
 
-export async function loadStats() {
-  await loadStatsWeek();
-  await loadStatsMonth();
+export async function loadDiscipline() {
+  await loadDisciplineWeek();
+  await loadDisciplineMonth();
   toggleStatsView("week");
 }
 
-export function initStatsTab() {
+export function initDisciplineTab() {
   const statsWeek = $("stats-week");
   if (statsWeek) {
     statsWeek.addEventListener("click", async () => {

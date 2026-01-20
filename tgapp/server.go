@@ -20,55 +20,58 @@ type Server struct {
 	botToken string
 	tz       string
 
-	plan      *service.PlanService
-	workout   *service.WorkoutService
-	targets   *service.TargetsService
-	nutrition *service.NutritionService
-	steps     *service.StepsService
-	profile   *service.ProfileService
-	training  *service.TrainingProfileService
-	inputs    *service.TrainingInputService
-	programs  *service.TrainingProgramService
-	injuries  *service.InjuryTypeService
-	activity  *service.ActivityAI
-	workoutTimer *service.WorkoutTimerService
+	plan          *service.PlanService
+	workout       *service.WorkoutService
+	targets       *service.TargetsService
+	nutrition     *service.NutritionService
+	steps         *service.StepsService
+	profile       *service.ProfileService
+	training      *service.TrainingProfileService
+	inputs        *service.TrainingInputService
+	programs      *service.TrainingProgramService
+	injuries      *service.InjuryTypeService
+	activity      *service.ActivityAI
+	workoutTimer  *service.WorkoutTimerService
+	strengthStats *service.WorkoutStatsService
 }
 
 type Deps struct {
-	Addr      string
-	BotToken  string
-	TZ        string
-	Plan      *service.PlanService
-	Workout   *service.WorkoutService
-	Targets   *service.TargetsService
-	Nutrition *service.NutritionService
-	Steps     *service.StepsService
-	Profile   *service.ProfileService
-	Training  *service.TrainingProfileService
-	Inputs    *service.TrainingInputService
-	Programs  *service.TrainingProgramService
-	Injuries  *service.InjuryTypeService
-	Activity  *service.ActivityAI
-	WorkoutTimer *service.WorkoutTimerService
+	Addr          string
+	BotToken      string
+	TZ            string
+	Plan          *service.PlanService
+	Workout       *service.WorkoutService
+	Targets       *service.TargetsService
+	Nutrition     *service.NutritionService
+	Steps         *service.StepsService
+	Profile       *service.ProfileService
+	Training      *service.TrainingProfileService
+	Inputs        *service.TrainingInputService
+	Programs      *service.TrainingProgramService
+	Injuries      *service.InjuryTypeService
+	Activity      *service.ActivityAI
+	WorkoutTimer  *service.WorkoutTimerService
+	StrengthStats *service.WorkoutStatsService
 }
 
 func NewServer(d Deps) *Server {
 	return &Server{
-		addr:      d.Addr,
-		botToken:  d.BotToken,
-		tz:        d.TZ,
-		plan:      d.Plan,
-		workout:   d.Workout,
-		targets:   d.Targets,
-		nutrition: d.Nutrition,
-		steps:     d.Steps,
-		profile:   d.Profile,
-		training:  d.Training,
-		inputs:    d.Inputs,
-		programs:  d.Programs,
-		injuries:  d.Injuries,
-		activity:  d.Activity,
-		workoutTimer: d.WorkoutTimer,
+		addr:          d.Addr,
+		botToken:      d.BotToken,
+		tz:            d.TZ,
+		plan:          d.Plan,
+		workout:       d.Workout,
+		targets:       d.Targets,
+		nutrition:     d.Nutrition,
+		steps:         d.Steps,
+		profile:       d.Profile,
+		training:      d.Training,
+		inputs:        d.Inputs,
+		programs:      d.Programs,
+		injuries:      d.Injuries,
+		activity:      d.Activity,
+		workoutTimer:  d.WorkoutTimer,
+		strengthStats: d.StrengthStats,
 	}
 }
 

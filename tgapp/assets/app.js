@@ -10,8 +10,10 @@ import {
   loadTrainingProfile,
   initProfileTab,
   initStepsTab,
-  loadStats,
-  initStatsTab,
+  loadDiscipline,
+  initDisciplineTab,
+  loadStrengthStats,
+  initStrengthStatsTab,
   loadWorkout,
   initWorkoutTab,
 } from "./tabs/index.js";
@@ -35,8 +37,11 @@ function initNav() {
         await loadProfile();
         await loadTrainingProfile();
       }
+      if (tab === "discipline") {
+        await loadDiscipline();
+      }
       if (tab === "stats") {
-        await loadStats();
+        await loadStrengthStats();
       }
       if (tab === "workout") {
         await loadWorkout();
@@ -60,7 +65,8 @@ async function bootstrap() {
   initPlanTab();
   initStepsTab();
   initProfileTab();
-  initStatsTab();
+  initDisciplineTab();
+  initStrengthStatsTab();
   initWorkoutTab();
 
   const onboardingReady = await ensureOnboarding();

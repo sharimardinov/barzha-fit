@@ -47,6 +47,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
+	mux.HandleFunc("/api/stats/strength", s.withAuth(s.handleStrengthStats))
 	mux.HandleFunc("/api/streak", s.withAuth(s.handleStreak))
 	mux.HandleFunc("/api/workout/plan/get", s.withAuth(s.handleWorkoutPlanGet))
 	mux.HandleFunc("/api/workout/plan/save", s.withAuth(s.handleWorkoutPlanSave))
@@ -845,6 +846,21 @@ func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth a
 		"offset": offset,
 		"days":   days,
 	}})
+}
+
+func (s *Server) handleStrengthStats(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.strengthStats == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_unavailable"})
+		return
+	}
+	ctx := context.Background()
+	stats, err := s.strengthStats.StrengthAllTime(ctx, auth.User.ID)
+	if err != nil {
+		log.Printf("strength stats failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: stats})
 }
 
 func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authContext) {

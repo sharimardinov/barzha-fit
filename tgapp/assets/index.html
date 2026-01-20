@@ -296,9 +296,9 @@
         </div>
       </section>
 
-      <section class="screen" id="screen-stats">
+      <section class="screen" id="screen-discipline">
         <div class="card">
-          <div class="card-title">Статистика</div>
+          <div class="card-title">Дисциплина</div>
           <div class="row stats-controls">
             <button class="btn btn-accent" id="stats-week">Неделя</button>
             <button class="btn btn-outline" id="stats-month">Месяц</button>
@@ -318,6 +318,47 @@
         </div>
       </section>
 
+      <section class="screen" id="screen-stats">
+        <div class="card">
+          <div class="card-title">Статистика силовых</div>
+          <div class="muted stats-note">Период: всё время</div>
+          <div class="stats-overview">
+            <div class="stat-tile">
+              <div class="stat-label">Подходы</div>
+              <div class="stat-value" id="strength-total-sets">0</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Повторы</div>
+              <div class="stat-value" id="strength-total-reps">0</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Тоннаж</div>
+              <div class="stat-value" id="strength-total-tonnage">—</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Средний вес</div>
+              <div class="stat-value" id="strength-avg-weight">—</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">Макс. вес</div>
+              <div class="stat-value" id="strength-max-weight">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Топ по тоннажу</div>
+          <div class="stats-list" id="strength-top-tonnage"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Топ по повторам</div>
+          <div class="stats-list" id="strength-top-reps"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Последние подходы</div>
+          <div class="stats-recent" id="strength-recent"></div>
+        </div>
+      </section>
+
     </main>
 
     <nav class="nav">
@@ -327,6 +368,7 @@
       <button class="nav-btn" data-tab="workout"><i data-lucide="timer"></i><span>Тренировка</span></button>
       <button class="nav-btn" data-tab="meals"><i data-lucide="utensils"></i><span>Еда</span></button>
       <button class="nav-btn" data-tab="steps"><i data-lucide="footprints"></i><span>Шаги</span></button>
+      <button class="nav-btn" data-tab="discipline"><i data-lucide="check-circle"></i><span>Дисциплина</span></button>
       <button class="nav-btn" data-tab="stats"><i data-lucide="bar-chart-3"></i><span>Статистика</span></button>
       <button class="nav-btn" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>
       <button class="nav-btn" data-tab="plan"><i data-lucide="calendar"></i><span>План</span></button>

@@ -73,6 +73,8 @@ export function formatApiError(err, fallback) {
   if (code === "workout_session_not_found") return "Активная тренировка не найдена";
   if (code === "workout_session_state") return "Состояние тренировки изменилось";
   if (code === "workout_session_paused") return "Тренировка на паузе";
+  if (code === "strength_stats_unavailable") return "Статистика силовых недоступна";
+  if (code === "strength_stats_failed") return "Не удалось загрузить статистику силовых";
   return fallback;
 }
 
@@ -86,6 +88,7 @@ export function setActiveScreen(name) {
     steps: "Шаги",
     profile: "Профиль",
     plan: "План",
+    discipline: "Дисциплина",
     stats: "Статистика",
     workout: "Тренировка",
     onboarding: "",

@@ -84,23 +84,25 @@ func main() {
 	workoutSessionRepo := db.NewWorkoutSessionRepo(pool)
 	workoutSetRepo := db.NewWorkoutSetRepo(pool)
 	workoutTimerSvc := service.NewWorkoutTimerService(workoutPlanRepo, workoutSessionRepo, workoutSetRepo)
+	workoutStatsSvc := service.NewWorkoutStatsService(workoutSetRepo)
 
 	webServer := tgapp.NewServer(tgapp.Deps{
-		Addr:         cfg.WebAddr,
-		BotToken:     cfg.BotToken,
-		TZ:           cfg.TZ,
-		Plan:         planSvc,
-		Workout:      workoutSvc,
-		Targets:      targetsSvc,
-		Nutrition:    nutSvc,
-		Steps:        stepsSvc,
-		Profile:      profileSvc,
-		Training:     trainingProfileSvc,
-		Inputs:       trainingInputSvc,
-		Programs:     trainingProgramSvc,
-		Injuries:     injuryTypeSvc,
-		Activity:     activityAI,
-		WorkoutTimer: workoutTimerSvc,
+		Addr:          cfg.WebAddr,
+		BotToken:      cfg.BotToken,
+		TZ:            cfg.TZ,
+		Plan:          planSvc,
+		Workout:       workoutSvc,
+		Targets:       targetsSvc,
+		Nutrition:     nutSvc,
+		Steps:         stepsSvc,
+		Profile:       profileSvc,
+		Training:      trainingProfileSvc,
+		Inputs:        trainingInputSvc,
+		Programs:      trainingProgramSvc,
+		Injuries:      injuryTypeSvc,
+		Activity:      activityAI,
+		WorkoutTimer:  workoutTimerSvc,
+		StrengthStats: workoutStatsSvc,
 	})
 	go func() {
 		if err := webServer.ListenAndServe(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
