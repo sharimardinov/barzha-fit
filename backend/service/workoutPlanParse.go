@@ -57,7 +57,7 @@ func cleanWorkoutLine(line string) string {
 }
 
 func looksLikeWorkoutLine(line string) bool {
-	if strings.Contains(line, "|") {
+	if strings.Contains(line, "/") {
 		return true
 	}
 	if workoutSetsRe.MatchString(line) || workoutDurationRe.MatchString(line) {
@@ -77,7 +77,7 @@ func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
 		fields[i] = strings.TrimSpace(fields[i])
 	}
 	if len(fields) < 2 {
-		return domain.WorkoutExercise{}, "используй формат: Название | 3x10 | 60 | 120"
+		return domain.WorkoutExercise{}, "используй формат: Название / 3x10 / 60 / 120"
 	}
 	if len(fields) > 4 {
 		return domain.WorkoutExercise{}, "слишком много секций, ожидается максимум 4"
