@@ -20,6 +20,7 @@ import {
 import { ensureOnboarding, initOnboardingWizard } from "./onboarding.js";
 
 function initNav() {
+  syncNavOffset();
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const tab = btn.dataset.tab;
@@ -48,7 +49,16 @@ function initNav() {
       }
     });
   });
-  window.addEventListener("resize", () => requestAnimationFrame(updateNavHighlight));
+  window.addEventListener("resize", () => {
+    syncNavOffset();
+    requestAnimationFrame(updateNavHighlight);
+  });
+}
+
+function syncNavOffset() {
+  const nav = document.querySelector(".nav");
+  if (!nav) return;
+  document.documentElement.style.setProperty("--nav-height", `${nav.offsetHeight}px`);
 }
 
 async function bootstrap() {
@@ -102,6 +112,7 @@ async function bootstrap() {
   await loadToday();
   lucide?.createIcons();
   requestAnimationFrame(updateNavHighlight);
+  syncNavOffset();
 }
 
 bootstrap().catch((err) => {
