@@ -8,6 +8,8 @@ let session = null;
 let tickHandle = null;
 let refreshPending = false;
 let lastSetKey = null;
+let lastTimerKey = null;
+let lastTimerTotalSec = 0;
 
 export function initWorkoutTab() {
   const startBtn = $("workout-start");
@@ -145,6 +147,12 @@ function applySession(data) {
     toast("Тренировка завершена");
   } else {
     session = data?.session || null;
+  }
+  if (!session) {
+    lastTimerKey = null;
+    lastTimerTotalSec = 0;
+    const timerBlock = $("workout-timer-block");
+    if (timerBlock) timerBlock.style.setProperty("--timer-progress", "0%");
   }
   renderSession();
   renderPlanSection();
@@ -369,17 +377,26 @@ function updateTimers() {
   if (!session) return;
   updateTotalTime();
 
+  const timerBlock = $("workout-timer-block");
   const timerValue = $("workout-timer-value");
-  if (timerValue) {
-    if (session.timerDurationSec > 0) {
-      const remaining = getRemainingSeconds();
+  const showTimer = session.phase === "rest" || session.phase === "cardio";
+  let remaining = 0;
+  let total = 0;
+  if (showTimer && session.timerDurationSec > 0) {
+    remaining = getRemainingSeconds();
+    total = resolveTimerTotal(remaining);
+    if (timerValue) {
       timerValue.textContent = formatDuration(remaining);
       if (remaining <= 0) {
         triggerRefresh();
       }
-    } else {
-      timerValue.textContent = "00:00";
     }
+  } else if (timerValue) {
+    timerValue.textContent = "00:00";
+  }
+  if (timerBlock) {
+    const progress = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 0;
+    timerBlock.style.setProperty("--timer-progress", `${Math.round(progress * 1000) / 10}%`);
   }
 }
 
@@ -406,6 +423,27 @@ function getRemainingSeconds() {
   const end = new Date(session.timerStartedAt).getTime() + session.timerDurationSec * 1000;
   const remaining = Math.ceil((end - Date.now()) / 1000);
   return Math.max(0, remaining);
+}
+
+function resolveTimerTotal(remaining) {
+  if (!session) return 0;
+  const key = getTimerKey();
+  if (key !== lastTimerKey) {
+    lastTimerKey = key;
+    lastTimerTotalSec = session.timerDurationSec || 0;
+  }
+  if (session.timerStartedAt && (session.timerDurationSec || 0) > lastTimerTotalSec) {
+    lastTimerTotalSec = session.timerDurationSec || 0;
+  }
+  if (lastTimerTotalSec < remaining) {
+    lastTimerTotalSec = remaining;
+  }
+  return lastTimerTotalSec;
+}
+
+function getTimerKey() {
+  if (!session) return "";
+  return [session.phase, session.timerKind, session.exerciseIndex, session.setIndex].join("|");
 }
 
 function triggerRefresh() {

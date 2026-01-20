@@ -205,6 +205,8 @@ func FormatPlanForDisplay(plan string) (string, bool) {
 
 func splitPlanLines(text string) []string {
 	raw := strings.ReplaceAll(text, "\r\n", "\n")
+	raw = strings.ReplaceAll(raw, "\u2028", "\n")
+	raw = strings.ReplaceAll(raw, "\u2029", "\n")
 	lines := strings.Split(raw, "\n")
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {

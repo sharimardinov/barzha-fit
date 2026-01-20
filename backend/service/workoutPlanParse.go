@@ -13,6 +13,9 @@ var (
 	workoutSetsRe     = regexp.MustCompile(`(?i)^\s*(\d+)\s*[xх]\s*(\d+)\s*$`)
 	workoutDurationRe = regexp.MustCompile(`(?i)^\s*(\d+(?:[\.,]\d+)?)\s*(мин|min|m)\s*$`)
 	workoutNumberRe   = regexp.MustCompile(`[-+]?\d+(?:[\.,]\d+)?`)
+	workoutHeaderRe   = regexp.MustCompile(`(?i)^\s*(day|день)\s*\d+\b`)
+	workoutNumberOnly = regexp.MustCompile(`^\s*\d+(?:[.,]\d+)?\s*$`)
+	slashFieldRe      = regexp.MustCompile(`\s*/\s*`)
 )
 
 func BuildWorkoutPlanFromText(text string) (domain.WorkoutPlan, []string) {
@@ -26,6 +29,9 @@ func BuildWorkoutPlanFromText(text string) (domain.WorkoutPlan, []string) {
 			continue
 		}
 		if i == 0 && !looksLikeWorkoutLine(line) {
+			continue
+		}
+		if isWorkoutHeaderLine(line) {
 			continue
 		}
 		if isRestLine(line) {
@@ -71,6 +77,14 @@ func isRestLine(line string) bool {
 	return strings.HasPrefix(lower, "отдых") || strings.HasPrefix(lower, "rest") || strings.HasPrefix(lower, "off")
 }
 
+func isWorkoutHeaderLine(line string) bool {
+	if workoutHeaderRe.MatchString(line) {
+		return true
+	}
+	lower := strings.ToLower(strings.TrimSpace(line))
+	return strings.HasPrefix(lower, "day ") || strings.HasPrefix(lower, "день ")
+}
+
 func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
 	fields := splitWorkoutFields(line)
 	for i := range fields {
@@ -84,12 +98,33 @@ func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
 	}
 
 	name := fields[0]
+	cardio := false
+	if idx := strings.Index(name, ":"); idx != -1 {
+		prefix := strings.ToLower(strings.TrimSpace(name[:idx]))
+		if prefix == "кардио" || prefix == "cardio" {
+			cardio = true
+			name = strings.TrimSpace(name[idx+1:])
+		}
+	}
 	if name == "" {
 		return domain.WorkoutExercise{}, "пустое название упражнения"
 	}
 	main := stripNotes(fields[1])
 	if main == "" {
 		return domain.WorkoutExercise{}, "не указан формат (пример: 3x10 или 25 мин)"
+	}
+
+	if cardio {
+		dur, ok := parseCardioDurationSec(main)
+		if !ok || dur <= 0 {
+			return domain.WorkoutExercise{}, "длительность указывается в минутах (например 25 мин)"
+		}
+		return domain.WorkoutExercise{
+			Name:        name,
+			Type:        domain.WorkoutExerciseCardio,
+			DurationSec: dur,
+			RestSec:     defaultWorkoutRestSec,
+		}, ""
 	}
 
 	if match := workoutSetsRe.FindStringSubmatch(main); len(match) == 3 {
@@ -123,8 +158,8 @@ func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
 		}, ""
 	}
 
-	if workoutDurationRe.MatchString(main) {
-		dur, ok := parseDurationSec(main, true)
+	if workoutDurationRe.MatchString(main) || looksLikeDurationField(main) {
+		dur, ok := parseCardioDurationSec(main)
 		if !ok || dur <= 0 {
 			return domain.WorkoutExercise{}, "длительность указывается в минутах (например 25 мин)"
 		}
@@ -139,7 +174,31 @@ func parseWorkoutLine(line string) (domain.WorkoutExercise, string) {
 	return domain.WorkoutExercise{}, "не удалось распознать формат (пример: Название | 3x10 | 60 | 120)"
 }
 
-var slashFieldRe = regexp.MustCompile(`\s*/\s*`)
+func looksLikeDurationField(value string) bool {
+	lower := strings.ToLower(strings.TrimSpace(value))
+	if strings.Contains(lower, "мин") || strings.Contains(lower, "min") || strings.Contains(lower, "сек") || strings.Contains(lower, "sec") {
+		return true
+	}
+	if strings.Contains(lower, ":") {
+		return true
+	}
+	return workoutNumberOnly.MatchString(lower)
+}
+
+func parseCardioDurationSec(raw string) (int, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return 0, false
+	}
+	dur, ok := parseDurationSec(trimmed, false)
+	if !ok {
+		return 0, false
+	}
+	if workoutNumberOnly.MatchString(trimmed) {
+		return dur * 60, true
+	}
+	return dur, true
+}
 
 func splitWorkoutFields(line string) []string {
 	if strings.Contains(line, "|") {
