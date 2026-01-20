@@ -52,6 +52,27 @@ function initNav() {
 }
 
 async function bootstrap() {
+  const debugPanel = document.getElementById("debug-panel");
+  const enableDebug = new URLSearchParams(window.location.search).has("debug");
+  if (debugPanel && enableDebug) {
+    debugPanel.classList.add("active");
+    debugPanel.textContent = `authToken: ${authToken ? "yes" : "no"} | initData: ${initData ? "yes" : "no"}`;
+    if (authToken) {
+      try {
+        const res = await fetch("/auth/verify", {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.data?.user_id) {
+          debugPanel.textContent = `user_id: ${data.data.user_id}`;
+        } else if (data?.error) {
+          debugPanel.textContent = `auth_verify: ${data.error}`;
+        }
+      } catch (_) {
+        debugPanel.textContent = "auth_verify: failed";
+      }
+    }
+  }
   if (!initData && !authToken) {
     toast("Открой мини-апп из Telegram");
     return;

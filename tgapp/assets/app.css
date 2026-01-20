@@ -1612,6 +1612,24 @@ button {
   bottom: auto;
   transform: none;
 }
+.debug-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  display: none;
+  max-width: 220px;
+  word-break: break-all;
+}
+.debug-panel.active {
+  display: block;
+}
 .tabs.profile-goal-tabs {
   width: 100%;
   gap: 0;
