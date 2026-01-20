@@ -336,10 +336,35 @@ body {
   color: var(--black);
 }
 
-.workout-day-card.is-done {
+.workout-day-card {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s ease;
+}
+
+.workout-day-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 0.35s ease-out;
+  z-index: 0;
+}
+
+.workout-day-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.workout-day-card.is-done {
   border-color: var(--accent);
   color: var(--white);
+}
+
+.workout-day-card.is-done::before {
+  transform: scaleX(1);
 }
 
 .workout-day-card.is-done .card-title,
@@ -355,19 +380,23 @@ body {
 
 .workout-day-card.is-done .status-pill {
   border-color: rgba(255, 255, 255, 0.5);
+  transition: border-color 0.25s ease;
 }
 
 .workout-day-card.is-done .plan {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.35);
+  transition: background 0.25s ease, border-color 0.25s ease;
 }
 
 .workout-day-card.is-done .accordion-item {
   border-color: rgba(255, 255, 255, 0.35);
+  transition: border-color 0.25s ease;
 }
 
 .workout-day-card.is-done .accordion-toggle {
   background: transparent;
+  transition: background 0.25s ease;
 }
 
 .workout-day-card.is-done .accordion-body {
