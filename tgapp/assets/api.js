@@ -1,12 +1,17 @@
-import { initData, targetFields } from "./state.js";
+import { authToken, initData, targetFields } from "./state.js";
 
 export async function api(path, body = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  if (initData) {
+    headers["X-Tg-Init-Data"] = initData;
+  } else if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
   const res = await fetch(path, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Tg-Init-Data": initData,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));

@@ -1,5 +1,11 @@
 export const tg = window.Telegram?.WebApp || null;
 export const initData = tg?.initData || "";
+const params = new URLSearchParams(window.location.search);
+const tokenFromQuery = params.get("token");
+if (tokenFromQuery) {
+  localStorage.setItem("auth_token", tokenFromQuery);
+}
+export const authToken = tokenFromQuery || localStorage.getItem("auth_token") || "";
 
 export const $ = (id) => document.getElementById(id);
 
