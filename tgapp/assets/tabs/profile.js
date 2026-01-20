@@ -255,6 +255,21 @@ export function initProfileTab() {
       await saveProfileFlow(payload, trainingPayload, profileSave, { planMode: "ai-profile" });
     });
   }
+  const profileLogout = $("profile-logout");
+  if (profileLogout) {
+    profileLogout.addEventListener("click", () => {
+      localStorage.removeItem("auth_token");
+      if (window.webkit?.messageHandlers?.logout) {
+        window.webkit.messageHandlers.logout.postMessage({ source: "profile" });
+        return;
+      }
+      if (window.Telegram?.WebApp?.close) {
+        window.Telegram.WebApp.close();
+        return;
+      }
+      window.location.reload();
+    });
+  }
 }
 
 export function isProfileComplete(p) {

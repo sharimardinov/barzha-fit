@@ -161,7 +161,7 @@ async function saveTargets(prefix) {
     const value = Number(el.value || 0);
     await api("/api/targets/set", { field, value });
   }
-  toast("Цели обновлены");
+  toast("Сохранено", $("plan-targets-save"));
   await loadToday();
 }
 
