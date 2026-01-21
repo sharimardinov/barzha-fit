@@ -1,4 +1,13 @@
-import { authToken, initData, tg, toast, setActiveTab, updateNavHighlight, loadTargets } from "./core.js";
+import {
+  authToken,
+  initData,
+  tg,
+  toast,
+  setActiveTab,
+  updateNavHighlight,
+  loadTargets,
+  setScreenLoading,
+} from "./core.js";
 import {
   loadToday,
   initTodayTab,
@@ -25,28 +34,24 @@ function initNav() {
     btn.addEventListener("click", async () => {
       const tab = btn.dataset.tab;
       setActiveTab(tab);
-      if (tab === "today") {
-        await loadToday();
-      }
-      if (tab === "meals") await loadMeals();
+      if (tab === "today") await runScreenLoad("today", loadToday);
+      if (tab === "meals") await runScreenLoad("meals", loadMeals);
       if (tab === "plan") {
-        await loadPlan();
-        await loadTargets();
+        await runScreenLoad("plan", async () => {
+          await loadPlan();
+          await loadTargets();
+        });
       }
-      if (tab === "steps") await loadToday();
+      if (tab === "steps") await runScreenLoad("steps", loadToday);
       if (tab === "profile") {
-        await loadProfile();
-        await loadTrainingProfile();
+        await runScreenLoad("profile", async () => {
+          await loadProfile();
+          await loadTrainingProfile();
+        });
       }
-      if (tab === "discipline") {
-        await loadDiscipline();
-      }
-      if (tab === "stats") {
-        await loadStrengthStats();
-      }
-      if (tab === "workout") {
-        await loadWorkout();
-      }
+      if (tab === "discipline") await runScreenLoad("discipline", loadDiscipline);
+      if (tab === "stats") await runScreenLoad("stats", loadStrengthStats);
+      if (tab === "workout") await runScreenLoad("workout", loadWorkout);
     });
   });
   window.addEventListener("resize", () => {
@@ -61,7 +66,27 @@ function syncNavOffset() {
   document.documentElement.style.setProperty("--nav-height", `${nav.offsetHeight}px`);
 }
 
+function ensureScreenLoaders() {
+  document.querySelectorAll(".screen").forEach((screen) => {
+    if (screen.querySelector(".screen-loader")) return;
+    const loader = document.createElement("div");
+    loader.className = "screen-loader";
+    loader.innerHTML = '<div class="screen-loader-spinner" aria-hidden="true"></div>';
+    screen.appendChild(loader);
+  });
+}
+
+async function runScreenLoad(name, task) {
+  setScreenLoading(name, true);
+  try {
+    await task();
+  } finally {
+    setScreenLoading(name, false);
+  }
+}
+
 async function bootstrap() {
+  ensureScreenLoaders();
   const debugPanel = document.getElementById("debug-panel");
   const enableDebug = new URLSearchParams(window.location.search).has("debug");
   if (debugPanel && enableDebug) {
@@ -109,7 +134,7 @@ async function bootstrap() {
   }
 
   setActiveTab("today");
-  await loadToday();
+  await runScreenLoad("today", loadToday);
   lucide?.createIcons();
   requestAnimationFrame(updateNavHighlight);
   syncNavOffset();

@@ -109,6 +109,12 @@ export function setActiveTab(name) {
   requestAnimationFrame(updateNavHighlight);
 }
 
+export function setScreenLoading(name, loading) {
+  const screen = document.getElementById(`screen-${name}`);
+  if (!screen) return;
+  screen.classList.toggle("is-loading", Boolean(loading));
+}
+
 export function updateNavHighlight() {
   const nav = document.querySelector(".nav");
   const highlight = $("nav-highlight");
