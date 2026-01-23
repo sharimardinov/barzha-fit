@@ -91,8 +91,7 @@ func (s *Server) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state, err := s.parseGoogleState(stateRaw)
-	if err != nil {
+	if _, err := s.parseGoogleState(stateRaw); err != nil {
 		writeGoogleHTML(w, "Google sign in", "Invalid auth state.", "")
 		return
 	}
