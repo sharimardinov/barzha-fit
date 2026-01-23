@@ -124,7 +124,7 @@ export async function initOnboardingWizard() {
     },
     {
       id: "trainingStage",
-      title: "Твоя фаза",
+      title: "Уровень мышц",
       type: "goal-combo",
       options: [
         { value: "core", label: "CORE" },
@@ -132,7 +132,7 @@ export async function initOnboardingWizard() {
         { value: "peak", label: "PEAK" },
       ],
       defaultValue: "core",
-      help: "Выбери текущую фазу тренировок.",
+      help: "Выбери текущий уровень мышц.",
       required: true,
       showNotes: false,
       wide: true,
@@ -154,7 +154,7 @@ export async function initOnboardingWizard() {
       title: "Как получим план?",
       type: "options",
       options: [
-        { value: "ai", label: "Сгенерировать" },
+        { value: "ai", label: "Сгенерировать", disabled: true },
         { value: "manual", label: "Вставить вручную" },
       ],
       help: "Соберём данные и сгенерируем план.",
@@ -275,10 +275,15 @@ export async function initOnboardingWizard() {
         btn.className = className;
         btn.textContent = opt.label;
         btn.classList.toggle("active", data[step.id] === opt.value);
-        btn.addEventListener("click", () => {
-          data[step.id] = opt.value;
-          renderStep();
-        });
+        if (opt.disabled) {
+          btn.disabled = true;
+          btn.classList.add("option-disabled");
+        } else {
+          btn.addEventListener("click", () => {
+            data[step.id] = opt.value;
+            renderStep();
+          });
+        }
         list.appendChild(btn);
       });
       bodyEl.appendChild(list);

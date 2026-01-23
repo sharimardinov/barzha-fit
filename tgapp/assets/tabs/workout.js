@@ -57,6 +57,18 @@ export function initWorkoutTab() {
     });
   }
 
+  const restEndBtn = $("workout-rest-end");
+  if (restEndBtn) {
+    restEndBtn.addEventListener("click", async () => {
+      try {
+        const data = await api("/api/workout/session/rest/end");
+        applySession(data);
+      } catch (err) {
+        toast(formatApiError(err, "Не удалось завершить отдых"));
+      }
+    });
+  }
+
   const pauseBtn = $("workout-pause");
   if (pauseBtn) {
     pauseBtn.addEventListener("click", async () => {
@@ -305,6 +317,7 @@ function updatePhaseControls() {
   const inputs = $("workout-inputs");
   const warmupBtn = $("workout-warmup-done");
   const setDoneBtn = $("workout-set-done");
+  const restEndBtn = $("workout-rest-end");
   const pauseBtn = $("workout-pause");
   const resumeBtn = $("workout-resume");
   const stopBtn = $("workout-stop");
@@ -336,6 +349,7 @@ function updatePhaseControls() {
 
   if (warmupBtn) warmupBtn.classList.toggle("hidden", phase !== "warmup");
   if (setDoneBtn) setDoneBtn.classList.toggle("hidden", phase !== "set");
+  if (restEndBtn) restEndBtn.classList.toggle("hidden", !(phase === "rest" && status === "in_progress"));
 
   if (pauseBtn) pauseBtn.classList.toggle("hidden", status !== "in_progress");
   if (resumeBtn) resumeBtn.classList.toggle("hidden", status !== "paused");

@@ -339,6 +339,40 @@ func (s *WorkoutTimerService) FinishSet(ctx context.Context, chatID int64, exerc
 	return session, plan, nil
 }
 
+func (s *WorkoutTimerService) FinishRest(ctx context.Context, chatID int64) (domain.WorkoutSession, *domain.WorkoutPlan, error) {
+	session, plan, err := s.GetSession(ctx, chatID)
+	if err != nil {
+		return domain.WorkoutSession{}, nil, err
+	}
+	if session.Status == domain.WorkoutSessionStatusPaused {
+		return domain.WorkoutSession{}, nil, ErrWorkoutSessionPaused
+	}
+	if session.Status != domain.WorkoutSessionStatusInProgress {
+		return domain.WorkoutSession{}, nil, ErrWorkoutSessionState
+	}
+	if session.Phase != domain.WorkoutSessionPhaseRest {
+		return domain.WorkoutSession{}, nil, ErrWorkoutSessionState
+	}
+	if session.ExerciseIndex < 0 || session.ExerciseIndex >= len(plan.Exercises) {
+		return domain.WorkoutSession{}, nil, ErrWorkoutSessionState
+	}
+
+	now := s.now()
+	ex := plan.Exercises[session.ExerciseIndex]
+	if ex.Type == domain.WorkoutExerciseCardio {
+		startTimer(&session, domain.WorkoutSessionPhaseCardio, domain.WorkoutTimerKindCardio, ex.DurationSec, now)
+		session.SetIndex = 1
+	} else {
+		session.Phase = domain.WorkoutSessionPhaseSet
+		clearTimer(&session)
+	}
+
+	if err := s.sessions.Update(ctx, &session); err != nil {
+		return domain.WorkoutSession{}, nil, err
+	}
+	return session, plan, nil
+}
+
 func (s *WorkoutTimerService) Pause(ctx context.Context, chatID int64) (domain.WorkoutSession, *domain.WorkoutPlan, error) {
 	session, plan, err := s.GetSession(ctx, chatID)
 	if err != nil {

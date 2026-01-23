@@ -54,6 +54,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/workout/session/get", s.withAuth(s.handleWorkoutSessionGet))
 	mux.HandleFunc("/api/workout/session/start", s.withAuth(s.handleWorkoutSessionStart))
 	mux.HandleFunc("/api/workout/session/warmup/end", s.withAuth(s.handleWorkoutWarmupEnd))
+	mux.HandleFunc("/api/workout/session/rest/end", s.withAuth(s.handleWorkoutRestEnd))
 	mux.HandleFunc("/api/workout/session/set/finish", s.withAuth(s.handleWorkoutSetFinish))
 	mux.HandleFunc("/api/workout/session/pause", s.withAuth(s.handleWorkoutSessionPause))
 	mux.HandleFunc("/api/workout/session/resume", s.withAuth(s.handleWorkoutSessionResume))
@@ -1019,6 +1020,21 @@ func (s *Server) handleWorkoutWarmupEnd(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_warmup_finish_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
+		"session": workoutSessionToDTO(session),
+		"plan":    plan,
+	}})
+}
+
+func (s *Server) handleWorkoutRestEnd(w http.ResponseWriter, r *http.Request, auth authContext) {
+	session, plan, err := s.workoutTimer.FinishRest(context.Background(), auth.User.ID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_rest_finish_failed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
