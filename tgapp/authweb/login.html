@@ -125,8 +125,15 @@
               window.webkit.messageHandlers.authComplete.postMessage(payload);
               setStatus("Success. Return to the app.");
             } else {
-              console.log("Auth payload:", payload);
-              setStatus("Success. You can close this page.");
+              try {
+                localStorage.setItem("auth_token", payload.token);
+              } catch (_) {
+                // Ignore storage errors.
+              }
+              setStatus("Success. Redirecting...");
+              setTimeout(() => {
+                window.location.href = "/miniapp/";
+              }, 400);
             }
           })
           .catch((err) => {
