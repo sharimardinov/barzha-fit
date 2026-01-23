@@ -114,7 +114,7 @@ func (s *Server) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	chatID, _, err := s.googleAuth.EnsureChatIDBySub(r.Context(), info.Sub, info.Email, info.Name)
-	if err != nil || chatID <= 0 {
+	if err != nil || chatID == 0 {
 		if err != nil {
 			log.Printf("google auth create failed: sub=%s err=%v", info.Sub, err)
 		}
