@@ -16,8 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"barzhafit/backend/storage/db"
 )
 
 const googleStateTTL = 10 * time.Minute
@@ -58,22 +56,7 @@ func (s *Server) handleGoogleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode := r.URL.Query().Get("mode")
-	if mode != "link" {
-		mode = "login"
-	}
-
-	var chatID int64
-	if mode == "link" {
-		auth, err := s.authenticate(r)
-		if err != nil {
-			writeGoogleHTML(w, "Google link", "You need to open this from the app.", "")
-			return
-		}
-		chatID = auth.User.ID
-	}
-
-	state, err := s.buildGoogleState(mode, chatID)
+	state, err := s.buildGoogleState("login", 0)
 	if err != nil {
 		writeGoogleHTML(w, "Google sign in", "Failed to start Google auth.", "")
 		return
@@ -126,76 +109,21 @@ func (s *Server) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch state.Mode {
-	case "link":
-		if state.ChatID <= 0 {
-			writeGoogleHTML(w, "Google link", "Missing account to link.", "")
-			return
-		}
-		if s.googleAuth == nil {
-			writeGoogleHTML(w, "Google link", "Google link is not configured.", "")
-			return
-		}
-		err = s.googleAuth.Link(r.Context(), state.ChatID, info.Sub, info.Email, info.Name)
-		if errors.Is(err, db.ErrGoogleAlreadyLinked) {
-			writeGoogleHTML(w, "Google link", "Google account is already linked.", "/miniapp/")
-			return
-		}
-		if errors.Is(err, db.ErrGoogleLinkedToOtherUser) {
-			writeGoogleHTML(w, "Google link", "Google account is linked to another user.", "")
-			return
-		}
-		if err != nil {
-			writeGoogleHTML(w, "Google link", "Failed to link Google account.", "")
-			return
-		}
-		writeGoogleHTML(w, "Google link", "Google account linked. You can return to the app.", "/miniapp/")
-		return
-	case "login":
-		if s.googleAuth == nil {
-			writeGoogleHTML(w, "Google sign in", "Google sign in is not available.", "")
-			return
-		}
-		chatID, ok, err := s.googleAuth.ResolveChatID(r.Context(), info.Sub)
-		if err != nil {
-			writeGoogleHTML(w, "Google sign in", "Failed to resolve account.", "")
-			return
-		}
-		if !ok || chatID <= 0 {
-			writeGoogleHTML(w, "Google sign in", "Google account is not linked yet. Link it in Telegram first.", "")
-			return
-		}
-		displayName := strings.TrimSpace(info.Email)
-		if displayName == "" {
-			displayName = strings.TrimSpace(info.Name)
-		}
-		session := s.sessions.Create(chatID, displayName)
-		writeGoogleLoginSuccess(w, session)
-		return
-	default:
-		writeGoogleHTML(w, "Google sign in", "Unknown auth mode.", "")
+	if s.googleAuth == nil {
+		writeGoogleHTML(w, "Google sign in", "Google sign in is not available.", "")
 		return
 	}
-}
-
-func (s *Server) handleGoogleLink(w http.ResponseWriter, r *http.Request, auth authContext) {
-	if !s.googleEnabled() {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "google_auth_not_configured"})
+	chatID, _, err := s.googleAuth.EnsureChatIDBySub(r.Context(), info.Sub, info.Email, info.Name)
+	if err != nil || chatID <= 0 {
+		writeGoogleHTML(w, "Google sign in", "Failed to create account.", "")
 		return
 	}
-	state, err := s.buildGoogleState("link", auth.User.ID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "google_auth_failed"})
-		return
+	displayName := strings.TrimSpace(info.Email)
+	if displayName == "" {
+		displayName = strings.TrimSpace(info.Name)
 	}
-	authURL, err := s.buildGoogleAuthURL(r, state)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "google_auth_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"url": authURL,
-	}})
+	session := s.sessions.Create(chatID, displayName)
+	writeGoogleLoginSuccess(w, session)
 }
 
 func (s *Server) googleEnabled() bool {
