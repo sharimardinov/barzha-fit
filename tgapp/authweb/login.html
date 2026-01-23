@@ -41,11 +41,12 @@
         box-shadow: none;
         position: relative;
         z-index: 1;
+        text-align: left;
       }
       .copy {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         margin-bottom: 20px;
       }
       h1 {
@@ -57,6 +58,7 @@
         margin: 0;
         color: var(--muted);
         font-size: 15px;
+        line-height: 1.2;
       }
       .actions {
         display: grid;
@@ -110,10 +112,6 @@
         position: absolute;
         inset: 0;
         z-index: 2;
-      }
-      #telegram-login-container iframe {
-        width: 100% !important;
-        height: 100% !important;
         opacity: 0;
       }
       .status {
@@ -122,9 +120,9 @@
         min-height: 20px;
       }
       .logo {
-        width: 96px;
-        height: 96px;
-        margin-bottom: 8px;
+        width: 220px;
+        height: 220px;
+        margin-bottom: 4px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -174,7 +172,6 @@
             </div>
           </div>
         </div>
-        <div class="divider">или</div>
         <div id="status" class="status"></div>
       </main>
     </div>
