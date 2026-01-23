@@ -28,6 +28,8 @@ import {
 } from "./tabs/index.js";
 import { ensureOnboarding, initOnboardingWizard } from "./onboarding.js";
 
+let loadersEnabled = true;
+
 function initNav() {
   syncNavOffset();
   document.querySelectorAll(".nav-btn").forEach((btn) => {
@@ -76,13 +78,26 @@ function ensureScreenLoaders() {
   });
 }
 
-async function runScreenLoad(name, task) {
-  setScreenLoading(name, true);
+async function runScreenLoad(name, task, opts = {}) {
+  const showLoader = opts.showLoader ?? loadersEnabled;
+  if (showLoader) setScreenLoading(name, true);
   try {
     await task();
   } finally {
-    setScreenLoading(name, false);
+    if (showLoader) setScreenLoading(name, false);
   }
+}
+
+async function prefetchScreens() {
+  loadersEnabled = false;
+  await Promise.allSettled([
+    loadPlan().then(loadTargets),
+    loadMeals(),
+    loadProfile().then(loadTrainingProfile),
+    loadDiscipline(),
+    loadStrengthStats(),
+    loadWorkout(),
+  ]);
 }
 
 async function bootstrap() {
@@ -135,6 +150,7 @@ async function bootstrap() {
 
   setActiveTab("today");
   await runScreenLoad("today", loadToday);
+  prefetchScreens();
   lucide?.createIcons();
   requestAnimationFrame(updateNavHighlight);
   syncNavOffset();
