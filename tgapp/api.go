@@ -24,6 +24,7 @@ type apiResponse struct {
 }
 
 func (s *Server) registerAPI(mux *http.ServeMux) {
+	mux.HandleFunc("/api/auth/google/link", s.withAuth(s.handleGoogleLink))
 	mux.HandleFunc("/api/today", s.withAuth(s.handleToday))
 	mux.HandleFunc("/api/workout/set", s.withAuth(s.handleWorkoutSet))
 	mux.HandleFunc("/api/meals/today", s.withAuth(s.handleMealsToday))

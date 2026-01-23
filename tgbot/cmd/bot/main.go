@@ -86,10 +86,15 @@ func main() {
 	workoutTimerSvc := service.NewWorkoutTimerService(workoutPlanRepo, workoutSessionRepo, workoutSetRepo)
 	workoutStatsSvc := service.NewWorkoutStatsService(workoutSetRepo)
 
+	googleAuthRepo := db.NewGoogleAuthRepo(pool)
+	googleAuthSvc := service.NewGoogleAuthService(googleAuthRepo)
+
 	webServer := tgapp.NewServer(tgapp.Deps{
 		Addr:          cfg.WebAddr,
 		BotToken:      cfg.BotToken,
 		AuthBotToken:  cfg.AuthBotToken,
+		GoogleClientID:     cfg.GoogleClientID,
+		GoogleClientSecret: cfg.GoogleClientSecret,
 		TZ:            cfg.TZ,
 		Plan:          planSvc,
 		Workout:       workoutSvc,
@@ -104,6 +109,7 @@ func main() {
 		Activity:      activityAI,
 		WorkoutTimer:  workoutTimerSvc,
 		StrengthStats: workoutStatsSvc,
+		GoogleAuth:    googleAuthSvc,
 	})
 	go func() {
 		if err := webServer.ListenAndServe(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {

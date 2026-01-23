@@ -34,6 +34,38 @@
       #telegram-login-container {
         margin: 12px 0 16px;
       }
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #777;
+        font-size: 12px;
+        margin: 8px 0 14px;
+      }
+      .divider::before,
+      .divider::after {
+        content: "";
+        height: 1px;
+        background: #e6e7ea;
+        flex: 1;
+      }
+      .google-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid #dadce0;
+        background: #fff;
+        color: #1f1f1f;
+        font-weight: 600;
+        text-decoration: none;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .google-btn:hover {
+        background: #f7f7f7;
+      }
       .status {
         font-size: 14px;
         color: #666;
@@ -44,8 +76,10 @@
   <body>
     <main class="card">
       <h1>Sign in</h1>
-      <p>Use Telegram to continue.</p>
+      <p>Use Telegram or Google to continue.</p>
       <div id="telegram-login-container"></div>
+      <div class="divider">or</div>
+      <a class="google-btn" href="/auth/google/start?mode=login">Continue with Google</a>
       <div id="status" class="status"></div>
     </main>
 

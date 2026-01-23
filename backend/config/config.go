@@ -10,6 +10,8 @@ import (
 type Config struct {
 	BotToken     string
 	AuthBotToken string
+	GoogleClientID     string
+	GoogleClientSecret string
 	TZ           string
 	Debug        bool
 	DatabaseURL  string
@@ -27,6 +29,15 @@ func Load() (*Config, error) {
 	authToken := os.Getenv("AUTH_BOT_TOKEN")
 	if authToken == "" {
 		return nil, fmt.Errorf("AUTH_BOT_TOKEN is required")
+	}
+
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	if googleClientID != "" && googleClientSecret == "" {
+		return nil, fmt.Errorf("GOOGLE_CLIENT_SECRET is required")
+	}
+	if googleClientSecret != "" && googleClientID == "" {
+		return nil, fmt.Errorf("GOOGLE_CLIENT_ID is required")
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
@@ -49,6 +60,8 @@ func Load() (*Config, error) {
 	return &Config{
 		BotToken:     token,
 		AuthBotToken: authToken,
+		GoogleClientID:     googleClientID,
+		GoogleClientSecret: googleClientSecret,
 		TZ:           tz,
 		Debug:        debug,
 		DatabaseURL:  dbURL,

@@ -24,6 +24,8 @@ type telegramLogin struct {
 func (s *Server) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("/auth/telegram", s.handleTelegramAuth)
 	mux.HandleFunc("/auth/verify", s.handleAuthVerify)
+	mux.HandleFunc("/auth/google/start", s.handleGoogleStart)
+	mux.HandleFunc("/auth/google/callback", s.handleGoogleCallback)
 }
 
 func (s *Server) handleTelegramAuth(w http.ResponseWriter, r *http.Request) {

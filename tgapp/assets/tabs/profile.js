@@ -255,6 +255,19 @@ export function initProfileTab() {
       await saveProfileFlow(payload, trainingPayload, profileSave, { planMode: "ai-profile" });
     });
   }
+  const googleLink = $("profile-google-link");
+  if (googleLink) {
+    googleLink.addEventListener("click", async () => {
+      try {
+        const data = await api("/api/auth/google/link");
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      } catch (err) {
+        toast(formatApiError(err, "Не удалось открыть Google"));
+      }
+    });
+  }
   const profileLogout = $("profile-logout");
   if (profileLogout) {
     profileLogout.addEventListener("click", () => {

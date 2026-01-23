@@ -22,6 +22,8 @@ type Server struct {
 	addr         string
 	botToken     string
 	authBotToken string
+	googleClientID     string
+	googleClientSecret string
 	tz           string
 
 	plan          *service.PlanService
@@ -37,6 +39,7 @@ type Server struct {
 	activity      *service.ActivityAI
 	workoutTimer  *service.WorkoutTimerService
 	strengthStats *service.WorkoutStatsService
+	googleAuth    *service.GoogleAuthService
 	sessions      *sessionStore
 }
 
@@ -44,6 +47,8 @@ type Deps struct {
 	Addr          string
 	BotToken      string
 	AuthBotToken  string
+	GoogleClientID     string
+	GoogleClientSecret string
 	TZ            string
 	Plan          *service.PlanService
 	Workout       *service.WorkoutService
@@ -58,6 +63,7 @@ type Deps struct {
 	Activity      *service.ActivityAI
 	WorkoutTimer  *service.WorkoutTimerService
 	StrengthStats *service.WorkoutStatsService
+	GoogleAuth    *service.GoogleAuthService
 }
 
 func NewServer(d Deps) *Server {
@@ -65,6 +71,8 @@ func NewServer(d Deps) *Server {
 		addr:          d.Addr,
 		botToken:      d.BotToken,
 		authBotToken:  d.AuthBotToken,
+		googleClientID:     d.GoogleClientID,
+		googleClientSecret: d.GoogleClientSecret,
 		tz:            d.TZ,
 		plan:          d.Plan,
 		workout:       d.Workout,
@@ -79,6 +87,7 @@ func NewServer(d Deps) *Server {
 		activity:      d.Activity,
 		workoutTimer:  d.WorkoutTimer,
 		strengthStats: d.StrengthStats,
+		googleAuth:    d.GoogleAuth,
 		sessions:      newSessionStore(),
 	}
 }
