@@ -42,21 +42,26 @@
         position: relative;
         z-index: 1;
       }
+      .copy {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
       h1 {
-        font-size: 28px;
-        margin: 0 0 8px;
-        line-height: 1.1;
+        font-size: 40px;
+        margin: 0;
+        line-height: 1.05;
       }
       p {
-        margin: 0 0 20px;
+        margin: 0;
         color: var(--muted);
         font-size: 15px;
       }
-      #telegram-login-container {
-        margin: 10px 0 6px;
-        width: 100%;
-        display: flex;
-        justify-content: center;
+      .actions {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 12px;
       }
       .divider {
         display: flex;
@@ -73,7 +78,7 @@
         background: var(--border);
         flex: 1;
       }
-      .google-btn {
+      .btn-base {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -86,9 +91,30 @@
         text-decoration: none;
         width: 100%;
         box-sizing: border-box;
+        min-height: 52px;
       }
-      .google-btn:hover {
+      .btn-base:hover {
         background: rgba(255, 255, 255, 0.12);
+      }
+      .telegram-btn {
+        position: relative;
+        width: 100%;
+        min-height: 52px;
+      }
+      .telegram-btn .btn-face {
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+      #telegram-login-container {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+      #telegram-login-container iframe {
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0;
       }
       .status {
         font-size: 14px;
@@ -96,9 +122,9 @@
         min-height: 20px;
       }
       .logo {
-        width: 128px;
-        height: 128px;
-        margin-bottom: 14px;
+        width: 96px;
+        height: 96px;
+        margin-bottom: 8px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -116,7 +142,7 @@
           border-radius: 0;
         }
         h1 {
-          font-size: 24px;
+          font-size: 30px;
         }
       }
     </style>
@@ -127,19 +153,26 @@
         <div class="logo">
           <img src="/miniapp/bott.png" alt="BarzhaFit">
         </div>
-        <h1>Войди в меня</h1>
-        <p>Один аккаунт доступ ко всему</p>
-        <p>План, таймер и питание.</p>
-        <a class="google-btn" href="/auth/google/start?mode=login">Войти через Google</a>
-        <div id="telegram-login-container">
-          <script
-            async
-            src="https://telegram.org/js/telegram-widget.js?22"
-            data-telegram-login="authbarzhafitbot"
-            data-size="large"
-            data-onauth="onTelegramAuth(user)"
-            data-request-access="write"
-          ></script>
+        <div class="copy">
+          <h1>Войди в меня</h1>
+          <p>Один аккаунт доступ ко всему</p>
+          <p>План, таймер и питание.</p>
+        </div>
+        <div class="actions">
+          <a class="google-btn btn-base" href="/auth/google/start?mode=login">Войти через Google</a>
+          <div class="telegram-btn">
+            <div class="btn-face btn-base">Войти через Telegram</div>
+            <div id="telegram-login-container">
+              <script
+                async
+                src="https://telegram.org/js/telegram-widget.js?22"
+                data-telegram-login="authbarzhafitbot"
+                data-size="large"
+                data-onauth="onTelegramAuth(user)"
+                data-request-access="write"
+              ></script>
+            </div>
+          </div>
         </div>
         <div class="divider">или</div>
         <div id="status" class="status"></div>
