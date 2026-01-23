@@ -53,7 +53,10 @@
         font-size: 15px;
       }
       #telegram-login-container {
-        margin: 8px 0 16px;
+        margin: 10px 0 6px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
       }
       .divider {
         display: flex;
@@ -92,18 +95,20 @@
         color: var(--muted);
         min-height: 20px;
       }
-      .logo-corner {
-        position: absolute;
-        top: 18px;
-        left: 18px;
-        width: 46px;
-        height: 46px;
+      .logo {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
-      .logo-corner img {
+      .logo img {
         width: 100%;
         height: 100%;
         object-fit: contain;
         display: block;
+        filter: brightness(0) invert(1);
       }
       @media (max-width: 520px) {
         .card {
@@ -119,7 +124,7 @@
   <body>
     <div class="page">
       <main class="card">
-        <div class="logo-corner">
+        <div class="logo">
           <img src="/miniapp/bott.png" alt="BarzhaFit">
         </div>
         <h1>Войди и продолжай тренировки</h1>
