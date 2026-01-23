@@ -10,6 +10,53 @@ let refreshPending = false;
 let lastSetKey = null;
 let lastTimerKey = null;
 let lastTimerTotalSec = 0;
+let wakeLockSentinel = null;
+
+// Keep screen awake while the workout timer is visible.
+function shouldKeepScreenAwake() {
+  const screen = document.getElementById("screen-workout");
+  const screenActive = screen ? screen.classList.contains("active") : false;
+  return Boolean(
+    screenActive
+    && session
+    && session.status === "in_progress"
+    && (session.phase === "rest" || session.phase === "cardio")
+  );
+}
+
+async function requestWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  if (wakeLockSentinel) return;
+  try {
+    wakeLockSentinel = await navigator.wakeLock.request("screen");
+    wakeLockSentinel.addEventListener("release", () => {
+      wakeLockSentinel = null;
+      if (shouldKeepScreenAwake()) {
+        requestWakeLock();
+      }
+    });
+  } catch (_) {
+    wakeLockSentinel = null;
+  }
+}
+
+async function releaseWakeLock() {
+  if (!wakeLockSentinel) return;
+  try {
+    await wakeLockSentinel.release();
+  } catch (_) {
+    // Ignore failures; we will clear the handle anyway.
+  }
+  wakeLockSentinel = null;
+}
+
+function syncWakeLock() {
+  if (shouldKeepScreenAwake()) {
+    requestWakeLock();
+  } else {
+    releaseWakeLock();
+  }
+}
 
 export function initWorkoutTab() {
   const startBtn = $("workout-start");
@@ -104,6 +151,15 @@ export function initWorkoutTab() {
       }
     });
   }
+
+  document.addEventListener("screen-change", syncWakeLock);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      syncWakeLock();
+      return;
+    }
+    releaseWakeLock();
+  });
 }
 
 export async function loadWorkout() {
@@ -257,6 +313,7 @@ function renderSession() {
     if (sessionActive) sessionActive.classList.add("hidden");
     if (startRow) startRow.classList.toggle("hidden", planIssues.length > 0 || !plan || !(plan.exercises || []).length);
     clearTick();
+    syncWakeLock();
     return;
   }
 
@@ -308,6 +365,7 @@ function renderSession() {
 
   updatePhaseControls();
   startTick();
+  syncWakeLock();
 }
 
 function updatePhaseControls() {

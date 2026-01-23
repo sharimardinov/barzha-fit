@@ -99,6 +99,7 @@ export function setActiveScreen(name) {
   if ($("screen-title")) {
     $("screen-title").textContent = titles[name] || "Сегодня";
   }
+  document.dispatchEvent(new CustomEvent("screen-change", { detail: { name } }));
 }
 
 export function setActiveTab(name) {
