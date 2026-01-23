@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -114,6 +115,9 @@ func (s *Server) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	chatID, _, err := s.googleAuth.EnsureChatIDBySub(r.Context(), info.Sub, info.Email, info.Name)
 	if err != nil || chatID <= 0 {
+		if err != nil {
+			log.Printf("google auth create failed: sub=%s err=%v", info.Sub, err)
+		}
 		writeGoogleHTML(w, "Google sign in", "Failed to create account.", "")
 		return
 	}
