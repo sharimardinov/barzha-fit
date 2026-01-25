@@ -2,6 +2,19 @@ export * from "./state.js";
 export * from "./api.js";
 export * from "./ui.js";
 
+export function postNativeMessage(name, payload) {
+  if (typeof window === "undefined") return false;
+  const handlers = window.webkit?.messageHandlers;
+  const handler = handlers?.[name];
+  if (!handler || typeof handler.postMessage !== "function") return false;
+  try {
+    handler.postMessage(payload ?? {});
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 export function buildWheelValues(min, max, step) {
   const values = [];
   const isFloat = Math.abs(step % 1) > 0;

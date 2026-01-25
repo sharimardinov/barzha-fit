@@ -1,4 +1,4 @@
-import { $, api, toast, parseNumberInput, formatApiError } from "../core.js";
+import { $, api, toast, parseNumberInput, formatApiError, postNativeMessage } from "../core.js";
 
 const defaultRestSec = 120;
 
@@ -11,6 +11,7 @@ let lastSetKey = null;
 let lastTimerKey = null;
 let lastTimerTotalSec = 0;
 let wakeLockSentinel = null;
+let nativeWorkoutActive = false;
 
 // Keep screen awake while the workout timer is visible.
 function shouldKeepScreenAwake() {
@@ -170,6 +171,7 @@ export async function loadWorkout() {
     plan = sessionData.plan;
     planIssues = [];
   }
+  syncNativeWorkout(session);
   renderPlanSection();
   renderSession();
 }
@@ -216,6 +218,7 @@ function applySession(data) {
   } else {
     session = data?.session || null;
   }
+  syncNativeWorkout(session);
   if (!session) {
     lastTimerKey = null;
     lastTimerTotalSec = 0;
@@ -568,4 +571,11 @@ function formatRest(seconds) {
     return `${total / 60} мин`;
   }
   return `${total} сек`;
+}
+
+function syncNativeWorkout(activeSession) {
+  const active = Boolean(activeSession && activeSession.status !== "completed");
+  if (active === nativeWorkoutActive) return;
+  nativeWorkoutActive = active;
+  postNativeMessage("workoutTimer", { action: active ? "start" : "stop" });
 }

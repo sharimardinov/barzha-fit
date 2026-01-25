@@ -2,45 +2,27 @@ import SwiftUI
 
 struct SampleContentView: View {
     @StateObject private var auth = AuthState()
+    @StateObject private var heartRate = HeartRateManager()
     @State private var profileJSON: String = ""
     @State private var errorText: String = ""
 
     private let loginURL = URL(string: "https://barzhafit.ru/login")!
+    private let miniappBaseURL = URL(string: "https://barzhafit.ru/miniapp")!
 
     var body: some View {
         if let token = auth.token {
-            VStack(spacing: 12) {
-                if let username = auth.username, !username.isEmpty {
-                    Text("Hi, @\(username)")
-                        .font(.headline)
-                } else {
-                    Text("Signed in")
-                        .font(.headline)
-                }
+            TabView {
+                profileTab(token: token)
+                    .tabItem { Label("Profile", systemImage: "person") }
 
-                if !profileJSON.isEmpty {
-                    Text(profileJSON)
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                }
-
-                if !errorText.isEmpty {
-                    Text(errorText)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                }
-
-                Button("Load profile") {
-                    loadProfile(token: token)
-                }
-
-                Button("Log out") {
-                    auth.clear()
-                    profileJSON = ""
+                workoutTab(token: token)
+                    .tabItem { Label("Workout", systemImage: "timer") }
+            }
+            .onChange(of: auth.token) { newValue in
+                if newValue == nil {
+                    heartRate.stop()
                 }
             }
-            .padding()
         } else {
             ZStack(alignment: .bottom) {
                 AuthWebView(url: loginURL) { payload in
@@ -62,6 +44,71 @@ struct SampleContentView: View {
             }
             .ignoresSafeArea()
         }
+    }
+
+    @ViewBuilder
+    private func profileTab(token: String) -> some View {
+        VStack(spacing: 12) {
+            if let username = auth.username, !username.isEmpty {
+                Text("Hi, @\(username)")
+                    .font(.headline)
+            } else {
+                Text("Signed in")
+                    .font(.headline)
+            }
+
+            if !profileJSON.isEmpty {
+                Text(profileJSON)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+
+            if !errorText.isEmpty {
+                Text(errorText)
+                    .font(.footnote)
+                    .foregroundColor(.red)
+            }
+
+            Button("Load profile") {
+                loadProfile(token: token)
+            }
+
+            Button("Log out") {
+                auth.clear()
+                profileJSON = ""
+                heartRate.stop()
+            }
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private func workoutTab(token: String) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Text("Heart rate")
+                    .font(.headline)
+                Text(heartRate.bpm.map(String.init) ?? "n/a")
+                    .font(.headline)
+            }
+
+            Text(heartRate.status)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+
+            WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(1)
+        }
+        .padding(.top, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func miniappURL(token: String) -> URL {
+        var components = URLComponents(url: miniappBaseURL, resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "token", value: token)]
+        return components?.url ?? miniappBaseURL
     }
 
     private func loadProfile(token: String) {
