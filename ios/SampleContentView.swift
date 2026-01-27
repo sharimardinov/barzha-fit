@@ -5,19 +5,14 @@ struct SampleContentView: View {
     @StateObject private var heartRate = HeartRateManager()
     @State private var profileJSON: String = ""
     @State private var errorText: String = ""
+    @State private var debugText: String = ""
 
     private let loginURL = URL(string: "https://barzhafit.ru/login")!
     private let miniappBaseURL = URL(string: "https://barzhafit.ru/miniapp")!
 
     var body: some View {
         if let token = auth.token {
-            TabView {
-                profileTab(token: token)
-                    .tabItem { Label("Profile", systemImage: "person") }
-
-                workoutTab(token: token)
-                    .tabItem { Label("Workout", systemImage: "timer") }
-            }
+            workoutTab(token: token)
             .onChange(of: auth.token) { newValue in
                 if newValue == nil {
                     heartRate.stop()
@@ -30,6 +25,8 @@ struct SampleContentView: View {
                     auth.save(payload: payload)
                 } onError: { error in
                     errorText = error
+                } onDebug: { message in
+                    debugText = message
                 }
 
                 if !errorText.isEmpty {
@@ -40,6 +37,16 @@ struct SampleContentView: View {
                         .background(.white.opacity(0.9))
                         .cornerRadius(8)
                         .padding(.bottom, 24)
+                }
+
+                if !debugText.isEmpty {
+                    Text(debugText)
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(8)
+                        .padding(.bottom, 80)
                 }
             }
             .ignoresSafeArea()
@@ -85,24 +92,8 @@ struct SampleContentView: View {
 
     @ViewBuilder
     private func workoutTab(token: String) -> some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Text("Heart rate")
-                    .font(.headline)
-                Text(heartRate.bpm.map(String.init) ?? "n/a")
-                    .font(.headline)
-            }
-
-            Text(heartRate.status)
-                .font(.footnote)
-                .foregroundColor(.secondary)
-
-            WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .layoutPriority(1)
-        }
-        .padding(.top, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate)
+            .ignoresSafeArea()
     }
 
     private func miniappURL(token: String) -> URL {
