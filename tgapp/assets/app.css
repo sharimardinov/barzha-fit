@@ -1044,9 +1044,20 @@ button {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workout-summary-block {
   display: grid;
   gap: 6px;
-  text-align: center;
+  flex: 1;
+}
+
+.workout-summary-right {
+  text-align: right;
 }
 
 .workout-summary-label {
