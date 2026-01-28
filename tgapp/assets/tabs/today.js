@@ -64,14 +64,13 @@ export async function loadToday() {
   setMetricValue("today-protein", `${data.protein} / ${data.targets.protein}`, data.icons.protein);
   setMetricValue("today-fat", `${data.fat} / ${data.targets.fat}`, data.icons.fat);
   setMetricValue("today-carbs", `${data.carbs} / ${data.targets.carbs}`, data.icons.carbs);
+  setMetricValue("today-steps", `${data.steps} / ${data.targets.steps}`, data.icons.steps);
 
   setProgress("progress-kcal", data.kcal, data.targets.kcal);
   setProgress("progress-protein", data.protein, data.targets.protein);
   setProgress("progress-fat", data.fat, data.targets.fat);
   setProgress("progress-carbs", data.carbs, data.targets.carbs);
-
-  $("steps-summary").textContent = `${data.steps} / ${data.targets.steps}`;
-  setProgress("progress-steps-screen", data.steps, data.targets.steps);
+  setProgress("progress-steps", data.steps, data.targets.steps);
 }
 
 function setWorkoutCardProgress(target) {
@@ -126,13 +125,6 @@ export function initTodayTab() {
       setActiveTab("meals");
       const { loadMeals } = await import("./meals.js");
       await loadMeals();
-    });
-  }
-  const todayAddSteps = $("today-add-steps");
-  if (todayAddSteps) {
-    todayAddSteps.addEventListener("click", async () => {
-      setActiveTab("steps");
-      await loadToday();
     });
   }
 

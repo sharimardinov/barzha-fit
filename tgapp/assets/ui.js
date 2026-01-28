@@ -89,7 +89,6 @@ export function setActiveScreen(name) {
   const titles = {
     today: "Сегодня",
     meals: "Еда",
-    steps: "Шаги",
     profile: "Профиль",
     plan: "План",
     discipline: "Дисциплина",

@@ -18,7 +18,6 @@ import {
   loadProfile,
   loadTrainingProfile,
   initProfileTab,
-  initStepsTab,
   loadDiscipline,
   initDisciplineTab,
   loadStrengthStats,
@@ -44,7 +43,6 @@ function initNav() {
           await loadTargets();
         });
       }
-      if (tab === "steps") await runScreenLoad("steps", loadToday);
       if (tab === "profile") {
         await runScreenLoad("profile", async () => {
           await loadProfile();
@@ -134,7 +132,6 @@ async function bootstrap() {
   initTodayTab();
   initMealsTab();
   initPlanTab();
-  initStepsTab();
   initProfileTab();
   initDisciplineTab();
   initStrengthStatsTab();

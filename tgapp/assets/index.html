@@ -87,6 +87,13 @@
             </div>
             <div class="progress-bar"><div class="progress-fill" id="progress-carbs"></div></div>
           </div>
+          <div class="progress-item">
+            <div class="progress-head">
+              <span>Шаги</span>
+              <span class="value" id="today-steps">—</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-steps"></div></div>
+          </div>
           <div class="row today-actions">
             <button class="btn btn-outline btn-icon" id="today-add-meal">
               <svg class="btn-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
@@ -95,14 +102,6 @@
                 <path d="M12 16V8" stroke-width="1.5"></path>
               </svg>
               <span>Добавить еду</span>
-            </button>
-            <button class="btn btn-outline btn-icon" id="today-add-steps">
-              <svg class="btn-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke-width="1.5"></path>
-                <path d="M8 12H16" stroke-width="1.5"></path>
-                <path d="M12 16V8" stroke-width="1.5"></path>
-              </svg>
-              <span>Добавить шаги</span>
             </button>
           </div>
         </div>
@@ -217,23 +216,6 @@
           <div class="row">
             <button class="btn btn-accent" id="plan-targets-save">Сохранить</button>
             <button class="btn btn-outline" id="plan-targets-refresh">Из профиля</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="screen" id="screen-steps">
-        <div class="card">
-          <div class="card-title">Шаги за сегодня</div>
-          <div class="stack">
-            <input type="number" id="steps-value" placeholder="Например: 8500">
-            <button class="btn btn-accent" id="steps-save">Сохранить</button>
-            <div class="progress-item">
-              <div class="progress-head">
-                <span>Сегодня</span>
-                <span class="value" id="steps-summary">—</span>
-              </div>
-              <div class="progress-bar"><div class="progress-fill" id="progress-steps-screen"></div></div>
-            </div>
           </div>
         </div>
       </section>
@@ -390,7 +372,6 @@
       <button class="nav-btn active" data-tab="today"><i data-lucide="home"></i><span>Сегодня</span></button>
       <button class="nav-btn" data-tab="workout"><i data-lucide="timer"></i><span>Тренировка</span></button>
       <button class="nav-btn" data-tab="meals"><i data-lucide="utensils"></i><span>Еда</span></button>
-      <button class="nav-btn" data-tab="steps"><i data-lucide="footprints"></i><span>Шаги</span></button>
       <button class="nav-btn" data-tab="discipline"><i data-lucide="check-circle"></i><span>Дисциплина</span></button>
       <button class="nav-btn" data-tab="stats"><i data-lucide="bar-chart-3"></i><span>Статистика</span></button>
       <button class="nav-btn" data-tab="profile"><i data-lucide="user"></i><span>Профиль</span></button>

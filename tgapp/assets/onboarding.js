@@ -161,6 +161,19 @@ export async function initOnboardingWizard() {
       required: true,
     },
     {
+      id: "planInputMode",
+      title: "Как удобнее заполнить план?",
+      type: "options",
+      options: [
+        { value: "simple", label: "По дням (простые поля)" },
+        { value: "advanced", label: "Как сейчас (структурно)" },
+      ],
+      defaultValue: "simple",
+      help: "Можно выбрать удобный способ ввода.",
+      required: true,
+      when: (d) => d.planMode === "manual",
+    },
+    {
       id: "injuries",
       title: "Травмы и ограничения",
       type: "multi-options",
@@ -263,6 +276,9 @@ export async function initOnboardingWizard() {
     bodyEl.innerHTML = "";
 
     if (step.type === "options") {
+      if (data[step.id] === undefined && step.defaultValue !== undefined) {
+        data[step.id] = step.defaultValue;
+      }
       const list = document.createElement("div");
       list.className = "option-list";
       step.options.forEach((opt) => {
@@ -456,11 +472,40 @@ export async function initOnboardingWizard() {
           items: [],
         }));
       }
+      const isSimplePlan = (data.planInputMode || "simple") === "simple";
+      if (isSimplePlan) {
+        helpEl.textContent = "Введи кратко по дням. Можно писать упражнения строками. Для отдыха — 'Отдых'.";
+      }
       const editor = document.createElement("div");
-      editor.className = "training-editor active";
-      renderPlanEditor(editor, data[step.id], (updated) => {
-        data[step.id] = updated;
-      });
+      editor.className = `training-editor active${isSimplePlan ? " simple" : ""}`;
+      if (isSimplePlan) {
+        data[step.id].forEach((day, index) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "training-day-editor";
+          wrapper.dataset.index = String(index);
+
+          const title = document.createElement("div");
+          title.className = "muted";
+          title.textContent = `День ${index + 1}`;
+          wrapper.appendChild(title);
+
+          const itemsArea = document.createElement("textarea");
+          itemsArea.placeholder = "Например: Отдых или Жим 3x10, Тяга 3x12 (по строкам)";
+          itemsArea.value = Array.isArray(day.items) ? day.items.join("\n") : "";
+          itemsArea.addEventListener("input", () => {
+            day.items = itemsArea.value
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean);
+          });
+          wrapper.appendChild(itemsArea);
+          editor.appendChild(wrapper);
+        });
+      } else {
+        renderPlanEditor(editor, data[step.id], (updated) => {
+          data[step.id] = updated;
+        });
+      }
       bodyEl.appendChild(editor);
     }
 
