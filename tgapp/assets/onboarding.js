@@ -474,11 +474,68 @@ export async function initOnboardingWizard() {
       }
       const isSimplePlan = (data.planInputMode || "simple") === "simple";
       if (isSimplePlan) {
-        helpEl.textContent = "Введи кратко по дням. Можно писать упражнения строками. Для отдыха — 'Отдых'.";
+        helpEl.textContent = "Заполни упражнения по отдельным полям. Для дня отдыха включи переключатель.";
       }
       const editor = document.createElement("div");
       editor.className = `training-editor active${isSimplePlan ? " simple" : ""}`;
       if (isSimplePlan) {
+        const parseItemLine = (line) => {
+          const parts = String(line || "")
+            .split("|")
+            .map((p) => p.trim())
+            .filter(Boolean);
+          const name = parts[0] || "";
+          let sets = "";
+          let reps = "";
+          if (parts[1]) {
+            const match = parts[1].match(/(\d+)\s*[xх]\s*(\d+)/i);
+            if (match) {
+              sets = match[1] || "";
+              reps = match[2] || "";
+            } else {
+              sets = parts[1] || "";
+            }
+          }
+          const weight = parts[2] || "";
+          const rest = parts[3] || "";
+          return { name, sets, reps, weight, rest };
+        };
+
+        const isRestDay = (day) => {
+          if (day.simpleIsRest !== undefined) return day.simpleIsRest;
+          const items = Array.isArray(day.items) ? day.items : [];
+          if (items.length !== 1) return false;
+          const text = String(items[0] || "").trim().toLowerCase();
+          return /(отдых|rest|off)/i.test(text);
+        };
+
+        const syncItems = (day) => {
+          if (day.simpleIsRest) {
+            day.items = ["Отдых"];
+            return;
+          }
+          const items = Array.isArray(day.simpleItems) ? day.simpleItems : [];
+          const lines = items
+            .map((item) => {
+              const name = String(item.name || "").trim();
+              if (!name) return "";
+              const sets = String(item.sets || "").trim();
+              const reps = String(item.reps || "").trim();
+              const weight = String(item.weight || "").trim();
+              const rest = String(item.rest || "").trim();
+              const parts = [name];
+              if (sets || reps) {
+                const sr = sets && reps ? `${sets}x${reps}` : `${sets}${reps ? `x${reps}` : ""}`;
+                parts.push(sr);
+              }
+              if (weight) parts.push(weight);
+              if (rest) parts.push(rest);
+              return parts.join(" | ");
+            })
+            .filter(Boolean);
+          day.items = lines;
+        };
+
         data[step.id].forEach((day, index) => {
           const wrapper = document.createElement("div");
           wrapper.className = "training-day-editor";
@@ -489,16 +546,126 @@ export async function initOnboardingWizard() {
           title.textContent = `День ${index + 1}`;
           wrapper.appendChild(title);
 
-          const itemsArea = document.createElement("textarea");
-          itemsArea.placeholder = "Например: Отдых или Жим 3x10, Тяга 3x12 (по строкам)";
-          itemsArea.value = Array.isArray(day.items) ? day.items.join("\n") : "";
-          itemsArea.addEventListener("input", () => {
-            day.items = itemsArea.value
-              .split("\n")
-              .map((line) => line.trim())
-              .filter(Boolean);
+          if (!Array.isArray(day.simpleItems)) {
+            const items = Array.isArray(day.items) ? day.items : [];
+            day.simpleItems = items.length ? items.map(parseItemLine) : [];
+          }
+          day.simpleIsRest = isRestDay(day);
+          if (!day.simpleIsRest && day.simpleItems.length === 0) {
+            day.simpleItems.push({ name: "", sets: "", reps: "", weight: "", rest: "" });
+          }
+
+          const restRow = document.createElement("label");
+          restRow.className = "row";
+          const restToggle = document.createElement("input");
+          restToggle.type = "checkbox";
+          restToggle.checked = Boolean(day.simpleIsRest);
+          const restText = document.createElement("span");
+          restText.textContent = "День отдыха";
+          restRow.appendChild(restToggle);
+          restRow.appendChild(restText);
+          wrapper.appendChild(restRow);
+
+          const rows = document.createElement("div");
+          rows.className = "stack";
+          wrapper.appendChild(rows);
+
+          const renderRows = () => {
+            rows.innerHTML = "";
+            if (day.simpleIsRest) {
+              const hint = document.createElement("div");
+              hint.className = "muted";
+              hint.textContent = "Отдых";
+              rows.appendChild(hint);
+              syncItems(day);
+              return;
+            }
+            day.simpleItems.forEach((item, itemIndex) => {
+              const row = document.createElement("div");
+              row.className = "training-exercise-row";
+
+              const name = document.createElement("input");
+              name.type = "text";
+              name.placeholder = "Название";
+              name.value = item.name || "";
+              name.addEventListener("input", () => {
+                item.name = name.value;
+                syncItems(day);
+              });
+
+              const sets = document.createElement("input");
+              sets.type = "number";
+              sets.placeholder = "Подходы";
+              sets.value = item.sets || "";
+              sets.addEventListener("input", () => {
+                item.sets = sets.value;
+                syncItems(day);
+              });
+
+              const reps = document.createElement("input");
+              reps.type = "number";
+              reps.placeholder = "Повторения";
+              reps.value = item.reps || "";
+              reps.addEventListener("input", () => {
+                item.reps = reps.value;
+                syncItems(day);
+              });
+
+              const weight = document.createElement("input");
+              weight.type = "number";
+              weight.step = "0.5";
+              weight.placeholder = "Вес";
+              weight.value = item.weight || "";
+              weight.addEventListener("input", () => {
+                item.weight = weight.value;
+                syncItems(day);
+              });
+
+              const rest = document.createElement("input");
+              rest.type = "number";
+              rest.placeholder = "Отдых (сек)";
+              rest.value = item.rest || "";
+              rest.addEventListener("input", () => {
+                item.rest = rest.value;
+                syncItems(day);
+              });
+
+              const remove = document.createElement("button");
+              remove.type = "button";
+              remove.className = "btn btn-outline";
+              remove.textContent = "Удалить";
+              remove.addEventListener("click", () => {
+                day.simpleItems.splice(itemIndex, 1);
+                syncItems(day);
+                renderRows();
+              });
+
+              row.appendChild(name);
+              row.appendChild(sets);
+              row.appendChild(reps);
+              row.appendChild(weight);
+              row.appendChild(rest);
+              row.appendChild(remove);
+              rows.appendChild(row);
+            });
+          };
+
+          const addBtn = document.createElement("button");
+          addBtn.type = "button";
+          addBtn.className = "btn btn-outline";
+          addBtn.textContent = "Добавить упражнение";
+          addBtn.addEventListener("click", () => {
+            day.simpleItems.push({ name: "", sets: "", reps: "", weight: "", rest: "" });
+            renderRows();
           });
-          wrapper.appendChild(itemsArea);
+
+          restToggle.addEventListener("change", () => {
+            day.simpleIsRest = restToggle.checked;
+            renderRows();
+          });
+
+          renderRows();
+          wrapper.appendChild(addBtn);
           editor.appendChild(wrapper);
         });
       } else {

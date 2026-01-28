@@ -935,6 +935,30 @@ button {
   min-height: 120px;
 }
 
+.training-editor.simple .training-day-editor textarea {
+  min-height: 80px;
+}
+
+.training-exercise-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) repeat(4, minmax(70px, 0.8fr)) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.training-exercise-row .btn {
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .training-exercise-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .training-exercise-row .btn {
+    grid-column: span 2;
+  }
+}
+
 .form-grid label {
   display: grid;
   gap: 6px;
