@@ -556,13 +556,17 @@ export async function initOnboardingWizard() {
           }
 
           const restRow = document.createElement("label");
-          restRow.className = "row";
+          restRow.className = "container";
           const restToggle = document.createElement("input");
           restToggle.type = "checkbox";
           restToggle.checked = Boolean(day.simpleIsRest);
+          const restCheckmark = document.createElement("div");
+          restCheckmark.className = "checkmark";
           const restText = document.createElement("span");
+          restText.className = "check-label";
           restText.textContent = "День отдыха";
           restRow.appendChild(restToggle);
+          restRow.appendChild(restCheckmark);
           restRow.appendChild(restText);
           wrapper.appendChild(restRow);
 
