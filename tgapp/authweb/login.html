@@ -124,15 +124,8 @@
         width: 100% !important;
         height: 100% !important;
       }
-      .ios .telegram-btn .btn-face {
-        display: none;
-      }
       .ios #telegram-login-container {
-        position: static;
-        opacity: 1;
-      }
-      .ios #telegram-login-container iframe {
-        opacity: 1;
+        display: none;
       }
       .status {
         font-size: 14px;
@@ -179,7 +172,7 @@
         <div class="actions">
           <a class="google-btn btn-base" href="/auth/google/start?mode=login">Войти через Google</a>
           <div class="telegram-btn">
-            <div class="btn-face btn-base">Войти через Telegram</div>
+            <a id="telegram-fallback" class="btn-face btn-base" href="/auth/telegram/start">Войти через Telegram</a>
             <div id="telegram-login-container">
               <script
                 async
@@ -198,6 +191,24 @@
     <script>
       const statusEl = document.getElementById("status");
       const telegramBtn = document.querySelector(".telegram-btn");
+      const telegramFallback = document.getElementById("telegram-fallback");
+
+      function debug(msg) {
+        try {
+          if (
+            window.webkit &&
+            window.webkit.messageHandlers &&
+            window.webkit.messageHandlers.authDebug
+          ) {
+            window.webkit.messageHandlers.authDebug.postMessage(String(msg));
+          }
+        } catch (_) {
+          // Ignore bridge errors.
+        }
+        if (typeof console !== "undefined") {
+          console.log(msg);
+        }
+      }
 
       function setStatus(msg) {
         statusEl.textContent = msg || "";
@@ -209,10 +220,19 @@
         document.documentElement.classList.add("ios");
       }
 
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get("return_to") || "/miniapp/";
+      const fallbackURL = "/auth/telegram/start?return_to=" + encodeURIComponent(returnTo);
+      if (telegramFallback) {
+        telegramFallback.href = fallbackURL;
+      }
+
+      debug("login ready; ios=" + isIOS);
       setStatus(isIOS ? "Готово к входу (iOS)" : "Готово к входу");
       if (telegramBtn) {
         telegramBtn.addEventListener("click", () => {
-          setStatus("Нажатие на Telegram...");
+          debug("telegram click");
+          setStatus(isIOS ? "Открываем Telegram..." : "Нажатие на Telegram...");
         });
       }
       document.addEventListener("touchstart", () => {
@@ -222,13 +242,16 @@
       setTimeout(() => {
         const iframe = document.querySelector("#telegram-login-container iframe");
         if (iframe) {
-          setStatus("Виджет Telegram загружен");
+          setStatus(isIOS ? "Готово к входу (iOS)" : "Виджет Telegram загружен");
+          debug("tg widget iframe ok");
         } else {
           setStatus("Виджет Telegram не загрузился");
+          debug("tg widget iframe missing");
         }
       }, 1200);
 
       function onTelegramAuth(user) {
+        debug("onTelegramAuth fired");
         setStatus("Signing in...");
         fetch("/auth/telegram", {
           method: "POST",

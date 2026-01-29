@@ -16,6 +16,7 @@ struct AuthWebView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
+        Coordinator(onAuth: onAuth, onError: onError, onDebug: onDebug)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -24,6 +25,7 @@ struct AuthWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "authDebug")
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
+        config.userContentController.addUserScript(makeWindowOpenPatchScript())
         config.userContentController.addUserScript(makeDebugScript())
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -69,6 +71,29 @@ struct AuthWebView: UIViewRepresentable {
         })();
         """
         return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+    }
+
+    private func makeWindowOpenPatchScript() -> WKUserScript {
+        let source = """
+        (function() {
+          if (window.__authOpenPatched) { return; }
+          window.__authOpenPatched = true;
+          var originalOpen = window.open;
+          window.open = function(url) {
+            try {
+              if (url) {
+                window.location.href = url;
+                return window;
+              }
+            } catch (_) {}
+            if (typeof originalOpen === 'function') {
+              return originalOpen.apply(window, arguments);
+            }
+            return null;
+          };
+        })();
+        """
+        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
