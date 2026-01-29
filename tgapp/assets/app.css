@@ -941,9 +941,11 @@ button {
 
 .training-exercise-row {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(80px, 0.9fr)) minmax(100px, 0.7fr);
+  grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)) minmax(0, 0.8fr);
   gap: 10px;
   align-items: end;
+  width: 100%;
+  min-width: 0;
 }
 
 .training-exercise-field {
@@ -961,6 +963,7 @@ button {
 
 .training-exercise-row .btn {
   width: 100%;
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {
@@ -1008,30 +1011,30 @@ button {
 .checkmark:after {
   content: "";
   position: absolute;
-  transform: rotate(0deg);
-  border: 0.1em solid black;
-  left: 0;
-  top: 0;
-  width: 1.05em;
-  height: 1.05em;
-  border-radius: 0.25em;
-  transition: all 0.25s, border-width 0.1s;
-}
-
-.container input:checked ~ .checkmark:after {
+  display: none;
+  transform: rotate(45deg);
   left: 0.45em;
   top: 0.25em;
   width: 0.25em;
   height: 0.5em;
   border-color: #fff0 white white #fff0;
   border-width: 0 0.15em 0.15em 0;
+  border-style: solid;
   border-radius: 0em;
-  transform: rotate(45deg);
+  transition: all 0.25s, border-width 0.1s;
+}
+
+.container input:checked ~ .checkmark:after {
+  display: block;
 }
 
 .check-label {
   font-size: 14px;
   color: var(--muted);
+}
+
+.training-day-editor {
+  overflow: hidden;
 }
 
 .form-grid label {
