@@ -940,10 +940,10 @@ button {
 }
 
 .training-exercise-row {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)) max-content;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  align-items: end;
+  align-items: flex-end;
   width: 100%;
   min-width: 0;
 }
@@ -954,6 +954,7 @@ button {
   font-size: 12px;
   color: var(--muted);
   min-width: 0;
+  flex: 1 1 150px;
 }
 
 .training-exercise-field input {
@@ -970,35 +971,23 @@ button {
   width: 100%;
   white-space: nowrap;
   padding: 10px 14px;
-  justify-self: end;
+  flex: 0 0 auto;
   min-width: 96px;
 }
 
 @media (max-width: 1100px) {
-  .training-exercise-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .training-exercise-row.is-cardio {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .training-exercise-row .btn {
-    grid-column: span 2;
-    justify-self: stretch;
+    width: 100%;
   }
 }
 
 @media (max-width: 720px) {
-  .training-exercise-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
   .training-exercise-row .btn {
-    grid-column: auto;
+    width: 100%;
   }
-}
-
-.training-exercise-row.is-cardio {
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2.2fr) minmax(0, 1fr) max-content;
+  .training-exercise-field {
+    flex: 1 1 100%;
+  }
 }
 
 .training-day-toggle {
@@ -1053,10 +1042,12 @@ button {
   left: 0;
   height: 1.3em;
   width: 1.3em;
-  background-color: #2196f300;
+  background: transparent;
   border-radius: 0.25em;
   transition: all 0.25s;
   border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 .container input:checked ~ .checkmark {
@@ -1075,6 +1066,7 @@ button {
   height: 1.05em;
   border-radius: 0.25em;
   transition: all 0.25s, border-width 0.1s;
+  box-sizing: border-box;
 }
 
 .container input:checked ~ .checkmark:after {
