@@ -187,9 +187,17 @@
     </div>
     <script>
       const statusEl = document.getElementById("status");
+      const telegramBtn = document.querySelector(".telegram-btn");
 
       function setStatus(msg) {
         statusEl.textContent = msg || "";
+      }
+
+      setStatus("Готово к входу");
+      if (telegramBtn) {
+        telegramBtn.addEventListener("click", () => {
+          setStatus("Нажатие на Telegram...");
+        });
       }
 
       function onTelegramAuth(user) {

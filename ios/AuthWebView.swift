@@ -22,13 +22,19 @@ struct AuthWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(context.coordinator, name: "authComplete")
+        config.userContentController.add(context.coordinator, name: "authDebug")
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
+        config.userContentController.addUserScript(makeDebugScript())
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tap.cancelsTouchesInView = false
+        webView.addGestureRecognizer(tap)
         context.coordinator.setInitialURL(url)
+        context.coordinator.noteNative("webview created")
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -37,17 +43,58 @@ struct AuthWebView: UIViewRepresentable {
         context.coordinator.update(webView: webView, targetURL: url)
     }
 
+    private func makeDebugScript() -> WKUserScript {
+        let source = """
+        (function() {
+          if (window.__authDebugInstalled) { return; }
+          window.__authDebugInstalled = true;
+          function send(msg) {
+            try {
+              window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.authDebug &&
+                window.webkit.messageHandlers.authDebug.postMessage(String(msg));
+            } catch (_) {}
+          }
+          window.addEventListener('error', function(e) {
+            if (!e) return;
+            send('js error: ' + (e.message || 'unknown'));
+          });
+          window.addEventListener('unhandledrejection', function(e) {
+            var reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown';
+            send('js promise: ' + reason);
+          });
+          document.addEventListener('DOMContentLoaded', function() {
+            send('dom ready: ' + window.location.href);
+            send('tg widget: ' + (typeof window.onTelegramAuth));
+          });
+          send('js bridge ready');
+        })();
+        """
+        return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+    }
+
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         private let onAuth: (AuthPayload) -> Void
         private let onError: (String) -> Void
         private let onDebug: (String) -> Void
         private var didHandleTelegramAuth = false
         private var lastRequestedURL: URL?
+        private var nativeLogged = false
 
         init(onAuth: @escaping (AuthPayload) -> Void, onError: @escaping (String) -> Void, onDebug: @escaping (String) -> Void) {
             self.onAuth = onAuth
             self.onError = onError
             self.onDebug = onDebug
+        }
+
+        func noteNative(_ message: String) {
+            guard !nativeLogged else { return }
+            nativeLogged = true
+            onDebug("[native] \(message)")
+        }
+
+        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+            let point = gesture.location(in: gesture.view)
+            onDebug("[native] tap \(Int(point.x))x\(Int(point.y))")
         }
 
         func setInitialURL(_ url: URL) {
@@ -96,6 +143,9 @@ struct AuthWebView: UIViewRepresentable {
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "authComplete" else {
+                if message.name == "authDebug" {
+                    onDebug("[web] \(message.body)")
+                }
                 return
             }
             guard let payload = AuthPayload.fromMessageBody(message.body) else {
@@ -112,6 +162,9 @@ struct AuthWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if let url = webView.url?.absoluteString {
+                onDebug("[nav] finished: \(url)")
+            }
             tryHandleTelegramJSON(in: webView)
         }
 
@@ -127,12 +180,19 @@ struct AuthWebView: UIViewRepresentable {
                 if scheme == "tg" || scheme == "telegram" {
                     if UIApplication.shared.canOpenURL(url) {
                         UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                        onDebug("[nav] open tg://")
+                    } else {
+                        onDebug("[nav] tg:// not supported")
                     }
                     decisionHandler(.cancel)
                     return
                 }
             }
             decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            onDebug("[nav] failed: \(error.localizedDescription)")
         }
 
         private func tryHandleTelegramJSON(in webView: WKWebView) {

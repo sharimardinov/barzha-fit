@@ -26,7 +26,7 @@ struct SampleContentView: View {
                 } onError: { error in
                     errorText = error
                 } onDebug: { message in
-                    debugText = message
+                    debugText = appendDebugLine(debugText, message)
                 }
 
                 if !errorText.isEmpty {
@@ -100,6 +100,19 @@ struct SampleContentView: View {
         var components = URLComponents(url: miniappBaseURL, resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "token", value: token)]
         return components?.url ?? miniappBaseURL
+    }
+
+    private func appendDebugLine(_ existing: String, _ message: String) -> String {
+        let line = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        if line.isEmpty {
+            return existing
+        }
+        var lines = existing.split(separator: "\n").map(String.init)
+        lines.append(line)
+        if lines.count > 8 {
+            lines = Array(lines.suffix(8))
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func loadProfile(token: String) {
