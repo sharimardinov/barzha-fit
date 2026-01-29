@@ -45,6 +45,7 @@ export async function loadToday() {
   }
 
   setWorkoutCardProgress(data.workout === "done" ? 1 : 0);
+  updateStepsCard(data);
 
   const doneBtn = $("workout-done");
   if (doneBtn) {
@@ -71,6 +72,27 @@ export async function loadToday() {
   setProgress("progress-fat", data.fat, data.targets.fat);
   setProgress("progress-carbs", data.carbs, data.targets.carbs);
   setProgress("progress-steps", data.steps, data.targets.steps);
+}
+
+function updateStepsCard(data) {
+  const steps = Number(data.steps || 0);
+  const target = Number(data.targets?.steps || 0);
+  const ring = $("steps-ring");
+  const value = $("steps-value");
+  const goal = $("steps-goal");
+  const distance = $("steps-distance");
+  const kcal = $("steps-kcal");
+
+  if (value) value.textContent = Number.isFinite(steps) ? steps.toLocaleString("ru-RU") : "0";
+  if (goal) goal.textContent = Number.isFinite(target) && target > 0 ? target.toLocaleString("ru-RU") : "—";
+  if (distance) distance.textContent = "—";
+  if (kcal) kcal.textContent = "—";
+
+  if (ring) {
+    const ratio = target > 0 ? Math.min(steps / target, 1) : 0;
+    const deg = Math.round(ratio * 360);
+    ring.style.setProperty("--steps-progress", `${deg}deg`);
+  }
 }
 
 function setWorkoutCardProgress(target) {

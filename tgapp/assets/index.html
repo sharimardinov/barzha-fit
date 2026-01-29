@@ -49,12 +49,23 @@
       </section>
 
       <section class="screen active" id="screen-today">
-        <div class="card workout-day-card" id="workout-day-card">
-          <div class="card-title workout-ink">Тренировка дня</div>
-          <div class="accordion" id="today-accordion"></div>
-          <pre class="plan workout-ink" id="today-training-result">—</pre>
-          <div class="row today-actions">
-            <button class="btn btn-accent workout-ink-box" id="workout-done"><span class="workout-ink">Сделал</span></button>
+        <div class="card steps-card" id="steps-card">
+          <div class="steps-card-left">
+            <div class="steps-ring" id="steps-ring">
+              <div class="steps-ring-inner">
+                <div class="steps-value" id="steps-value">0</div>
+                <div class="steps-label">Шагов</div>
+              </div>
+            </div>
+          </div>
+          <div class="steps-card-right">
+            <div class="steps-title">Ходьба</div>
+            <div class="steps-goal">Цель: <span id="steps-goal">—</span></div>
+            <div class="steps-divider"></div>
+            <div class="steps-meta">
+              <div><span id="steps-distance">—</span> м</div>
+              <div><span id="steps-kcal">—</span> ккал</div>
+            </div>
           </div>
         </div>
 
