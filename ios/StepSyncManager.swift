@@ -5,10 +5,14 @@ import HealthKit
 @MainActor
 final class StepSyncManager: NSObject, ObservableObject {
     @Published private(set) var lastSteps: Int = 0
+    @Published private(set) var lastDistanceMeters: Double = 0
+    @Published private(set) var lastKcal: Double = 0
     @Published private(set) var status: String = "idle"
 
     private let healthStore = HKHealthStore()
     private let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+    private let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+    private let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
     private var timer: Timer?
     private var token: String?
     private var isActive = false
@@ -26,7 +30,7 @@ final class StepSyncManager: NSObject, ObservableObject {
         }
         isActive = true
         status = "requesting_access"
-        healthStore.requestAuthorization(toShare: [], read: [stepType]) { [weak self] ok, error in
+        healthStore.requestAuthorization(toShare: [], read: [stepType, distanceType, energyType]) { [weak self] ok, error in
             Task { @MainActor in
                 guard let self else { return }
                 if !ok || error != nil {
@@ -63,18 +67,40 @@ final class StepSyncManager: NSObject, ObservableObject {
     private func refreshStepsAndSync() {
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: Date(), options: .strictStartDate)
-        let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, error in
+        fetchSum(type: stepType, unit: .count(), predicate: predicate) { [weak self] value, error in
             Task { @MainActor in
                 guard let self else { return }
                 if error != nil {
                     self.status = "error"
                     return
                 }
-                let steps = Int(result?.sumQuantity()?.doubleValue(for: .count()) ?? 0)
+                let steps = Int(value)
                 self.lastSteps = steps
                 self.status = "active"
                 self.syncIfNeeded(steps)
+                self.postUpdate()
             }
+        }
+        fetchSum(type: distanceType, unit: .meter(), predicate: predicate) { [weak self] value, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.lastDistanceMeters = value
+                self.postUpdate()
+            }
+        }
+        fetchSum(type: energyType, unit: .kilocalorie(), predicate: predicate) { [weak self] value, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.lastKcal = value
+                self.postUpdate()
+            }
+        }
+    }
+
+    private func fetchSum(type: HKQuantityType, unit: HKUnit, predicate: NSPredicate, completion: @escaping (Double, Error?) -> Void) {
+        let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
+            let value = result?.sumQuantity()?.doubleValue(for: unit) ?? 0
+            completion(value, error)
         }
         healthStore.execute(query)
     }
@@ -97,4 +123,16 @@ final class StepSyncManager: NSObject, ObservableObject {
         request.httpBody = Data("{\"steps\":\(steps)}".utf8)
         URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
     }
+
+    private func postUpdate() {
+        NotificationCenter.default.post(name: .stepsDidUpdate, object: nil, userInfo: [
+            "steps": lastSteps,
+            "distance": lastDistanceMeters,
+            "kcal": lastKcal,
+        ])
+    }
+}
+
+extension Notification.Name {
+    static let stepsDidUpdate = Notification.Name("barzhafit.steps.didUpdate")
 }

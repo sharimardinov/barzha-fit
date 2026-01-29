@@ -24,6 +24,7 @@ struct WorkoutWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        context.coordinator.attach(webView: webView)
         context.coordinator.setInitialURL(url)
         webView.load(URLRequest(url: url))
         return webView
@@ -37,10 +38,25 @@ struct WorkoutWebView: UIViewRepresentable {
         private let heartRate: HeartRateManager
         private let onLogout: () -> Void
         private var lastRequestedURL: URL?
+        private weak var webView: WKWebView?
+        private var stepsObserver: NSObjectProtocol?
 
         init(heartRate: HeartRateManager, onLogout: @escaping () -> Void) {
             self.heartRate = heartRate
             self.onLogout = onLogout
+            stepsObserver = NotificationCenter.default.addObserver(forName: .stepsDidUpdate, object: nil, queue: .main) { [weak self] note in
+                self?.handleStepsUpdate(note)
+            }
+        }
+
+        deinit {
+            if let stepsObserver {
+                NotificationCenter.default.removeObserver(stepsObserver)
+            }
+        }
+
+        func attach(webView: WKWebView) {
+            self.webView = webView
         }
 
         func setInitialURL(_ url: URL) {
@@ -66,6 +82,22 @@ struct WorkoutWebView: UIViewRepresentable {
             }
             lastRequestedURL = targetURL
             webView.load(URLRequest(url: targetURL))
+        }
+
+        private func handleStepsUpdate(_ notification: Notification) {
+            guard let webView else { return }
+            guard let info = notification.userInfo else { return }
+            let steps = info["steps"] as? Int ?? 0
+            let distance = info["distance"] as? Double ?? 0
+            let kcal = info["kcal"] as? Double ?? 0
+            guard let payload = try? JSONSerialization.data(withJSONObject: [
+                "steps": steps,
+                "distance": distance,
+                "kcal": kcal,
+            ]) else { return }
+            guard let json = String(data: payload, encoding: .utf8) else { return }
+            let js = "window.dispatchEvent(new CustomEvent('nativeSteps', {detail: \(json)}));"
+            webView.evaluateJavaScript(js, completionHandler: nil)
         }
 
         private func urlKey(_ url: URL, includeQuery: Bool) -> String {

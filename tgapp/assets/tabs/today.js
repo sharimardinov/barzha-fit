@@ -3,6 +3,7 @@ import { parsePlan, renderTrainingAccordion } from "../plan-utils.js";
 
 let workoutCardProgress = 0;
 let workoutCardAnim = null;
+let stepsTargetCache = 0;
 
 export async function loadToday() {
   const data = await api("/api/today");
@@ -77,6 +78,11 @@ export async function loadToday() {
 function updateStepsCard(data) {
   const steps = Number(data.steps || 0);
   const target = Number(data.targets?.steps || 0);
+  stepsTargetCache = Number.isFinite(target) ? target : 0;
+  updateStepsCardValues(steps, stepsTargetCache, null, null);
+}
+
+function updateStepsCardValues(steps, target, distanceMeters, kcalValue) {
   const ring = $("steps-ring");
   const value = $("steps-value");
   const goal = $("steps-goal");
@@ -85,8 +91,20 @@ function updateStepsCard(data) {
 
   if (value) value.textContent = Number.isFinite(steps) ? steps.toLocaleString("ru-RU") : "0";
   if (goal) goal.textContent = Number.isFinite(target) && target > 0 ? target.toLocaleString("ru-RU") : "—";
-  if (distance) distance.textContent = "—";
-  if (kcal) kcal.textContent = "—";
+  if (distance) {
+    if (Number.isFinite(distanceMeters) && distanceMeters > 0) {
+      distance.textContent = Math.round(distanceMeters).toLocaleString("ru-RU");
+    } else {
+      distance.textContent = "—";
+    }
+  }
+  if (kcal) {
+    if (Number.isFinite(kcalValue) && kcalValue > 0) {
+      kcal.textContent = Math.round(kcalValue).toLocaleString("ru-RU");
+    } else {
+      kcal.textContent = "—";
+    }
+  }
 
   if (ring) {
     const ratio = target > 0 ? Math.min(steps / target, 1) : 0;
@@ -94,6 +112,14 @@ function updateStepsCard(data) {
     ring.style.setProperty("--steps-progress", `${deg}deg`);
   }
 }
+
+window.addEventListener("nativeSteps", (event) => {
+  const detail = event?.detail || {};
+  const steps = Number(detail.steps || 0);
+  const distance = Number(detail.distance || 0);
+  const kcal = Number(detail.kcal || 0);
+  updateStepsCardValues(steps, stepsTargetCache, distance, kcal);
+});
 
 function setWorkoutCardProgress(target) {
   const card = $("workout-day-card");
