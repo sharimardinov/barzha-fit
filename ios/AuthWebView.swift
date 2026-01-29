@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 struct AuthWebView: UIViewRepresentable {
@@ -119,6 +120,19 @@ struct AuthWebView: UIViewRepresentable {
                 webView.load(URLRequest(url: url))
             }
             return nil
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() {
+                if scheme == "tg" || scheme == "telegram" {
+                    if UIApplication.shared.canOpenURL(url) {
+                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                    }
+                    decisionHandler(.cancel)
+                    return
+                }
+            }
+            decisionHandler(.allow)
         }
 
         private func tryHandleTelegramJSON(in webView: WKWebView) {

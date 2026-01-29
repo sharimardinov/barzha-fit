@@ -115,7 +115,14 @@
         position: absolute;
         inset: 0;
         z-index: 2;
-        opacity: 0;
+        opacity: 0.01;
+        pointer-events: auto;
+      }
+      #telegram-login-container iframe,
+      #telegram-login-container > div,
+      #telegram-login-container > span {
+        width: 100% !important;
+        height: 100% !important;
       }
       .status {
         font-size: 14px;
