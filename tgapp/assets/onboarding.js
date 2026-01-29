@@ -85,7 +85,7 @@ export async function initOnboardingWizard() {
         { value: "m", label: "М" },
         { value: "f", label: "Ж" },
       ],
-      help: "Нужно для корректных норм и нагрузки.",
+      help: "Требуется для корректных норм и нагрузки",
       required: true,
     },
     {
@@ -96,7 +96,7 @@ export async function initOnboardingWizard() {
       min: 14,
       max: 80,
       placeholder: "Например: 28",
-      help: "Возраст влияет на восстановление и объём.",
+      help: "Возраст влияет на восстановление и объём",
       required: true,
     },
     {
@@ -107,7 +107,7 @@ export async function initOnboardingWizard() {
       min: 100,
       max: 250,
       placeholder: "Например: 175",
-      help: "Используем для расчёта калорий и целей.",
+      help: "Используем для расчёта калорий и целей",
       required: true,
     },
     {
@@ -119,12 +119,12 @@ export async function initOnboardingWizard() {
       step: 0.5,
       defaultValue: 75,
       unit: "кг",
-      help: "Нужен для расчёта нагрузки и калорий.",
+      help: "Нужен для расчёта нагрузки и калорий",
       required: true,
     },
     {
       id: "trainingStage",
-      title: "Уровень мышц",
+      title: "Уровень подготовки",
       type: "goal-combo",
       options: [
         { value: "core", label: "CORE" },
@@ -132,7 +132,7 @@ export async function initOnboardingWizard() {
         { value: "peak", label: "PEAK" },
       ],
       defaultValue: "core",
-      help: "Выбери текущий уровень мышц.",
+      help: "Выбери свой текущий уровень",
       required: true,
       showNotes: false,
       wide: true,
