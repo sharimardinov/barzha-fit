@@ -941,9 +941,20 @@ button {
 
 .training-exercise-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1.4fr) repeat(4, minmax(70px, 0.8fr)) auto;
+  grid-template-columns: minmax(160px, 1.6fr) repeat(4, minmax(90px, 1fr)) auto;
   gap: 8px;
   align-items: center;
+}
+
+.training-exercise-field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.training-exercise-field input {
+  font-size: 15px;
 }
 
 .training-exercise-row .btn {
@@ -952,10 +963,11 @@ button {
 
 @media (max-width: 720px) {
   .training-exercise-row {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
   .training-exercise-row .btn {
-    grid-column: span 2;
+    grid-column: auto;
   }
 }
 

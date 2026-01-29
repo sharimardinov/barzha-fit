@@ -150,6 +150,24 @@ export async function initOnboardingWizard() {
       required: true,
     },
     {
+      id: "goalType",
+      title: "Твоя цель",
+      type: "goal-combo",
+      options: [
+        { value: "cut", label: "CUT" },
+        { value: "balance", label: "BALANCE" },
+        { value: "bulk", label: "BULK" },
+      ],
+      defaultValue: "balance",
+      notesId: "goalNotes",
+      notesPlaceholder: "Например: подсушиться, больше спины, меньше кардио",
+      help: "Выбери цель.",
+      required: true,
+      showNotes: false,
+      wide: true,
+      big: true,
+    },
+    {
       id: "planMode",
       title: "Как получим план?",
       type: "options",
@@ -181,24 +199,6 @@ export async function initOnboardingWizard() {
       help: "Можно выбрать несколько или пропустить.",
       required: false,
       when: (d) => (d.planMode || "manual") !== "manual",
-    },
-    {
-      id: "goalType",
-      title: "Твоя цель",
-      type: "goal-combo",
-      options: [
-        { value: "cut", label: "CUT" },
-        { value: "balance", label: "BALANCE" },
-        { value: "bulk", label: "BULK" },
-      ],
-      defaultValue: "balance",
-      notesId: "goalNotes",
-      notesPlaceholder: "Например: подсушиться, больше спины, меньше кардио",
-      help: "Выбери цель.",
-      required: true,
-      showNotes: false,
-      wide: true,
-      big: true,
     },
     {
       id: "trainingsPerWeek",
@@ -287,7 +287,7 @@ export async function initOnboardingWizard() {
         let className = "option-card";
         if (step.id === "sex" && opt.value === "m") className += " option-male";
         if (step.id === "sex" && opt.value === "f") className += " option-female";
-        if (step.id === "planMode") className += " accent-fill";
+        if (step.id === "planMode" || step.id === "planInputMode") className += " accent-fill";
         btn.className = className;
         btn.textContent = opt.label;
         btn.classList.toggle("active", data[step.id] === opt.value);
@@ -580,6 +580,16 @@ export async function initOnboardingWizard() {
               syncItems(day);
               return;
             }
+            const makeField = (labelText, input) => {
+              const field = document.createElement("label");
+              field.className = "training-exercise-field";
+              const label = document.createElement("span");
+              label.textContent = labelText;
+              field.appendChild(label);
+              field.appendChild(input);
+              return field;
+            };
+
             day.simpleItems.forEach((item, itemIndex) => {
               const row = document.createElement("div");
               row.className = "training-exercise-row";
@@ -640,11 +650,11 @@ export async function initOnboardingWizard() {
                 renderRows();
               });
 
-              row.appendChild(name);
-              row.appendChild(sets);
-              row.appendChild(reps);
-              row.appendChild(weight);
-              row.appendChild(rest);
+              row.appendChild(makeField("Название", name));
+              row.appendChild(makeField("Подходы", sets));
+              row.appendChild(makeField("Повторения", reps));
+              row.appendChild(makeField("Вес", weight));
+              row.appendChild(makeField("Отдых, сек", rest));
               row.appendChild(remove);
               rows.appendChild(row);
             });

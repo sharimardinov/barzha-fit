@@ -121,9 +121,30 @@ async function bootstrap() {
       }
     }
   }
+  const redirectToLogin = () => {
+    const returnTo = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+    window.location.href = `/login?return_to=${returnTo}`;
+  };
   if (!initData && !authToken) {
-    toast("Открой мини-апп из Telegram");
+    redirectToLogin();
     return;
+  }
+  if (!initData && authToken) {
+    try {
+      const res = await fetch("/auth/verify", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data?.ok) {
+        localStorage.removeItem("auth_token");
+        redirectToLogin();
+        return;
+      }
+    } catch (_) {
+      localStorage.removeItem("auth_token");
+      redirectToLogin();
+      return;
+    }
   }
   tg?.ready();
   tg?.expand();
