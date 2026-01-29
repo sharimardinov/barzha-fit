@@ -27,14 +27,13 @@ struct AuthWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        context.coordinator.setInitialURL(url)
         webView.load(URLRequest(url: url))
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        if webView.url != url {
-            webView.load(URLRequest(url: url))
-        }
+        context.coordinator.update(webView: webView, targetURL: url)
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
@@ -42,11 +41,56 @@ struct AuthWebView: UIViewRepresentable {
         private let onError: (String) -> Void
         private let onDebug: (String) -> Void
         private var didHandleTelegramAuth = false
+        private var lastRequestedURL: URL?
 
         init(onAuth: @escaping (AuthPayload) -> Void, onError: @escaping (String) -> Void, onDebug: @escaping (String) -> Void) {
             self.onAuth = onAuth
             self.onError = onError
             self.onDebug = onDebug
+        }
+
+        func setInitialURL(_ url: URL) {
+            lastRequestedURL = url
+        }
+
+        func update(webView: WKWebView, targetURL: URL) {
+            let targetKey = urlKey(targetURL, includeQuery: true)
+            if let last = lastRequestedURL, urlKey(last, includeQuery: true) == targetKey {
+                return
+            }
+            if let current = webView.url {
+                let currentBase = urlKey(current, includeQuery: false)
+                let targetBase = urlKey(targetURL, includeQuery: false)
+                if currentBase != targetBase {
+                    // Don't interrupt external OAuth navigation.
+                    return
+                }
+                if urlKey(current, includeQuery: true) == targetKey {
+                    lastRequestedURL = targetURL
+                    return
+                }
+            }
+            lastRequestedURL = targetURL
+            webView.load(URLRequest(url: targetURL))
+        }
+
+        private func urlKey(_ url: URL, includeQuery: Bool) -> String {
+            guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+                return url.absoluteString
+            }
+            let scheme = (comps.scheme ?? "").lowercased()
+            let host = (comps.host ?? "").lowercased()
+            let port = comps.port.map { ":\($0)" } ?? ""
+            var path = comps.path
+            if path.hasSuffix("/") {
+                path.removeLast()
+            }
+            var key = "\(scheme)://\(host)\(port)\(path)"
+            if includeQuery {
+                let query = comps.percentEncodedQuery ?? ""
+                key += "?\(query)"
+            }
+            return key
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

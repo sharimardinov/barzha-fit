@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"barzhafit/backend/domain"
 )
@@ -15,7 +16,6 @@ var (
 	workoutNumberRe   = regexp.MustCompile(`[-+]?\d+(?:[\.,]\d+)?`)
 	workoutHeaderRe   = regexp.MustCompile(`(?i)^\s*(day|день)\s*\d+\b`)
 	workoutNumberOnly = regexp.MustCompile(`^\s*\d+(?:[.,]\d+)?\s*$`)
-	slashFieldRe      = regexp.MustCompile(`\s*/\s*`)
 )
 
 func BuildWorkoutPlanFromText(text string) (domain.WorkoutPlan, []string) {
@@ -63,7 +63,7 @@ func cleanWorkoutLine(line string) string {
 }
 
 func looksLikeWorkoutLine(line string) bool {
-	if strings.Contains(line, "|") || slashFieldRe.MatchString(line) {
+	if strings.Contains(line, "|") || hasSlashSeparator(line) {
 		return true
 	}
 	if workoutSetsRe.MatchString(line) || workoutDurationRe.MatchString(line) {
@@ -204,10 +204,68 @@ func splitWorkoutFields(line string) []string {
 	if strings.Contains(line, "|") {
 		return strings.Split(line, "|")
 	}
-	if slashFieldRe.MatchString(line) {
-		return slashFieldRe.Split(line, -1)
+	if strings.Contains(line, "/") {
+		return splitWorkoutFieldsBySlash(line)
 	}
 	return []string{line}
+}
+
+func splitWorkoutFieldsBySlash(line string) []string {
+	if !hasSlashSeparator(line) {
+		return []string{line}
+	}
+	runes := []rune(line)
+	parts := make([]string, 0, 4)
+	var b strings.Builder
+	for i, r := range runes {
+		if r == '/' {
+			prev := rune(0)
+			next := rune(0)
+			if i > 0 {
+				prev = runes[i-1]
+			}
+			if i+1 < len(runes) {
+				next = runes[i+1]
+			}
+			if unicode.IsLetter(prev) && unicode.IsLetter(next) {
+				b.WriteRune(r)
+				continue
+			}
+			parts = append(parts, strings.TrimSpace(b.String()))
+			b.Reset()
+			continue
+		}
+		b.WriteRune(r)
+	}
+	if b.Len() > 0 {
+		parts = append(parts, strings.TrimSpace(b.String()))
+	}
+	if len(parts) <= 1 {
+		return []string{line}
+	}
+	return parts
+}
+
+func hasSlashSeparator(line string) bool {
+	runes := []rune(line)
+	for i, r := range runes {
+		if r != '/' {
+			continue
+		}
+		prev := rune(0)
+		next := rune(0)
+		if i > 0 {
+			prev = runes[i-1]
+		}
+		if i+1 < len(runes) {
+			next = runes[i+1]
+		}
+		if unicode.IsLetter(prev) && unicode.IsLetter(next) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func stripNotes(value string) string {

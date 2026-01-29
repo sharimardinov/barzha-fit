@@ -1,7 +1,6 @@
 import { $ } from "./state.js";
 
 export function toast(message, anchor) {
-  if (message !== "Сохранено") return;
   const el = $("toast");
   if (!el) return;
   el.textContent = message;

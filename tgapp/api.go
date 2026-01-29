@@ -15,6 +15,8 @@ import (
 	"barzhafit/backend/service"
 	"barzhafit/backend/storage/db"
 	"barzhafit/backend/util"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type apiResponse struct {
@@ -344,7 +346,11 @@ func (s *Server) handleTargetsRefresh(w http.ResponseWriter, r *http.Request, au
 func (s *Server) handlePlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
 	planText, err := s.plan.Get(context.Background(), auth.User.ID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "plan_not_found"})
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "plan_not_found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_read_failed"})
 		return
 	}
 	if normalized, ok := service.NormalizeTrainingPlan(planText); ok {
@@ -1116,7 +1122,10 @@ func (s *Server) handleWorkoutSessionStop(w http.ResponseWriter, r *http.Request
 func (s *Server) workoutPlanFromToday(ctx context.Context, chatID int64) (*domain.WorkoutPlan, error) {
 	planText, err := s.plan.Get(ctx, chatID)
 	if err != nil {
-		return nil, service.ErrWorkoutPlanNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, service.ErrWorkoutPlanNotFound
+		}
+		return nil, err
 	}
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
