@@ -16,7 +16,6 @@ struct AuthWebView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onAuth: onAuth, onError: onError, onDebug: onDebug)
     }
 
     func makeUIView(context: Context) -> WKWebView {
