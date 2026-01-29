@@ -41,7 +41,7 @@ function renderInjuryOptions() {
   injuryOptions.forEach((item) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "option-card";
+    btn.className = "option-card accent-fill";
     btn.textContent = item.label;
     btn.classList.toggle("active", selectedInjuries.includes(item.code));
     btn.addEventListener("click", () => {

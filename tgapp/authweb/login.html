@@ -127,11 +127,6 @@
       .ios #telegram-login-container {
         display: none;
       }
-      .status {
-        font-size: 14px;
-        color: var(--muted);
-        min-height: 20px;
-      }
       .logo {
         width: 160px;
         height: 80px;
@@ -185,34 +180,11 @@
             </div>
           </div>
         </div>
-        <div id="status" class="status"></div>
       </main>
     </div>
     <script>
-      const statusEl = document.getElementById("status");
       const telegramBtn = document.querySelector(".telegram-btn");
       const telegramFallback = document.getElementById("telegram-fallback");
-
-      function debug(msg) {
-        try {
-          if (
-            window.webkit &&
-            window.webkit.messageHandlers &&
-            window.webkit.messageHandlers.authDebug
-          ) {
-            window.webkit.messageHandlers.authDebug.postMessage(String(msg));
-          }
-        } catch (_) {
-          // Ignore bridge errors.
-        }
-        if (typeof console !== "undefined") {
-          console.log(msg);
-        }
-      }
-
-      function setStatus(msg) {
-        statusEl.textContent = msg || "";
-      }
 
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
         || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -227,32 +199,12 @@
         telegramFallback.href = fallbackURL;
       }
 
-      debug("login ready; ios=" + isIOS);
-      setStatus(isIOS ? "Готово к входу (iOS)" : "Готово к входу");
       if (telegramBtn) {
         telegramBtn.addEventListener("click", () => {
-          debug("telegram click");
-          setStatus(isIOS ? "Открываем Telegram..." : "Нажатие на Telegram...");
         });
       }
-      document.addEventListener("touchstart", () => {
-        setStatus("Тап зарегистрирован");
-      }, { passive: true });
-
-      setTimeout(() => {
-        const iframe = document.querySelector("#telegram-login-container iframe");
-        if (iframe) {
-          setStatus(isIOS ? "Готово к входу (iOS)" : "Виджет Telegram загружен");
-          debug("tg widget iframe ok");
-        } else {
-          setStatus("Виджет Telegram не загрузился");
-          debug("tg widget iframe missing");
-        }
-      }, 1200);
 
       function onTelegramAuth(user) {
-        debug("onTelegramAuth fired");
-        setStatus("Signing in...");
         fetch("/auth/telegram", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -276,14 +228,12 @@
               window.webkit.messageHandlers.authComplete
             ) {
               window.webkit.messageHandlers.authComplete.postMessage(payload);
-              setStatus("Success. Return to the app.");
             } else {
               try {
                 localStorage.setItem("auth_token", payload.token);
               } catch (_) {
                 // Ignore storage errors.
               }
-              setStatus("Success. Redirecting...");
               setTimeout(() => {
                 window.location.href = "/miniapp/";
               }, 400);
@@ -291,7 +241,6 @@
           })
           .catch((err) => {
             console.error("Auth error:", err);
-            setStatus("Auth failed. Please try again.");
           });
       }
     </script>
