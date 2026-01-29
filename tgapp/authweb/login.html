@@ -124,6 +124,16 @@
         width: 100% !important;
         height: 100% !important;
       }
+      .ios .telegram-btn .btn-face {
+        display: none;
+      }
+      .ios #telegram-login-container {
+        position: static;
+        opacity: 1;
+      }
+      .ios #telegram-login-container iframe {
+        opacity: 1;
+      }
       .status {
         font-size: 14px;
         color: var(--muted);
@@ -193,12 +203,21 @@
         statusEl.textContent = msg || "";
       }
 
-      setStatus("Готово к входу");
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      if (isIOS) {
+        document.documentElement.classList.add("ios");
+      }
+
+      setStatus(isIOS ? "Готово к входу (iOS)" : "Готово к входу");
       if (telegramBtn) {
         telegramBtn.addEventListener("click", () => {
           setStatus("Нажатие на Telegram...");
         });
       }
+      document.addEventListener("touchstart", () => {
+        setStatus("Тап зарегистрирован");
+      }, { passive: true });
 
       function onTelegramAuth(user) {
         setStatus("Signing in...");
