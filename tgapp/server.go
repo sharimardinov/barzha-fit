@@ -19,12 +19,12 @@ var assets embed.FS
 var authAssets embed.FS
 
 type Server struct {
-	addr         string
-	botToken     string
-	authBotToken string
+	addr               string
+	botToken           string
+	authBotToken       string
 	googleClientID     string
 	googleClientSecret string
-	tz           string
+	tz                 string
 
 	plan          *service.PlanService
 	workout       *service.WorkoutService
@@ -44,51 +44,55 @@ type Server struct {
 }
 
 type Deps struct {
-	Addr          string
-	BotToken      string
-	AuthBotToken  string
+	Addr               string
+	BotToken           string
+	AuthBotToken       string
 	GoogleClientID     string
 	GoogleClientSecret string
-	TZ            string
-	Plan          *service.PlanService
-	Workout       *service.WorkoutService
-	Targets       *service.TargetsService
-	Nutrition     *service.NutritionService
-	Steps         *service.StepsService
-	Profile       *service.ProfileService
-	Training      *service.TrainingProfileService
-	Inputs        *service.TrainingInputService
-	Programs      *service.TrainingProgramService
-	Injuries      *service.InjuryTypeService
-	Activity      *service.ActivityAI
-	WorkoutTimer  *service.WorkoutTimerService
-	StrengthStats *service.WorkoutStatsService
-	GoogleAuth    *service.GoogleAuthService
+	TZ                 string
+	Plan               *service.PlanService
+	Workout            *service.WorkoutService
+	Targets            *service.TargetsService
+	Nutrition          *service.NutritionService
+	Steps              *service.StepsService
+	Profile            *service.ProfileService
+	Training           *service.TrainingProfileService
+	Inputs             *service.TrainingInputService
+	Programs           *service.TrainingProgramService
+	Injuries           *service.InjuryTypeService
+	Activity           *service.ActivityAI
+	WorkoutTimer       *service.WorkoutTimerService
+	StrengthStats      *service.WorkoutStatsService
+	GoogleAuth         *service.GoogleAuthService
 }
 
 func NewServer(d Deps) *Server {
+	secret := d.AuthBotToken
+	if secret == "" {
+		secret = d.BotToken
+	}
 	return &Server{
-		addr:          d.Addr,
-		botToken:      d.BotToken,
-		authBotToken:  d.AuthBotToken,
+		addr:               d.Addr,
+		botToken:           d.BotToken,
+		authBotToken:       d.AuthBotToken,
 		googleClientID:     d.GoogleClientID,
 		googleClientSecret: d.GoogleClientSecret,
-		tz:            d.TZ,
-		plan:          d.Plan,
-		workout:       d.Workout,
-		targets:       d.Targets,
-		nutrition:     d.Nutrition,
-		steps:         d.Steps,
-		profile:       d.Profile,
-		training:      d.Training,
-		inputs:        d.Inputs,
-		programs:      d.Programs,
-		injuries:      d.Injuries,
-		activity:      d.Activity,
-		workoutTimer:  d.WorkoutTimer,
-		strengthStats: d.StrengthStats,
-		googleAuth:    d.GoogleAuth,
-		sessions:      newSessionStore(),
+		tz:                 d.TZ,
+		plan:               d.Plan,
+		workout:            d.Workout,
+		targets:            d.Targets,
+		nutrition:          d.Nutrition,
+		steps:              d.Steps,
+		profile:            d.Profile,
+		training:           d.Training,
+		inputs:             d.Inputs,
+		programs:           d.Programs,
+		injuries:           d.Injuries,
+		activity:           d.Activity,
+		workoutTimer:       d.WorkoutTimer,
+		strengthStats:      d.StrengthStats,
+		googleAuth:         d.GoogleAuth,
+		sessions:           newSessionStore(secret),
 	}
 }
 
