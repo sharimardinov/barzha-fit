@@ -4,14 +4,16 @@ import WebKit
 struct WorkoutWebView: UIViewRepresentable {
     let url: URL
     @ObservedObject var heartRate: HeartRateManager
+    let onLogout: () -> Void = {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(heartRate: heartRate)
+        Coordinator(heartRate: heartRate, onLogout: onLogout)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(context.coordinator, name: "workoutTimer")
+        config.userContentController.add(context.coordinator, name: "authState")
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -27,10 +29,12 @@ struct WorkoutWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         private let heartRate: HeartRateManager
+        private let onLogout: () -> Void
         private var lastRequestedURL: URL?
 
-        init(heartRate: HeartRateManager) {
+        init(heartRate: HeartRateManager, onLogout: @escaping () -> Void) {
             self.heartRate = heartRate
+            self.onLogout = onLogout
         }
 
         func setInitialURL(_ url: URL) {
@@ -78,6 +82,10 @@ struct WorkoutWebView: UIViewRepresentable {
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "authState" {
+                handleAuthState(message)
+                return
+            }
             guard message.name == "workoutTimer" else { return }
             let action: String?
             if let dict = message.body as? [String: Any] {
@@ -96,6 +104,21 @@ struct WorkoutWebView: UIViewRepresentable {
                 Task { @MainActor in
                     heartRate.stop()
                 }
+            }
+        }
+
+        private func handleAuthState(_ message: WKScriptMessage) {
+            let action: String?
+            if let dict = message.body as? [String: Any] {
+                action = dict["action"] as? String
+            } else if let text = message.body as? String {
+                action = text
+            } else {
+                action = nil
+            }
+            guard let action, action == "logout" || action == "auth_required" else { return }
+            Task { @MainActor in
+                onLogout()
             }
         }
 

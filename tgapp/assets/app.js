@@ -2,6 +2,7 @@ import {
   authToken,
   initData,
   tg,
+  postNativeMessage,
   toast,
   setActiveTab,
   updateNavHighlight,
@@ -121,12 +122,22 @@ async function bootstrap() {
       }
     }
   }
-  const redirectToLogin = () => {
-    const returnTo = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+  const redirectToLogin = (reason) => {
+    const path = `${window.location.pathname}${window.location.search}`;
+    const returnTo = encodeURIComponent(path);
+    const handled = postNativeMessage("authState", {
+      action: "logout",
+      reason: reason || "auth_required",
+      returnTo: path,
+    });
+    if (handled) {
+      toast("Нужен вход");
+      return;
+    }
     window.location.href = `/login?return_to=${returnTo}`;
   };
   if (!initData && !authToken) {
-    redirectToLogin();
+    redirectToLogin("missing_token");
     return;
   }
   if (!initData && authToken) {
@@ -137,12 +148,12 @@ async function bootstrap() {
       const data = await res.json().catch(() => ({}));
       if (!data?.ok) {
         localStorage.removeItem("auth_token");
-        redirectToLogin();
+        redirectToLogin("invalid_token");
         return;
       }
     } catch (_) {
       localStorage.removeItem("auth_token");
-      redirectToLogin();
+      redirectToLogin("verify_failed");
       return;
     }
   }

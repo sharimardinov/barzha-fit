@@ -92,7 +92,10 @@ struct SampleContentView: View {
 
     @ViewBuilder
     private func workoutTab(token: String) -> some View {
-        WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate)
+        WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate, onLogout: {
+            errorText = ""
+            auth.clear()
+        })
             .ignoresSafeArea()
     }
 
