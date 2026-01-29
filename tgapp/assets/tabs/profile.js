@@ -12,6 +12,7 @@ import {
   normalizeNumberInput,
   setActiveScreen,
   loadTargets,
+  postNativeMessage,
 } from "../core.js";
 import { loadToday } from "./today.js";
 import { loadPlan } from "./plan.js";
@@ -259,10 +260,7 @@ export function initProfileTab() {
   if (profileLogout) {
     profileLogout.addEventListener("click", () => {
       localStorage.removeItem("auth_token");
-      if (window.webkit?.messageHandlers?.logout) {
-        window.webkit.messageHandlers.logout.postMessage({ source: "profile" });
-        return;
-      }
+      if (postNativeMessage("authState", { action: "logout", source: "profile" })) return;
       if (window.Telegram?.WebApp?.close) {
         window.Telegram.WebApp.close();
         return;

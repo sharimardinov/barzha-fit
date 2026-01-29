@@ -3,6 +3,7 @@ import SwiftUI
 struct SampleContentView: View {
     @StateObject private var auth = AuthState()
     @StateObject private var heartRate = HeartRateManager()
+    @StateObject private var stepSync = StepSyncManager()
     @State private var profileJSON: String = ""
     @State private var errorText: String = ""
     @State private var debugText: String = ""
@@ -11,45 +12,55 @@ struct SampleContentView: View {
     private let miniappBaseURL = URL(string: "https://barzhafit.ru/miniapp")!
 
     var body: some View {
-        if let token = auth.token {
-            workoutTab(token: token)
-            .onChange(of: auth.token) { newValue in
-                if newValue == nil {
-                    heartRate.stop()
-                }
-            }
-        } else {
-            ZStack(alignment: .bottom) {
-                AuthWebView(url: loginURL) { payload in
-                    errorText = ""
-                    auth.save(payload: payload)
-                } onError: { error in
-                    errorText = error
-                } onDebug: { message in
-                    debugText = appendDebugLine(debugText, message)
-                }
+        Group {
+            if let token = auth.token {
+                workoutTab(token: token)
+            } else {
+                ZStack(alignment: .bottom) {
+                    AuthWebView(url: loginURL) { payload in
+                        errorText = ""
+                        auth.save(payload: payload)
+                    } onError: { error in
+                        errorText = error
+                    } onDebug: { message in
+                        debugText = appendDebugLine(debugText, message)
+                    }
 
-                if !errorText.isEmpty {
-                    Text(errorText)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                        .padding(12)
-                        .background(.white.opacity(0.9))
-                        .cornerRadius(8)
-                        .padding(.bottom, 24)
-                }
+                    if !errorText.isEmpty {
+                        Text(errorText)
+                            .font(.footnote)
+                            .foregroundColor(.red)
+                            .padding(12)
+                            .background(.white.opacity(0.9))
+                            .cornerRadius(8)
+                            .padding(.bottom, 24)
+                    }
 
-                if !debugText.isEmpty {
-                    Text(debugText)
-                        .font(.caption2)
-                        .foregroundColor(.white)
-                        .padding(8)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(8)
-                        .padding(.bottom, 80)
+                    if !debugText.isEmpty {
+                        Text(debugText)
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(8)
+                            .padding(.bottom, 80)
+                    }
                 }
+                .ignoresSafeArea()
             }
-            .ignoresSafeArea()
+        }
+        .onChange(of: auth.token) { newValue in
+            if let token = newValue, !token.isEmpty {
+                stepSync.start(token: token)
+            } else {
+                stepSync.stop()
+                heartRate.stop()
+            }
+        }
+        .task {
+            if let token = auth.token, !token.isEmpty {
+                stepSync.start(token: token)
+            }
         }
     }
 

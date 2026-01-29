@@ -4,7 +4,13 @@ import WebKit
 struct WorkoutWebView: UIViewRepresentable {
     let url: URL
     @ObservedObject var heartRate: HeartRateManager
-    let onLogout: () -> Void = {}
+    let onLogout: () -> Void
+
+    init(url: URL, heartRate: HeartRateManager, onLogout: @escaping () -> Void = {}) {
+        self.url = url
+        self._heartRate = ObservedObject(wrappedValue: heartRate)
+        self.onLogout = onLogout
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(heartRate: heartRate, onLogout: onLogout)
