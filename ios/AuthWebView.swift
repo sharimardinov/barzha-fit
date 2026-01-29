@@ -175,7 +175,10 @@ struct AuthWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            if let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() {
+            if let url = navigationAction.request.url {
+                let isMain = navigationAction.targetFrame?.isMainFrame ?? false
+                onDebug("[nav] action: \(url.absoluteString) main=\(isMain)")
+                if let scheme = url.scheme?.lowercased() {
                 if scheme == "tg" || scheme == "telegram" {
                     if UIApplication.shared.canOpenURL(url) {
                         UIApplication.shared.open(url, options: [:], completionHandler: nil)
@@ -187,11 +190,18 @@ struct AuthWebView: UIViewRepresentable {
                     return
                 }
             }
+            }
             decisionHandler(.allow)
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             onDebug("[nav] failed: \(error.localizedDescription)")
+        }
+
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            if let url = webView.url?.absoluteString {
+                onDebug("[nav] start: \(url)")
+            }
         }
 
         private func tryHandleTelegramJSON(in webView: WKWebView) {

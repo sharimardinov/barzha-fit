@@ -219,6 +219,15 @@
         setStatus("Тап зарегистрирован");
       }, { passive: true });
 
+      setTimeout(() => {
+        const iframe = document.querySelector("#telegram-login-container iframe");
+        if (iframe) {
+          setStatus("Виджет Telegram загружен");
+        } else {
+          setStatus("Виджет Telegram не загрузился");
+        }
+      }, 1200);
+
       function onTelegramAuth(user) {
         setStatus("Signing in...");
         fetch("/auth/telegram", {
