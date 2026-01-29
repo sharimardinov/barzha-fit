@@ -961,10 +961,30 @@ button {
   min-width: 0;
 }
 
+.training-exercise-field select {
+  font-size: 15px;
+  min-width: 0;
+}
+
 .training-exercise-row .btn {
   width: 100%;
   white-space: nowrap;
   padding: 10px 14px;
+  justify-self: end;
+  min-width: 96px;
+}
+
+@media (max-width: 1100px) {
+  .training-exercise-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .training-exercise-row.is-cardio {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .training-exercise-row .btn {
+    grid-column: span 2;
+    justify-self: stretch;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1020,6 +1040,7 @@ button {
   font-size: 16px;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  padding: 0;
 }
 
 .container input {
@@ -1035,7 +1056,7 @@ button {
   background-color: #2196f300;
   border-radius: 0.25em;
   transition: all 0.25s;
-  border: 1px solid var(--border);
+  border: none;
 }
 
 .container input:checked ~ .checkmark {
@@ -1046,21 +1067,25 @@ button {
 .checkmark:after {
   content: "";
   position: absolute;
-  display: none;
-  transform: rotate(45deg);
+  transform: rotate(0deg);
+  border: 0.1em solid var(--black);
+  left: 0;
+  top: 0;
+  width: 1.05em;
+  height: 1.05em;
+  border-radius: 0.25em;
+  transition: all 0.25s, border-width 0.1s;
+}
+
+.container input:checked ~ .checkmark:after {
   left: 0.45em;
   top: 0.25em;
   width: 0.25em;
   height: 0.5em;
   border-color: #fff0 white white #fff0;
   border-width: 0 0.15em 0.15em 0;
-  border-style: solid;
   border-radius: 0em;
-  transition: all 0.25s, border-width 0.1s;
-}
-
-.container input:checked ~ .checkmark:after {
-  display: block;
+  transform: rotate(45deg);
 }
 
 .check-label {
@@ -1070,6 +1095,10 @@ button {
 
 .training-day-editor {
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .form-grid label {
