@@ -89,37 +89,40 @@ export async function initOnboardingWizard() {
       required: true,
     },
     {
-      id: "age",
-      title: "Сколько тебе лет?",
-      type: "input",
-      inputType: "number",
-      min: 14,
-      max: 80,
-      placeholder: "Например: 28",
-      help: "Возраст влияет на восстановление и объём",
-      required: true,
-    },
-    {
-      id: "height",
-      title: "Твой рост",
-      type: "input",
-      inputType: "number",
-      min: 100,
-      max: 250,
-      placeholder: "Например: 175",
-      help: "Используем для расчёта калорий и целей",
-      required: true,
-    },
-    {
-      id: "weight",
-      title: "Твой вес",
-      type: "wheel-horizontal",
-      min: 30,
-      max: 300,
-      step: 0.5,
-      defaultValue: 75,
-      unit: "кг",
-      help: "Нужен для расчёта нагрузки и калорий",
+      id: "bodyMetrics",
+      title: "Твои параметры",
+      type: "range-group",
+      fields: [
+        {
+          id: "age",
+          label: "Выбери возраст",
+          min: 14,
+          max: 80,
+          step: 1,
+          unit: "лет",
+          defaultValue: 28,
+        },
+        {
+          id: "weight",
+          label: "Выбери вес",
+          min: 30,
+          max: 300,
+          step: 0.5,
+          unit: "кг",
+          defaultValue: 75,
+        },
+        {
+          id: "height",
+          label: "Выбери рост",
+          min: 100,
+          max: 250,
+          step: 1,
+          unit: "м",
+          display: "meters",
+          defaultValue: 170,
+        },
+      ],
+      help: "Эти данные нужны для расчёта норм и целей.",
       required: true,
     },
     {
@@ -265,6 +268,8 @@ export async function initOnboardingWizard() {
     titleEl.textContent = step.title;
     descEl.textContent = step.type === "wheel" || step.type === "wheel-horizontal"
       ? `Прокрути колесо${step.unit ? ` (${step.unit})` : ""}`
+      : step.type === "range-group"
+        ? "Передвинь ползунки"
       : step.type === "options" || step.type === "goal-combo" || step.type === "sex-buttons"
         ? "Выбери один вариант"
         : step.type === "multi-options"
@@ -436,6 +441,82 @@ export async function initOnboardingWizard() {
           : "";
       const wheel = createWheel(values, initial, (value) => setValue(step, value), axis, extraClass);
       bodyEl.appendChild(wheel);
+    }
+
+    if (step.type === "range-group") {
+      const group = document.createElement("div");
+      group.className = "range-group";
+
+      const formatRangeValue = (field, value) => {
+        if (!Number.isFinite(value)) return "—";
+        if (field.display === "meters") {
+          const meters = value / 100;
+          return meters.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        if (field.step && Math.abs(field.step % 1) > 0) {
+          return Number(value).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        }
+        return Math.round(value).toLocaleString("ru-RU");
+      };
+
+      const updateSliderTrack = (slider, value, min, max) => {
+        if (max <= min) return;
+        const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+        slider.style.background = `linear-gradient(90deg, var(--accent) 0%, var(--accent) ${pct}%, #d6d7db ${pct}%, #d6d7db 100%)`;
+      };
+
+      step.fields.forEach((field) => {
+        const min = field.min ?? 0;
+        const max = field.max ?? 100;
+        const stepValue = field.step ?? 1;
+        if (data[field.id] === undefined || data[field.id] === null || data[field.id] === "") {
+          data[field.id] = field.defaultValue ?? min;
+        }
+        const card = document.createElement("div");
+        card.className = "range-card";
+
+        const header = document.createElement("div");
+        header.className = "range-header";
+
+        const label = document.createElement("div");
+        label.className = "range-title";
+        label.textContent = field.label || "";
+
+        const valueBox = document.createElement("div");
+        valueBox.className = "range-value";
+        const number = document.createElement("span");
+        number.className = "range-number";
+        number.textContent = formatRangeValue(field, Number(data[field.id]));
+        const unit = document.createElement("span");
+        unit.className = "range-unit";
+        unit.textContent = field.unit || "";
+        valueBox.appendChild(number);
+        valueBox.appendChild(unit);
+
+        header.appendChild(label);
+        header.appendChild(valueBox);
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = String(min);
+        slider.max = String(max);
+        slider.step = String(stepValue);
+        slider.value = String(data[field.id]);
+        slider.className = "range-slider";
+        updateSliderTrack(slider, Number(slider.value), min, max);
+        slider.addEventListener("input", () => {
+          const raw = Number(slider.value);
+          data[field.id] = raw;
+          number.textContent = formatRangeValue(field, raw);
+          updateSliderTrack(slider, raw, min, max);
+        });
+
+        card.appendChild(header);
+        card.appendChild(slider);
+        group.appendChild(card);
+      });
+
+      bodyEl.appendChild(group);
     }
 
     if (step.type === "input") {
@@ -788,6 +869,25 @@ export async function initOnboardingWizard() {
     if ((step.type === "wheel" || step.type === "wheel-horizontal") && (value === undefined || value === null || Number.isNaN(value))) {
       toast("Выбери значение");
       return false;
+    }
+    if (step.type === "range-group") {
+      const fields = Array.isArray(step.fields) ? step.fields : [];
+      for (const field of fields) {
+        const raw = Number(data[field.id]);
+        if (!Number.isFinite(raw)) {
+          toast("Заполни все значения");
+          return false;
+        }
+        if (field.min !== undefined && raw < field.min) {
+          toast(`Минимум ${field.min}`);
+          return false;
+        }
+        if (field.max !== undefined && raw > field.max) {
+          toast(`Максимум ${field.max}`);
+          return false;
+        }
+      }
+      return true;
     }
     if (step.type === "input") {
       const raw = String(value || "").trim();
