@@ -44,6 +44,7 @@ struct WorkoutWebView: UIViewRepresentable {
         init(heartRate: HeartRateManager, onLogout: @escaping () -> Void) {
             self.heartRate = heartRate
             self.onLogout = onLogout
+            super.init()
             stepsObserver = NotificationCenter.default.addObserver(forName: .stepsDidUpdate, object: nil, queue: .main) { [weak self] note in
                 self?.handleStepsUpdate(note)
             }
