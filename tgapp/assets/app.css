@@ -941,7 +941,7 @@ button {
 
 .training-exercise-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)) minmax(0, 0.8fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)) max-content;
   gap: 10px;
   align-items: end;
   width: 100%;
@@ -964,6 +964,7 @@ button {
 .training-exercise-row .btn {
   width: 100%;
   white-space: nowrap;
+  padding: 10px 14px;
 }
 
 @media (max-width: 720px) {
@@ -974,6 +975,40 @@ button {
   .training-exercise-row .btn {
     grid-column: auto;
   }
+}
+
+.training-exercise-row.is-cardio {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2.2fr) minmax(0, 1fr) max-content;
+}
+
+.training-day-toggle {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--black);
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.training-day-editor.open .training-day-toggle::after {
+  content: "▾";
+  float: right;
+  color: var(--muted);
+}
+
+.training-day-editor .training-day-toggle::after {
+  content: "▸";
+  float: right;
+  color: var(--muted);
+}
+
+.training-day-content {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .container {

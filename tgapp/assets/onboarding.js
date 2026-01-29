@@ -480,10 +480,27 @@ export async function initOnboardingWizard() {
       editor.className = `training-editor active${isSimplePlan ? " simple" : ""}`;
       if (isSimplePlan) {
         const parseItemLine = (line) => {
-          const parts = String(line || "")
-            .split("|")
-            .map((p) => p.trim())
-            .filter(Boolean);
+          const raw = String(line || "").trim();
+          if (!raw) return { type: "strength", name: "", sets: "", reps: "", weight: "", rest: "", duration: "" };
+          const isCardio = /^(кардио|cardio)\b/i.test(raw);
+          if (isCardio) {
+            let text = raw.replace(/^(кардио|cardio)\s*[:/|-]?\s*/i, "").trim();
+            let name = "";
+            let duration = "";
+            if (text.includes("/")) {
+              const [left, right] = text.split("/").map((p) => p.trim());
+              name = left || "";
+              const m = (right || "").match(/(\d+(\.\d+)?)/);
+              duration = m ? m[1] : "";
+            } else {
+              const parts = text.split("|").map((p) => p.trim()).filter(Boolean);
+              name = parts[0] || "";
+              const m = (parts[1] || "").match(/(\d+(\.\d+)?)/);
+              duration = m ? m[1] : "";
+            }
+            return { type: "cardio", name, duration };
+          }
+          const parts = raw.split("|").map((p) => p.trim()).filter(Boolean);
           const name = parts[0] || "";
           let sets = "";
           let reps = "";
@@ -498,7 +515,7 @@ export async function initOnboardingWizard() {
           }
           const weight = parts[2] || "";
           const rest = parts[3] || "";
-          return { name, sets, reps, weight, rest };
+          return { type: "strength", name, sets, reps, weight, rest };
         };
 
         const isRestDay = (day) => {
@@ -517,7 +534,15 @@ export async function initOnboardingWizard() {
           const items = Array.isArray(day.simpleItems) ? day.simpleItems : [];
           const lines = items
             .map((item) => {
+              const type = item.type === "cardio" ? "cardio" : "strength";
               const name = String(item.name || "").trim();
+              if (type === "cardio") {
+                const duration = String(item.duration || "").trim();
+                const title = name || "Кардио";
+                const parts = [title];
+                if (duration) parts.push(`${duration} мин`);
+                return `Кардио: ${parts.join(" | ")}`.trim();
+              }
               if (!name) return "";
               const sets = String(item.sets || "").trim();
               const reps = String(item.reps || "").trim();
@@ -541,10 +566,15 @@ export async function initOnboardingWizard() {
           wrapper.className = "training-day-editor";
           wrapper.dataset.index = String(index);
 
-          const title = document.createElement("div");
-          title.className = "muted";
+          const title = document.createElement("button");
+          title.type = "button";
+          title.className = "training-day-toggle";
           title.textContent = `День ${index + 1}`;
           wrapper.appendChild(title);
+
+          const content = document.createElement("div");
+          content.className = "training-day-content";
+          wrapper.appendChild(content);
 
           if (!Array.isArray(day.simpleItems)) {
             const items = Array.isArray(day.items) ? day.items : [];
@@ -568,11 +598,11 @@ export async function initOnboardingWizard() {
           restRow.appendChild(restToggle);
           restRow.appendChild(restCheckmark);
           restRow.appendChild(restText);
-          wrapper.appendChild(restRow);
+          content.appendChild(restRow);
 
           const rows = document.createElement("div");
           rows.className = "stack";
-          wrapper.appendChild(rows);
+          content.appendChild(rows);
 
           const renderRows = () => {
             rows.innerHTML = "";
@@ -597,6 +627,7 @@ export async function initOnboardingWizard() {
             day.simpleItems.forEach((item, itemIndex) => {
               const row = document.createElement("div");
               row.className = "training-exercise-row";
+              row.classList.toggle("is-cardio", item.type === "cardio");
 
               const name = document.createElement("input");
               name.type = "text";
@@ -644,6 +675,31 @@ export async function initOnboardingWizard() {
                 syncItems(day);
               });
 
+              const type = document.createElement("select");
+              const strengthOpt = document.createElement("option");
+              strengthOpt.value = "strength";
+              strengthOpt.textContent = "Силовая";
+              const cardioOpt = document.createElement("option");
+              cardioOpt.value = "cardio";
+              cardioOpt.textContent = "Кардио";
+              type.appendChild(strengthOpt);
+              type.appendChild(cardioOpt);
+              type.value = item.type === "cardio" ? "cardio" : "strength";
+              type.addEventListener("change", () => {
+                item.type = type.value;
+                syncItems(day);
+                renderRows();
+              });
+
+              const duration = document.createElement("input");
+              duration.type = "number";
+              duration.placeholder = "Минуты";
+              duration.value = item.duration || "";
+              duration.addEventListener("input", () => {
+                item.duration = duration.value;
+                syncItems(day);
+              });
+
               const remove = document.createElement("button");
               remove.type = "button";
               remove.className = "btn btn-outline";
@@ -654,11 +710,16 @@ export async function initOnboardingWizard() {
                 renderRows();
               });
 
+              row.appendChild(makeField("Тип", type));
               row.appendChild(makeField("Название", name));
-              row.appendChild(makeField("Подходы", sets));
-              row.appendChild(makeField("Повторения", reps));
-              row.appendChild(makeField("Вес", weight));
-              row.appendChild(makeField("Отдых, сек", rest));
+              if (item.type === "cardio") {
+                row.appendChild(makeField("Длительность, мин", duration));
+              } else {
+                row.appendChild(makeField("Подходы", sets));
+                row.appendChild(makeField("Повторения", reps));
+                row.appendChild(makeField("Вес", weight));
+                row.appendChild(makeField("Отдых, сек", rest));
+              }
               row.appendChild(remove);
               rows.appendChild(row);
             });
@@ -669,7 +730,7 @@ export async function initOnboardingWizard() {
           addBtn.className = "btn btn-outline";
           addBtn.textContent = "Добавить упражнение";
           addBtn.addEventListener("click", () => {
-            day.simpleItems.push({ name: "", sets: "", reps: "", weight: "", rest: "" });
+            day.simpleItems.push({ type: "strength", name: "", sets: "", reps: "", weight: "", rest: "" });
             renderRows();
           });
 
@@ -679,7 +740,15 @@ export async function initOnboardingWizard() {
           });
 
           renderRows();
-          wrapper.appendChild(addBtn);
+          content.appendChild(addBtn);
+          const isOpen = index === 0;
+          wrapper.classList.toggle("open", isOpen);
+          content.style.display = isOpen ? "grid" : "none";
+          title.addEventListener("click", () => {
+            const next = !wrapper.classList.contains("open");
+            wrapper.classList.toggle("open", next);
+            content.style.display = next ? "grid" : "none";
+          });
           editor.appendChild(wrapper);
         });
       } else {
