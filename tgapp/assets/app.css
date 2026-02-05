@@ -635,8 +635,7 @@ button {
   padding: 12px 16px;
   border-radius: 999px;
   font-weight: 700;
-  min-height: 52px;
-  font-size: 17px;
+  min-height: 44px;
   position: relative;
 }
 
