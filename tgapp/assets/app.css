@@ -2299,7 +2299,7 @@ button {
   border: none;
   padding: 10px 0;
   color: var(--muted);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   font-weight: 500;
   user-select: none;
 }
@@ -2318,6 +2318,7 @@ button {
   color: var(--accent);
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(255, 3, 62, 0.15);
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 .tabs.accent-text input[type="radio"]:checked + label {
   color: var(--accent);
