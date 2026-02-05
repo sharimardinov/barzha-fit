@@ -2167,8 +2167,8 @@ button {
   color: var(--muted);
   border: 1px solid transparent;
   z-index: 2;
-  transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
-    font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.15s ease-out, 
+    font-size 0.15s ease-out;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   touch-action: manipulation;
