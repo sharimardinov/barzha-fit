@@ -8,6 +8,10 @@
   --nav-height: 140px;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 *,
 *::before,
 *::after {
@@ -18,9 +22,11 @@ body {
   margin: 0;
   font-family: "Aptos", Arial, sans-serif;
   color: var(--black);
-  background: var(--white);
+  background: linear-gradient(to bottom, #fafafa 0%, #ffffff 100%);
   min-height: 100vh;
   padding-bottom: var(--nav-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .app {
@@ -53,6 +59,17 @@ body {
   padding: 8px 0 12px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
+  position: relative;
+}
+
+.app-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
 }
 
 .brand {
@@ -298,6 +315,12 @@ body {
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 
@@ -309,6 +332,7 @@ body {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
+  letter-spacing: -0.01em;
 }
 
 .plan {
@@ -316,11 +340,18 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px;
-  background: var(--white);
+  background: rgba(0, 0, 0, 0.02);
   color: var(--muted);
   font-family: inherit;
   font-style: italic;
   font-size: 14px;
+  line-height: 1.6;
+  transition: all 0.2s ease;
+}
+
+.plan:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 .status-pill {
@@ -448,11 +479,12 @@ body {
   grid-template-columns: auto 1fr;
   gap: 18px;
   align-items: center;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, #ff1a4d 100%);
   color: var(--white);
   border-color: transparent;
   padding: 18px;
   border-radius: 26px;
+  box-shadow: 0 8px 24px rgba(255, 3, 62, 0.25), 0 4px 8px rgba(255, 3, 62, 0.15);
 }
 
 .steps-card-left {
@@ -589,21 +621,49 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 14px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.progress-head .value {
+  font-weight: 700;
+  color: var(--black);
 }
 
 .progress-bar {
-  height: 8px;
-  background: rgba(0, 0, 0, 0.1);
+  height: 10px;
+  background: rgba(0, 0, 0, 0.06);
   border-radius: 999px;
   overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .progress-fill {
   height: 100%;
   width: 0;
-  background: var(--accent);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--accent) 0%, #ff1a4d 100%);
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255, 3, 62, 0.3);
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  border-radius: 999px;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 textarea,
@@ -611,13 +671,29 @@ input,
 select {
   width: 100%;
   border-radius: 14px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   padding: 12px 14px;
   font-family: inherit;
   font-size: 16px;
   background: var(--white);
   color: var(--black);
-  caret-color: var(--black);
+  caret-color: var(--accent);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+textarea:focus,
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 3, 62, 0.1), 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+textarea:hover,
+input:hover,
+select:hover {
+  border-color: rgba(0, 0, 0, 0.2);
 }
 
 textarea {
@@ -637,6 +713,13 @@ button {
   font-weight: 700;
   min-height: 44px;
   position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+}
+
+.btn:active {
+  transform: translateY(1px);
+  transition-duration: 0.1s;
 }
 
 .btn-icon {
@@ -670,12 +753,35 @@ button {
 .btn-accent {
   background: var(--accent);
   color: var(--white);
+  box-shadow: 0 4px 12px rgba(255, 3, 62, 0.25), 0 2px 4px rgba(255, 3, 62, 0.15);
+}
+
+.btn-accent:hover {
+  background: #e6003a;
+  box-shadow: 0 6px 16px rgba(255, 3, 62, 0.3), 0 3px 6px rgba(255, 3, 62, 0.2);
+}
+
+.btn-accent:active {
+  box-shadow: 0 2px 8px rgba(255, 3, 62, 0.2), 0 1px 3px rgba(255, 3, 62, 0.15);
 }
 
 .btn-outline {
   background: var(--white);
   color: var(--black);
-  border: 1px solid var(--black);
+  border: 1.5px solid var(--black);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.btn-outline:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.btn-outline:active {
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .today-actions .btn-outline:hover {
@@ -862,14 +968,25 @@ button {
 }
 
 .option-card {
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 16px;
   padding: 14px;
   font-weight: 700;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--white);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.option-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.option-card:active {
+  transform: translateY(0);
+  transition-duration: 0.1s;
 }
 
 .option-card.accent-fill {
@@ -1037,6 +1154,13 @@ button {
   padding: 12px;
   display: grid;
   gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.list-item:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .list-item .meta {
@@ -1299,6 +1423,11 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  transition: transform 0.2s ease;
+}
+
+.workout-plan-item:hover {
+  transform: translateX(2px);
 }
 
 .workout-plan-item-title {
@@ -1374,6 +1503,8 @@ button {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+  background: linear-gradient(135deg, rgba(255, 3, 62, 0.03) 0%, rgba(255, 255, 255, 1) 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .workout-summary-block {
@@ -1408,6 +1539,13 @@ button {
   padding: 12px;
   display: grid;
   gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.workout-exercise-block:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .workout-exercise-name {
@@ -1538,6 +1676,14 @@ button {
   padding: 10px;
   display: grid;
   gap: 4px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.stat-tile:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
 }
 
 .stat-label {
@@ -1682,6 +1828,13 @@ button {
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.accordion-item:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .accordion-toggle {
@@ -1696,6 +1849,11 @@ button {
   font-size: 14px;
   gap: 12px;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s ease;
+}
+
+.accordion-toggle:hover {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .accordion-toggle:active {
@@ -1817,10 +1975,22 @@ button {
 .screen {
   display: none;
   position: relative;
+  animation: fadeIn 0.3s ease;
 }
 
 .screen.active {
   display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .screen-loader {
@@ -1951,12 +2121,19 @@ button {
   transform: translateX(-50%);
   background: var(--black);
   color: var(--white);
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-radius: 999px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
   font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
 }
 
 .toast.show {
