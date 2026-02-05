@@ -335,6 +335,15 @@ body {
   letter-spacing: -0.01em;
 }
 
+.profile-settings-btn {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.profile-settings-btn:hover {
+  opacity: 1;
+}
+
 .plan {
   white-space: pre-wrap;
   border: 1px solid var(--border);
@@ -504,6 +513,7 @@ body {
     rgba(255, 255, 255, 0.95) var(--steps-progress, 0deg),
     rgba(255, 255, 255, 0.2) 0deg
   );
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 0 40px rgba(255, 255, 255, 0.2);
 }
 
 .steps-ring-inner {
@@ -690,10 +700,19 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(255, 3, 62, 0.1), 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
-textarea:hover,
-input:hover,
-select:hover {
+textarea:hover:not(:disabled),
+input:hover:not(:disabled),
+select:hover:not(:disabled) {
   border-color: rgba(0, 0, 0, 0.2);
+}
+
+textarea:disabled,
+input:disabled,
+select:disabled {
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.7;
 }
 
 textarea {
@@ -740,14 +759,10 @@ button {
 
 .btn-icon:hover .btn-icon-svg {
   transform: rotate(90deg);
-  fill: #27272a;
-  stroke: #27272a;
 }
 
 .btn-icon:active .btn-icon-svg {
   transition-duration: 0s;
-  fill: #52525b;
-  stroke: #e4e4e7;
 }
 
 .btn-accent {
@@ -784,9 +799,14 @@ button {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
+.today-actions .btn-outline {
+  border-color: var(--border);
+}
+
 .today-actions .btn-outline:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: rgba(0, 0, 0, 0.2);
+  color: var(--black);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .btn.loading {
@@ -918,37 +938,31 @@ button {
 .range-slider {
   -webkit-appearance: none;
   width: 100%;
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
-  background: #d6d7db;
+  background: rgba(0, 0, 0, 0.08);
   outline: none;
+  cursor: pointer;
 }
 
 .range-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  width: 0;
+  height: 0;
   cursor: pointer;
 }
 
 .range-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  width: 0;
+  height: 0;
+  border: none;
   cursor: pointer;
 }
 
 .range-slider::-moz-range-track {
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
-  background: #d6d7db;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .onboarding-help {
@@ -2030,12 +2044,13 @@ button {
   left: 50%;
   transform: translateX(-50%);
   bottom: 16px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 10px 16px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   border-radius: 999px;
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.12),
@@ -2059,18 +2074,17 @@ button {
 
 .nav-highlight {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
-  height: 52px;
-  width: 52px;
+  height: 44px;
+  width: 0;
   border-radius: 999px;
   background: var(--accent);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
   opacity: 0;
-  transform: translate(0, 0);
+  transform: translateY(-50%);
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
     width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-    height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
     opacity 0.2s ease;
   pointer-events: none;
   z-index: 1;
@@ -2080,25 +2094,39 @@ button {
   position: relative;
   background: transparent;
   border-radius: 999px;
-  padding: 10px 6px;
-  display: grid;
-  gap: 8px;
-  justify-items: center;
-  font-size: 11px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
   color: var(--muted);
   border: 1px solid transparent;
   z-index: 2;
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   touch-action: manipulation;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
 }
 
 .nav-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   stroke-width: 2;
   stroke: currentColor;
+  flex-shrink: 0;
+}
+
+.nav-btn span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  line-height: 1.2;
 }
 
 .nav-btn.active {
@@ -2163,6 +2191,10 @@ button {
 .debug-panel.active {
   display: block;
 }
+.profile-goal-container {
+  width: 100%;
+}
+
 .tabs.profile-goal-tabs {
   width: 100%;
   max-width: 100%;
@@ -2180,6 +2212,15 @@ button {
   flex: 1;
   justify-content: center;
   text-align: center;
+}
+
+.tabs.profile-goal-tabs input[type="radio"]:disabled + .tab {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.tabs.profile-goal-tabs input[type="radio"]:disabled + .tab:hover {
+  color: var(--black);
 }
 
 .tabs.profile-goal-tabs .glider {

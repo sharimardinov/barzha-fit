@@ -225,36 +225,70 @@ export async function saveProfileFlow(payload, trainingPayload, button, opts = {
 
 export function initProfileTab() {
   ensureInjuryOptions();
-  const profileSave = $("profile-save");
-  if (profileSave) {
-    profileSave.addEventListener("click", async () => {
-      const profileValidated = validateProfileInputs();
-      const trainingValidated = validateTrainingInputs();
-      if (!profileValidated || !trainingValidated) return;
+  
+  const profileSettings = $("profile-settings");
+  if (profileSettings) {
+    profileSettings.addEventListener("click", () => {
+      // Временно включаем поля для редактирования
+      const fields = ["profile-sex", "profile-age", "profile-height", "profile-weight", "profile-bodyfat", "training-pharma", "training-times"];
+      const goalInputs = document.querySelectorAll('input[name="goal-tabs"]');
+      fields.forEach(id => {
+        const el = $(id);
+        if (el) el.disabled = false;
+      });
+      goalInputs.forEach(input => {
+        input.disabled = false;
+      });
+      // Показываем кнопку сохранения
+      const profileSave = $("profile-save");
+      if (profileSave) {
+        profileSave.style.display = "inline-flex";
+        profileSave.addEventListener("click", async function saveHandler() {
+          const profileValidated = validateProfileInputs();
+          const trainingValidated = validateTrainingInputs();
+          if (!profileValidated || !trainingValidated) return;
 
-      const payload = {
-        sex: $("profile-sex").value,
-        age: profileValidated.age,
-        height_cm: profileValidated.height,
-        weight_kg: profileValidated.weight,
-        training_years: profileValidated.trainingYears,
-        bodyfat_pct: profileValidated.bodyfat,
-        goal: profileValidated.goalType,
-      };
-      const trainingGoal = buildTrainingGoalText(trainingValidated.goalType, trainingValidated.goalNotes);
-      const trainingPayload = {
-        bench_kg: trainingValidated.bench || 0,
-        pullups: trainingValidated.pullups || 0,
-        run_km: trainingValidated.run || 0,
-        injuries: formatSelectedInjuries(),
-        goal: trainingGoal,
-        pharma: trainingValidated.pharma,
-        trainings_per_week: trainingValidated.times,
-        wishes: "",
-      };
-      await saveProfileFlow(payload, trainingPayload, profileSave, { planMode: "ai-profile" });
+          const payload = {
+            sex: $("profile-sex").value,
+            age: profileValidated.age,
+            height_cm: profileValidated.height,
+            weight_kg: profileValidated.weight,
+            training_years: profileValidated.trainingYears,
+            bodyfat_pct: profileValidated.bodyfat,
+            goal: profileValidated.goalType,
+          };
+          const trainingGoal = buildTrainingGoalText(trainingValidated.goalType, trainingValidated.goalNotes);
+          const trainingPayload = {
+            bench_kg: trainingValidated.bench || 0,
+            pullups: trainingValidated.pullups || 0,
+            run_km: trainingValidated.run || 0,
+            injuries: formatSelectedInjuries(),
+            goal: trainingGoal,
+            pharma: trainingValidated.pharma,
+            trainings_per_week: trainingValidated.times,
+            wishes: "",
+          };
+          await saveProfileFlow(payload, trainingPayload, profileSave, { planMode: "ai-profile" });
+          // Отключаем поля обратно
+          fields.forEach(id => {
+            const el = $(id);
+            if (el) el.disabled = true;
+          });
+          goalInputs.forEach(input => {
+            input.disabled = true;
+          });
+          profileSave.style.display = "none";
+          profileSave.removeEventListener("click", saveHandler);
+        }, { once: true });
+      }
     });
   }
+
+  const profileSave = $("profile-save");
+  if (profileSave) {
+    profileSave.style.display = "none";
+  }
+
   const profileLogout = $("profile-logout");
   if (profileLogout) {
     profileLogout.addEventListener("click", () => {

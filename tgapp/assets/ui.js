@@ -126,10 +126,8 @@ export function updateNavHighlight() {
   const navRect = nav.getBoundingClientRect();
   const btnRect = active.getBoundingClientRect();
   const left = btnRect.left - navRect.left;
-  const top = btnRect.top - navRect.top;
   highlight.style.width = `${btnRect.width}px`;
-  highlight.style.height = `${btnRect.height}px`;
-  highlight.style.transform = `translate(${left}px, ${top}px)`;
+  highlight.style.transform = `translate(${left}px, -50%)`;
   highlight.style.opacity = "1";
 }
 

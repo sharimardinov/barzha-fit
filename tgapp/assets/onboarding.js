@@ -106,7 +106,7 @@ export async function initOnboardingWizard() {
           id: "weight",
           label: "Выбери вес",
           min: 30,
-          max: 300,
+          max: 150,
           step: 0.5,
           unit: "кг",
           defaultValue: 75,
@@ -114,11 +114,11 @@ export async function initOnboardingWizard() {
         {
           id: "height",
           label: "Выбери рост",
-          min: 100,
-          max: 250,
+          min: 120,
+          max: 220,
           step: 1,
-          unit: "м",
-          display: "meters",
+          unit: "см",
+          display: "centimeters",
           defaultValue: 170,
         },
       ],
@@ -453,6 +453,9 @@ export async function initOnboardingWizard() {
           const meters = value / 100;
           return meters.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
+        if (field.display === "centimeters") {
+          return Math.round(value).toLocaleString("ru-RU");
+        }
         if (field.step && Math.abs(field.step % 1) > 0) {
           return Number(value).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
         }
@@ -462,7 +465,7 @@ export async function initOnboardingWizard() {
       const updateSliderTrack = (slider, value, min, max) => {
         if (max <= min) return;
         const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
-        slider.style.background = `linear-gradient(90deg, var(--accent) 0%, var(--accent) ${pct}%, #d6d7db ${pct}%, #d6d7db 100%)`;
+        slider.style.background = `linear-gradient(90deg, var(--accent) 0%, var(--accent) ${pct}%, rgba(0, 0, 0, 0.08) ${pct}%, rgba(0, 0, 0, 0.08) 100%)`;
       };
 
       step.fields.forEach((field) => {

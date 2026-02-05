@@ -60,6 +60,39 @@ function syncWakeLock() {
 }
 
 export function initWorkoutTab() {
+  const trainingProgramToggle = $("training-program-toggle");
+  if (trainingProgramToggle) {
+    const accordion = document.getElementById("training-program-accordion");
+    const body = accordion?.querySelector(".accordion-body");
+    if (accordion && body) {
+      const openBody = () => {
+        accordion.classList.add("open");
+        body.style.height = `${body.scrollHeight}px`;
+      };
+      const closeBody = () => {
+        body.style.height = `${body.scrollHeight}px`;
+        requestAnimationFrame(() => {
+          body.style.height = "0px";
+        });
+        accordion.classList.remove("open");
+      };
+      body.style.height = "0px";
+      body.addEventListener("transitionend", (event) => {
+        if (event.propertyName !== "height") return;
+        if (accordion.classList.contains("open")) {
+          body.style.height = "auto";
+        }
+      });
+      trainingProgramToggle.addEventListener("click", () => {
+        if (accordion.classList.contains("open")) {
+          closeBody();
+        } else {
+          openBody();
+        }
+      });
+    }
+  }
+
   const startBtn = $("workout-start");
   if (startBtn) {
     startBtn.addEventListener("click", async () => {
