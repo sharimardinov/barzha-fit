@@ -2314,39 +2314,11 @@ button {
 }
 
 .radio-inputs .radio input:checked + .name {
-  background-color: transparent;
+  background-color: var(--white);
   color: var(--accent);
   font-weight: 600;
-  box-shadow: none;
-  transition: none;
-  position: relative;
-  z-index: 2;
-}
-
-.radio-glider {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  height: calc(100% - 8px);
-  width: calc(33.333% - 2.667px);
-  background-color: var(--white);
-  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(255, 3, 62, 0.15);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.radio-inputs input[id="goal-cut"]:checked ~ .radio-glider {
-  transform: translateX(0);
-}
-
-.radio-inputs input[id="goal-balance"]:checked ~ .radio-glider {
-  transform: translateX(calc(100% + 4px));
-}
-
-.radio-inputs input[id="goal-bulk"]:checked ~ .radio-glider {
-  transform: translateX(calc(200% + 8px));
+  transition: none;
 }
 .tabs.accent-text input[type="radio"]:checked + label {
   color: var(--accent);
