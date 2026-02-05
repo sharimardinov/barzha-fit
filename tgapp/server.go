@@ -34,11 +34,9 @@ type Server struct {
 	profile       *service.ProfileService
 	training      *service.TrainingProfileService
 	inputs        *service.TrainingInputService
-	programs      *service.TrainingProgramService
 	injuries      *service.InjuryTypeService
 	activity      *service.ActivityAI
 	workoutTimer  *service.WorkoutTimerService
-	strengthStats *service.WorkoutStatsService
 	googleAuth    *service.GoogleAuthService
 	sessions      *sessionStore
 }
@@ -58,11 +56,9 @@ type Deps struct {
 	Profile            *service.ProfileService
 	Training           *service.TrainingProfileService
 	Inputs             *service.TrainingInputService
-	Programs           *service.TrainingProgramService
 	Injuries           *service.InjuryTypeService
 	Activity           *service.ActivityAI
 	WorkoutTimer       *service.WorkoutTimerService
-	StrengthStats      *service.WorkoutStatsService
 	GoogleAuth         *service.GoogleAuthService
 }
 
@@ -86,11 +82,9 @@ func NewServer(d Deps) *Server {
 		profile:            d.Profile,
 		training:           d.Training,
 		inputs:             d.Inputs,
-		programs:           d.Programs,
 		injuries:           d.Injuries,
 		activity:           d.Activity,
 		workoutTimer:       d.WorkoutTimer,
-		strengthStats:      d.StrengthStats,
 		googleAuth:         d.GoogleAuth,
 		sessions:           newSessionStore(secret),
 	}

@@ -76,8 +76,6 @@ export function formatApiError(err, fallback) {
   if (code === "workout_session_paused") return "Тренировка на паузе";
   if (code === "google_auth_not_configured") return "Google вход недоступен";
   if (code === "google_auth_failed") return "Не удалось открыть Google";
-  if (code === "strength_stats_unavailable") return "Статистика силовых недоступна";
-  if (code === "strength_stats_failed") return "Не удалось загрузить статистику силовых";
   return fallback;
 }
 

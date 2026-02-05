@@ -58,17 +58,6 @@ func main() {
 	trainingInputRepo := db.NewTrainingInputRepo(pool)
 	trainingInputSvc := service.NewTrainingInputService(trainingInputRepo, appUserRepo)
 
-	templateRepo := db.NewProgramTemplateRepo(pool)
-	exerciseRepo := db.NewExerciseRepo(pool)
-	userProgramRepo := db.NewUserProgramRepo(pool)
-	trainingProgramSvc := service.NewTrainingProgramService(
-		appUserRepo,
-		trainingInputRepo,
-		templateRepo,
-		exerciseRepo,
-		userProgramRepo,
-	)
-
 	injuryTypeRepo := db.NewInjuryTypeRepo(pool)
 	injuryTypeSvc := service.NewInjuryTypeService(injuryTypeRepo)
 
@@ -84,7 +73,6 @@ func main() {
 	workoutSessionRepo := db.NewWorkoutSessionRepo(pool)
 	workoutSetRepo := db.NewWorkoutSetRepo(pool)
 	workoutTimerSvc := service.NewWorkoutTimerService(workoutPlanRepo, workoutSessionRepo, workoutSetRepo)
-	workoutStatsSvc := service.NewWorkoutStatsService(workoutSetRepo)
 
 	googleAuthRepo := db.NewGoogleAuthRepo(pool)
 	googleAuthSvc := service.NewGoogleAuthService(googleAuthRepo)
@@ -104,11 +92,9 @@ func main() {
 		Profile:       profileSvc,
 		Training:      trainingProfileSvc,
 		Inputs:        trainingInputSvc,
-		Programs:      trainingProgramSvc,
 		Injuries:      injuryTypeSvc,
 		Activity:      activityAI,
 		WorkoutTimer:  workoutTimerSvc,
-		StrengthStats: workoutStatsSvc,
 		GoogleAuth:    googleAuthSvc,
 	})
 	go func() {

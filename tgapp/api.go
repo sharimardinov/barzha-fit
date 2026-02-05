@@ -54,11 +54,9 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
 	mux.HandleFunc("/api/training/injuries", s.withAuth(s.handleTrainingInjuries))
-	mux.HandleFunc("/api/training/program/generate", s.withAuth(s.handleTrainingProgramGenerate))
 	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
 	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
 	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
-	mux.HandleFunc("/api/stats/strength", s.withAuth(s.handleStrengthStats))
 	mux.HandleFunc("/api/streak", s.withAuth(s.handleStreak))
 	mux.HandleFunc("/api/workout/plan/get", s.withAuth(s.handleWorkoutPlanGet))
 	mux.HandleFunc("/api/workout/plan/save", s.withAuth(s.handleWorkoutPlanSave))
@@ -548,176 +546,6 @@ func (s *Server) handleTrainingInjuries(w http.ResponseWriter, r *http.Request, 
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
 }
 
-func (s *Server) handleTrainingProgramGenerate(w http.ResponseWriter, r *http.Request, auth authContext) {
-	if s.inputs == nil || s.programs == nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_program_unavailable"})
-		return
-	}
-
-	var payload struct {
-		FitnessLevel string   `json:"fitness_level"`
-		Goal         string   `json:"goal"`
-		DaysPerWeek  int      `json:"days_per_week"`
-		Injuries     []string `json:"injuries"`
-	}
-	if err := decodeJSON(r, &payload); err != nil {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
-		return
-	}
-
-	ctx := r.Context()
-	if _, err := s.inputs.SaveFromSelection(ctx, auth.User.ID, payload.FitnessLevel, payload.Goal, payload.DaysPerWeek, payload.Injuries); err != nil {
-		log.Printf("training input save failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "training_input_invalid"})
-		return
-	}
-
-	_, program, err := s.programs.Generate(ctx, auth.User.ID)
-	if err != nil {
-		log.Printf("training program generate failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_program_generate_failed"})
-		return
-	}
-
-	planPayload, err := buildTrainingPlanPayload(program, payload.DaysPerWeek)
-	if err != nil {
-		log.Printf("training plan build failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_plan_build_failed"})
-		return
-	}
-	planTextRaw, err := json.Marshal(planPayload)
-	if err != nil {
-		log.Printf("training plan marshal failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_plan_build_failed"})
-		return
-	}
-	planText := string(planTextRaw)
-	text := service.FormatGeneratedProgram(program)
-	if s.plan != nil {
-		if err := s.plan.Save(ctx, auth.User.ID, planText); err != nil {
-			log.Printf("training program plan save failed: chat_id=%d err=%v", auth.User.ID, err)
-			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
-			return
-		}
-	}
-
-	resp := struct {
-		Program domain.GeneratedProgram `json:"program"`
-		Text    string                  `json:"text"`
-	}{
-		Program: program,
-		Text:    text,
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
-}
-
-func buildTrainingPlanPayload(program domain.GeneratedProgram, daysPerWeek int) (trainingPlanPayload, error) {
-	slots, err := trainingDaySlots(daysPerWeek)
-	if err != nil {
-		return trainingPlanPayload{}, err
-	}
-	if len(program.Days) != len(slots) {
-		return trainingPlanPayload{}, fmt.Errorf("plan_days_mismatch")
-	}
-	slotSet := make(map[int]bool, len(slots))
-	for _, day := range slots {
-		slotSet[day] = true
-	}
-
-	week := make([]trainingPlanDay, 0, 7)
-	programIndex := 0
-	for dayNum := 1; dayNum <= 7; dayNum++ {
-		if !slotSet[dayNum] {
-			week = append(week, trainingPlanDay{
-				Day:   dayNum,
-				Name:  "Отдых",
-				Focus: "",
-				Type:  "rest",
-				Items: []string{"Отдых"},
-			})
-			continue
-		}
-
-		day := program.Days[programIndex]
-		programIndex++
-		items := make([]string, 0, len(day.Exercises))
-		for _, ex := range day.Exercises {
-			items = append(items, formatGeneratedExerciseLine(ex))
-		}
-		name := strings.TrimSpace(day.Name)
-		if name == "" {
-			name = fmt.Sprintf("День %d", dayNum)
-		}
-		week = append(week, trainingPlanDay{
-			Day:   dayNum,
-			Name:  name,
-			Focus: strings.TrimSpace(day.Focus),
-			Type:  "train",
-			Items: items,
-		})
-	}
-
-	return trainingPlanPayload{Week: week}, nil
-}
-
-func trainingDaySlots(daysPerWeek int) ([]int, error) {
-	switch daysPerWeek {
-	case 2:
-		return []int{1, 4}, nil
-	case 3:
-		return []int{1, 3, 5}, nil
-	case 4:
-		return []int{1, 2, 4, 5}, nil
-	case 5:
-		return []int{1, 2, 4, 5, 7}, nil
-	case 6:
-		return []int{1, 2, 3, 5, 6, 7}, nil
-	default:
-		return nil, fmt.Errorf("unsupported days_per_week")
-	}
-}
-
-func formatGeneratedExerciseLine(ex domain.GeneratedExercise) string {
-	line := fmt.Sprintf("%s — %dx%s", ex.Name, ex.Sets, ex.Reps)
-	extras := make([]string, 0, 4)
-	if strings.TrimSpace(ex.RPE) != "" {
-		extras = append(extras, "RPE "+strings.TrimSpace(ex.RPE))
-	}
-	if strings.TrimSpace(ex.Rest) != "" {
-		extras = append(extras, "Rest "+strings.TrimSpace(ex.Rest))
-	}
-	if strings.TrimSpace(ex.Percent1RM) != "" {
-		extras = append(extras, "%1RM "+strings.TrimSpace(ex.Percent1RM))
-	}
-	if tagLine := formatTagLine(ex.Tags); tagLine != "" {
-		extras = append(extras, tagLine)
-	}
-	if len(extras) > 0 {
-		line += " | " + strings.Join(extras, " | ")
-	}
-	return line
-}
-
-func formatTagLine(tags []string) string {
-	if len(tags) == 0 {
-		return ""
-	}
-	out := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		t := strings.TrimSpace(tag)
-		if t == "" {
-			continue
-		}
-		if !strings.HasPrefix(t, "#") {
-			t = "#" + t
-		}
-		out = append(out, t)
-	}
-	if len(out) == 0 {
-		return ""
-	}
-	return strings.Join(out, " ")
-}
 
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {
 	var payload struct {
@@ -875,46 +703,6 @@ func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth a
 	}})
 }
 
-func (s *Server) handleStrengthStats(w http.ResponseWriter, r *http.Request, auth authContext) {
-	if s.strengthStats == nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_unavailable"})
-		return
-	}
-	ctx := r.Context()
-	stats, err := s.strengthStats.StrengthAllTime(ctx, auth.User.ID)
-	if err != nil {
-		log.Printf("strength stats failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
-		return
-	}
-	stepsTotal := 0
-	if s.steps != nil {
-		stepsTotal, err = s.steps.SumAllTime(ctx, auth.User.ID)
-		if err != nil {
-			log.Printf("steps stats failed: chat_id=%d err=%v", auth.User.ID, err)
-			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
-			return
-		}
-	}
-	protein, fat, carbs := 0, 0, 0
-	if s.nutrition != nil {
-		_, protein, fat, carbs, err = s.nutrition.SumAllTime(ctx, auth.User.ID)
-		if err != nil {
-			log.Printf("nutrition stats failed: chat_id=%d err=%v", auth.User.ID, err)
-			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_failed"})
-			return
-		}
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"strength":   stats,
-		"stepsTotal": stepsTotal,
-		"macros": map[string]int{
-			"protein": protein,
-			"fat":     fat,
-			"carbs":   carbs,
-		},
-	}})
-}
 
 func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authContext) {
 	loc := util.MustLocation(s.tz)
