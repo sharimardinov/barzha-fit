@@ -6,7 +6,6 @@ import {
   toast,
   setActiveTab,
   updateNavHighlight,
-  loadTargets,
   setScreenLoading,
 } from "./core.js";
 import {
@@ -19,10 +18,6 @@ import {
   loadProfile,
   loadTrainingProfile,
   initProfileTab,
-  loadDiscipline,
-  initDisciplineTab,
-  loadStrengthStats,
-  initStrengthStatsTab,
   loadWorkout,
   initWorkoutTab,
 } from "./tabs/index.js";
@@ -38,21 +33,18 @@ function initNav() {
       setActiveTab(tab);
       if (tab === "today") await runScreenLoad("today", loadToday);
       if (tab === "meals") await runScreenLoad("meals", loadMeals);
-      if (tab === "plan") {
-        await runScreenLoad("plan", async () => {
-          await loadPlan();
-          await loadTargets();
-        });
-      }
       if (tab === "profile") {
         await runScreenLoad("profile", async () => {
           await loadProfile();
           await loadTrainingProfile();
         });
       }
-      if (tab === "discipline") await runScreenLoad("discipline", loadDiscipline);
-      if (tab === "stats") await runScreenLoad("stats", loadStrengthStats);
-      if (tab === "workout") await runScreenLoad("workout", loadWorkout);
+      if (tab === "workout") {
+        await runScreenLoad("workout", async () => {
+          await loadWorkout();
+          await loadPlan();
+        });
+      }
     });
   });
   window.addEventListener("resize", () => {
@@ -90,12 +82,9 @@ async function runScreenLoad(name, task, opts = {}) {
 async function prefetchScreens() {
   loadersEnabled = false;
   await Promise.allSettled([
-    loadPlan().then(loadTargets),
     loadMeals(),
     loadProfile().then(loadTrainingProfile),
-    loadDiscipline(),
-    loadStrengthStats(),
-    loadWorkout(),
+    loadWorkout().then(loadPlan),
   ]);
 }
 
@@ -165,8 +154,6 @@ async function bootstrap() {
   initMealsTab();
   initPlanTab();
   initProfileTab();
-  initDisciplineTab();
-  initStrengthStatsTab();
   initWorkoutTab();
 
   const onboardingReady = await ensureOnboarding();

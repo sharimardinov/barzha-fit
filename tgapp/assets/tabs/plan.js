@@ -5,8 +5,6 @@ import {
   toast,
   setButtonLoading,
   formatApiError,
-  loadTargets,
-  targetFields,
 } from "../core.js";
 import { extractPlanPayload, parsePlan, renderTrainingAccordion } from "../plan-utils.js";
 import { loadToday } from "./today.js";
@@ -153,18 +151,6 @@ function renderTrainingEditor(payload) {
   });
 }
 
-async function saveTargets(prefix) {
-  for (const { field, id, planId } of targetFields) {
-    const fieldId = prefix === "plan" ? planId : id;
-    const el = document.getElementById(fieldId);
-    if (!el) continue;
-    const value = Number(el.value || 0);
-    await api("/api/targets/set", { field, value });
-  }
-  toast("Сохранено", $("plan-targets-save"));
-  await loadToday();
-}
-
 export async function loadPlan() {
   try {
     const data = await api("/api/plan/get");
@@ -276,20 +262,4 @@ export function initPlanTab() {
     });
   }
 
-  const planTargetsSave = document.getElementById("plan-targets-save");
-  if (planTargetsSave) {
-    planTargetsSave.addEventListener("click", async () => {
-      await saveTargets("plan");
-    });
-  }
-
-  const planTargetsRefresh = document.getElementById("plan-targets-refresh");
-  if (planTargetsRefresh) {
-    planTargetsRefresh.addEventListener("click", async () => {
-      await api("/api/targets/refresh");
-      await loadTargets();
-      toast("Пересчитано", planTargetsRefresh);
-      await loadToday();
-    });
-  }
 }
