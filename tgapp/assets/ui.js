@@ -121,11 +121,13 @@ export function updateNavHighlight() {
   const active = nav.querySelector(".nav-btn.active");
   if (!active) {
     highlight.style.opacity = "0";
+    highlight.style.width = "0";
     return;
   }
   const navRect = nav.getBoundingClientRect();
   const btnRect = active.getBoundingClientRect();
-  const left = btnRect.left - navRect.left + btnRect.width / 2 - 28; // Центрируем круг размером 56px
+  const left = btnRect.left - navRect.left;
+  highlight.style.width = `${btnRect.width}px`;
   highlight.style.transform = `translate(${left}px, -50%)`;
   highlight.style.opacity = "1";
 }
