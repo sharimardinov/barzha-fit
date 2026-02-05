@@ -96,8 +96,18 @@ func (s *NutritionService) SumByDay(ctx context.Context, chatID int64, from, to 
 	return s.meals.SumByDay(ctx, chatID, from, to)
 }
 
-func (s *NutritionService) SumByWeek(ctx context.Context, chatID int64, from, to time.Time) (kcal, p, f, c int, err error) {
-	return s.meals.SumByDay(ctx, chatID, from, to)
+func (s *NutritionService) SumByWeek(ctx context.Context, chatID int64, from, to time.Time, tz string) (kcal, p, f, c int, err error) {
+	dailyMap, err := s.meals.SumByRangeDaily(ctx, chatID, from, to, tz)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	for _, dn := range dailyMap {
+		kcal += dn.Kcal
+		p += dn.P
+		f += dn.F
+		c += dn.C
+	}
+	return kcal, p, f, c, nil
 }
 
 func (s *NutritionService) SumByRangeDaily(ctx context.Context, chatID int64, from, to time.Time, tz string) (map[string]db.DayNutrition, error) {

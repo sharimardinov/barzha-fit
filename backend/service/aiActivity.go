@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"barzhafit/backend/domain"
 )
@@ -150,15 +149,7 @@ func (a *ActivityAI) EstimateActivityMultiplierWithProfile(ctx context.Context, 
 		return 0, map[string]any{"error": out.Error}, fmt.Errorf("openai error: %s", out.Error.Message)
 	}
 
-	rawText := ""
-	for _, item := range out.Output {
-		for _, c := range item.Content {
-			if c.Type == "output_text" && c.Text != "" {
-				rawText += c.Text
-			}
-		}
-	}
-	rawText = strings.TrimSpace(rawText)
+	rawText := extractOutputText(out)
 	if rawText == "" {
 		return 0, out, errors.New("openai: empty output_text")
 	}

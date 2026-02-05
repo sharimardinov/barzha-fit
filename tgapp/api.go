@@ -25,6 +25,15 @@ type apiResponse struct {
 	Data  interface{} `json:"data,omitempty"`
 }
 
+// Default target values for nutrition and activity tracking
+const (
+	DefaultKcal    = 2400
+	DefaultProtein = 170
+	DefaultFat     = 70
+	DefaultCarbs   = 250
+	DefaultSteps   = 10000
+)
+
 func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/today", s.withAuth(s.handleToday))
 	mux.HandleFunc("/api/workout/set", s.withAuth(s.handleWorkoutSet))
@@ -94,7 +103,7 @@ func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, authCont
 }
 
 func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, auth authContext) {
-	ctx := context.Background()
+	ctx := r.Context()
 	chatID := auth.User.ID
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
@@ -127,11 +136,11 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, auth authCo
 		steps = 0
 	}
 
-	kcalTarget := 2400
-	proteinTarget := 170
-	fatTarget := 70
-	carbsTarget := 250
-	stepsTarget := 10000
+	kcalTarget := DefaultKcal
+	proteinTarget := DefaultProtein
+	fatTarget := DefaultFat
+	carbsTarget := DefaultCarbs
+	stepsTarget := DefaultSteps
 	if tg, ok, _ := s.targets.Get(ctx, chatID); ok {
 		kcalTarget = tg.Kcal
 		proteinTarget = tg.ProteinG
@@ -188,7 +197,7 @@ func (s *Server) handleWorkoutSet(w http.ResponseWriter, r *http.Request, auth a
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
 	dayDate := util.LocalDateStr(now, loc)
-	if _, err := s.workout.MarkAndAdvance(context.Background(), auth.User.ID, dayDate, payload.Status); err != nil {
+	if _, err := s.workout.MarkAndAdvance(r.Context(), auth.User.ID, dayDate, payload.Status); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "save_failed"})
 		return
 	}
@@ -198,7 +207,7 @@ func (s *Server) handleWorkoutSet(w http.ResponseWriter, r *http.Request, auth a
 func (s *Server) handleMealsToday(w http.ResponseWriter, r *http.Request, auth authContext) {
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
-	items, err := s.nutrition.ListToday(context.Background(), auth.User.ID, loc, now)
+	items, err := s.nutrition.ListToday(r.Context(), auth.User.ID, loc, now)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meals_read_failed"})
 		return
@@ -214,7 +223,7 @@ func (s *Server) handleMealsRecent(w http.ResponseWriter, r *http.Request, auth 
 	if payload.Limit <= 0 || payload.Limit > 20 {
 		payload.Limit = 10
 	}
-	items, err := s.nutrition.ListRecent(context.Background(), auth.User.ID, payload.Limit)
+	items, err := s.nutrition.ListRecent(r.Context(), auth.User.ID, payload.Limit)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meals_read_failed"})
 		return
@@ -232,7 +241,7 @@ func (s *Server) handleMealAdd(w http.ResponseWriter, r *http.Request, auth auth
 	}
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
-	meal, err := s.nutrition.AddMealFromText(context.Background(), auth.User.ID, now, payload.Text)
+	meal, err := s.nutrition.AddMealFromText(r.Context(), auth.User.ID, now, payload.Text)
 	if err != nil && !errors.Is(err, service.ErrNutritionAI) {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meal_save_failed"})
 		return
@@ -252,7 +261,7 @@ func (s *Server) handleMealDelete(w http.ResponseWriter, r *http.Request, auth a
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
-	ok, err := s.nutrition.DeleteByID(context.Background(), auth.User.ID, payload.ID)
+	ok, err := s.nutrition.DeleteByID(r.Context(), auth.User.ID, payload.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meal_delete_failed"})
 		return
@@ -265,7 +274,7 @@ func (s *Server) handleMealDelete(w http.ResponseWriter, r *http.Request, auth a
 }
 
 func (s *Server) handleMealUndo(w http.ResponseWriter, r *http.Request, auth authContext) {
-	ok, err := s.nutrition.UndoLast(context.Background(), auth.User.ID)
+	ok, err := s.nutrition.UndoLast(r.Context(), auth.User.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meal_delete_failed"})
 		return
@@ -284,7 +293,7 @@ func (s *Server) handleStepsSet(w http.ResponseWriter, r *http.Request, auth aut
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
 	dayDate := util.LocalDateStr(now, loc)
-	if err := s.steps.SetSteps(context.Background(), auth.User.ID, dayDate, payload.Steps); err != nil {
+	if err := s.steps.SetSteps(r.Context(), auth.User.ID, dayDate, payload.Steps); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "steps_save_failed"})
 		return
 	}
@@ -292,13 +301,13 @@ func (s *Server) handleStepsSet(w http.ResponseWriter, r *http.Request, auth aut
 }
 
 func (s *Server) handleTargetsGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	kcalTarget := 2400
-	proteinTarget := 170
-	fatTarget := 70
-	carbsTarget := 250
-	stepsTarget := 10000
+	kcalTarget := DefaultKcal
+	proteinTarget := DefaultProtein
+	fatTarget := DefaultFat
+	carbsTarget := DefaultCarbs
+	stepsTarget := DefaultSteps
 	source := "default"
-	if tg, ok, _ := s.targets.Get(context.Background(), auth.User.ID); ok {
+	if tg, ok, _ := s.targets.Get(r.Context(), auth.User.ID); ok {
 		kcalTarget = tg.Kcal
 		proteinTarget = tg.ProteinG
 		fatTarget = tg.FatG
@@ -327,7 +336,7 @@ func (s *Server) handleTargetsSet(w http.ResponseWriter, r *http.Request, auth a
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
-	if err := s.targets.SetManual(context.Background(), auth.User.ID, payload.Field, payload.Value); err != nil {
+	if err := s.targets.SetManual(r.Context(), auth.User.ID, payload.Field, payload.Value); err != nil {
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "targets_update_failed"})
 		return
 	}
@@ -335,7 +344,7 @@ func (s *Server) handleTargetsSet(w http.ResponseWriter, r *http.Request, auth a
 }
 
 func (s *Server) handleTargetsRefresh(w http.ResponseWriter, r *http.Request, auth authContext) {
-	t, err := s.targets.Refresh(context.Background(), auth.User.ID)
+	t, err := s.targets.Refresh(r.Context(), auth.User.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "targets_refresh_failed"})
 		return
@@ -344,7 +353,7 @@ func (s *Server) handleTargetsRefresh(w http.ResponseWriter, r *http.Request, au
 }
 
 func (s *Server) handlePlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	planText, err := s.plan.Get(context.Background(), auth.User.ID)
+	planText, err := s.plan.Get(r.Context(), auth.User.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "plan_not_found"})
@@ -387,7 +396,7 @@ func (s *Server) handlePlanSet(w http.ResponseWriter, r *http.Request, auth auth
 			}
 		}
 	}
-	if err := s.plan.Save(context.Background(), auth.User.ID, payload.Text); err != nil {
+	if err := s.plan.Save(r.Context(), auth.User.ID, payload.Text); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "plan_save_failed"})
 		return
 	}
@@ -395,7 +404,7 @@ func (s *Server) handlePlanSet(w http.ResponseWriter, r *http.Request, auth auth
 }
 
 func (s *Server) handleProfileGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	p, ok, err := s.profile.Get(context.Background(), auth.User.ID)
+	p, ok, err := s.profile.Get(r.Context(), auth.User.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
 		return
@@ -423,7 +432,7 @@ func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth a
 		return
 	}
 
-	p, ok, _ := s.profile.Get(context.Background(), auth.User.ID)
+	p, ok, _ := s.profile.Get(r.Context(), auth.User.ID)
 	if !ok {
 		p = domain.Profile{ChatID: auth.User.ID, Activity: "mid", Goal: "balance"}
 	}
@@ -452,7 +461,7 @@ func (s *Server) handleProfileSet(w http.ResponseWriter, r *http.Request, auth a
 		p.TrainingYears = payload.TrainingYears
 	}
 
-	if err := s.profile.Save(context.Background(), p); err != nil {
+	if err := s.profile.Save(r.Context(), p); err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_save_failed"})
 		return
 	}
@@ -464,7 +473,7 @@ func (s *Server) handleTrainingProfileGet(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_unavailable"})
 		return
 	}
-	p, ok, err := s.training.Get(context.Background(), auth.User.ID)
+	p, ok, err := s.training.Get(r.Context(), auth.User.ID)
 	if err != nil {
 		log.Printf("training profile get failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_read_failed"})
@@ -509,7 +518,7 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 		Wishes:           trimLimit(payload.Wishes, 200),
 	}
 
-	if err := s.training.Save(context.Background(), p); err != nil {
+	if err := s.training.Save(r.Context(), p); err != nil {
 		log.Printf("training profile save failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "training_profile_save_failed"})
 		return
@@ -522,7 +531,7 @@ func (s *Server) handleTrainingInjuries(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "injury_types_unavailable"})
 		return
 	}
-	items, err := s.injuries.List(context.Background())
+	items, err := s.injuries.List(r.Context())
 	if err != nil {
 		log.Printf("injury types list failed: %v", err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "injury_types_read_failed"})
@@ -556,7 +565,7 @@ func (s *Server) handleTrainingProgramGenerate(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 	if _, err := s.inputs.SaveFromSelection(ctx, auth.User.ID, payload.FitnessLevel, payload.Goal, payload.DaysPerWeek, payload.Injuries); err != nil {
 		log.Printf("training input save failed: chat_id=%d err=%v", auth.User.ID, err)
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "training_input_invalid"})
@@ -718,7 +727,7 @@ func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth au
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_weight"})
 		return
 	}
-	p, ok, err := s.profile.UpdateWeight(context.Background(), auth.User.ID, payload.WeightKG)
+	p, ok, err := s.profile.UpdateWeight(r.Context(), auth.User.ID, payload.WeightKG)
 	if err != nil || !ok {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "weight_update_failed"})
 		return
@@ -731,7 +740,7 @@ func (s *Server) handleActivityEstimate(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "activity_ai_unavailable"})
 		return
 	}
-	ctx := context.Background()
+	ctx := r.Context()
 	p, ok, err := s.profile.Get(ctx, auth.User.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
@@ -765,7 +774,7 @@ func (s *Server) handleActivityEstimate(w http.ResponseWriter, r *http.Request, 
 }
 
 func (s *Server) handleStatsWeek(w http.ResponseWriter, r *http.Request, auth authContext) {
-	ctx := context.Background()
+	ctx := r.Context()
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
 	weekday := util.Weekday1to7(now)
@@ -776,8 +785,8 @@ func (s *Server) handleStatsWeek(w http.ResponseWriter, r *http.Request, auth au
 	foodMap, _ := s.nutrition.SumByRangeDaily(ctx, auth.User.ID, weekStart, weekEnd.Add(24*time.Hour), s.tz)
 	stepsMap, _ := s.steps.ListByRange(ctx, auth.User.ID, util.LocalDateStr(weekStart, loc), util.LocalDateStr(weekEnd, loc))
 
-	kcalTarget := 2400
-	stepsTarget := 10000
+	kcalTarget := DefaultKcal
+	stepsTarget := DefaultSteps
 	if tg, ok, _ := s.targets.Get(ctx, auth.User.ID); ok {
 		kcalTarget = tg.Kcal
 		if tg.Steps > 0 {
@@ -819,7 +828,7 @@ func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth a
 		payload.Offset = 0
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc).AddDate(0, payload.Offset, 0)
@@ -830,8 +839,8 @@ func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth a
 	foodMap, _ := s.nutrition.SumByRangeDaily(ctx, auth.User.ID, monthStart, monthEnd.Add(24*time.Hour), s.tz)
 	stepsMap, _ := s.steps.ListByRange(ctx, auth.User.ID, util.LocalDateStr(monthStart, loc), util.LocalDateStr(monthEnd, loc))
 
-	kcalTarget := 2400
-	stepsTarget := 10000
+	kcalTarget := DefaultKcal
+	stepsTarget := DefaultSteps
 	if tg, ok, _ := s.targets.Get(ctx, auth.User.ID); ok {
 		kcalTarget = tg.Kcal
 		if tg.Steps > 0 {
@@ -871,7 +880,7 @@ func (s *Server) handleStrengthStats(w http.ResponseWriter, r *http.Request, aut
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "strength_stats_unavailable"})
 		return
 	}
-	ctx := context.Background()
+	ctx := r.Context()
 	stats, err := s.strengthStats.StrengthAllTime(ctx, auth.User.ID)
 	if err != nil {
 		log.Printf("strength stats failed: chat_id=%d err=%v", auth.User.ID, err)
@@ -913,8 +922,8 @@ func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authC
 	from := util.DayStart(now.AddDate(0, 0, -60), loc)
 	to := util.DayStart(now, loc)
 
-	workoutMap, _ := s.workout.ListByRange(context.Background(), auth.User.ID, util.LocalDateStr(from, loc), util.LocalDateStr(to, loc))
-	mealMap, _ := s.nutrition.SumByRangeDaily(context.Background(), auth.User.ID, from, to.Add(24*time.Hour), s.tz)
+	workoutMap, _ := s.workout.ListByRange(r.Context(), auth.User.ID, util.LocalDateStr(from, loc), util.LocalDateStr(to, loc))
+	mealMap, _ := s.nutrition.SumByRangeDaily(r.Context(), auth.User.ID, from, to.Add(24*time.Hour), s.tz)
 
 	workoutStreak := 0
 	for i := 0; i <= 60; i++ {
@@ -949,7 +958,7 @@ func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authC
 }
 
 func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	plan, err := s.workoutPlanFromToday(context.Background(), auth.User.ID)
+	plan, err := s.workoutPlanFromToday(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -970,7 +979,7 @@ func (s *Server) handleWorkoutPlanSave(w http.ResponseWriter, r *http.Request, a
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
-	if _, err := s.workoutTimer.SavePlan(context.Background(), auth.User.ID, &payload.Plan); err != nil {
+	if _, err := s.workoutTimer.SavePlan(r.Context(), auth.User.ID, &payload.Plan); err != nil {
 		if writeWorkoutError(w, err) {
 			return
 		}
@@ -981,7 +990,7 @@ func (s *Server) handleWorkoutPlanSave(w http.ResponseWriter, r *http.Request, a
 }
 
 func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workoutTimer.GetSession(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.GetSession(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -996,7 +1005,7 @@ func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Request, auth authContext) {
-	plan, err := s.workoutPlanFromToday(context.Background(), auth.User.ID)
+	plan, err := s.workoutPlanFromToday(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1004,7 +1013,7 @@ func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_read_failed"})
 		return
 	}
-	session, existing, err := s.workoutTimer.StartSessionWithPlan(context.Background(), auth.User.ID, plan)
+	session, existing, err := s.workoutTimer.StartSessionWithPlan(r.Context(), auth.User.ID, plan)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1020,7 +1029,7 @@ func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleWorkoutWarmupEnd(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workoutTimer.FinishWarmup(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.FinishWarmup(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1035,7 +1044,7 @@ func (s *Server) handleWorkoutWarmupEnd(w http.ResponseWriter, r *http.Request, 
 }
 
 func (s *Server) handleWorkoutRestEnd(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workoutTimer.FinishRest(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.FinishRest(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1060,7 +1069,7 @@ func (s *Server) handleWorkoutSetFinish(w http.ResponseWriter, r *http.Request, 
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
-	session, plan, err := s.workoutTimer.FinishSet(context.Background(), auth.User.ID, payload.ExerciseIndex, payload.SetIndex, payload.ActualWeight, payload.ActualReps)
+	session, plan, err := s.workoutTimer.FinishSet(r.Context(), auth.User.ID, payload.ExerciseIndex, payload.SetIndex, payload.ActualWeight, payload.ActualReps)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1075,7 +1084,7 @@ func (s *Server) handleWorkoutSetFinish(w http.ResponseWriter, r *http.Request, 
 }
 
 func (s *Server) handleWorkoutSessionPause(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workoutTimer.Pause(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.Pause(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1090,7 +1099,7 @@ func (s *Server) handleWorkoutSessionPause(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleWorkoutSessionResume(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workoutTimer.Resume(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.Resume(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1105,7 +1114,7 @@ func (s *Server) handleWorkoutSessionResume(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleWorkoutSessionStop(w http.ResponseWriter, r *http.Request, auth authContext) {
-	session, plan, err := s.workoutTimer.StopSession(context.Background(), auth.User.ID)
+	session, plan, err := s.workoutTimer.StopSession(r.Context(), auth.User.ID)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -1166,11 +1175,11 @@ type workoutSessionDTO struct {
 func workoutSessionToDTO(s domain.WorkoutSession) workoutSessionDTO {
 	return workoutSessionDTO{
 		ID:               s.ID,
-		Status:           s.Status,
-		Phase:            s.Phase,
+		Status:           string(s.Status),
+		Phase:            string(s.Phase),
 		ExerciseIndex:    s.ExerciseIndex,
 		SetIndex:         s.SetIndex,
-		TimerKind:        s.TimerKind,
+		TimerKind:        string(s.TimerKind),
 		TimerStartedAt:   s.TimerStartedAt,
 		TimerDurationSec: s.TimerDurationSec,
 		WarmupEndedAt:    s.WarmupEndedAt,

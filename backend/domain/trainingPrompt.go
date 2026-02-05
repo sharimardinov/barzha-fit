@@ -3,33 +3,33 @@ package domain
 import "strings"
 
 type TrainingPrompt struct {
-	Sex           string  `json:"пол"`
-	Age           int     `json:"возраст"`
-	HeightCM      int     `json:"рост_см"`
-	WeightKG      float64 `json:"вес_кг"`
-	TrainingYears int     `json:"стаж_тренировок_лет"`
-	BodyFatPct    float64 `json:"уровень_жира_проц,omitempty"`
+	Sex           string  `json:"sex"`
+	Age           int     `json:"age"`
+	HeightCM      int     `json:"heightCm"`
+	WeightKG      float64 `json:"weightKg"`
+	TrainingYears int     `json:"trainingYears"`
+	BodyFatPct    float64 `json:"bodyFatPct,omitempty"`
 	Strength      struct {
-		BenchKG int     `json:"жим_лёжа_кг"`
-		Pullups int     `json:"подтягивания_раз"`
-		RunKM   float64 `json:"бег_км"`
-	} `json:"силовые_показатели"`
-	Injuries         string `json:"травмы"`
-	Goal             string `json:"цель"`
-	Pharma           string `json:"фармакология"`
-	TrainingsPerWeek int    `json:"тренировок_в_неделю"`
-	Preferences      string `json:"предпочтения"`
+		BenchKG int     `json:"benchKg"`
+		Pullups int     `json:"pullups"`
+		RunKM   float64 `json:"runKm"`
+	} `json:"strength"`
+	Injuries         string `json:"injuries"`
+	Goal             string `json:"goal"`
+	Pharma           string `json:"pharma"`
+	TrainingsPerWeek int    `json:"trainingsPerWeek"`
+	Preferences      string `json:"preferences"`
 	Normalized       struct {
-		TrainingDaysPerWeek int      `json:"training_days_per_week"`
+		TrainingDaysPerWeek int      `json:"trainingDaysPerWeek"`
 		Goal                string   `json:"goal"`
 		Equipment           string   `json:"equipment"`
 		Injuries            []string `json:"injuries"`
 		Experience          string   `json:"experience"`
 		MainLifts           struct {
-			BenchKG     int     `json:"bench_kg"`
-			PullupsReps int     `json:"pullups_reps"`
-			RunKM       float64 `json:"run_km"`
-		} `json:"main_lifts"`
+			BenchKG     int     `json:"benchKg"`
+			PullupsReps int     `json:"pullupsReps"`
+			RunKM       float64 `json:"runKm"`
+		} `json:"mainLifts"`
 		Preferences struct {
 			Notes string `json:"notes"`
 		} `json:"preferences"`

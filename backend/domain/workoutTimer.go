@@ -2,9 +2,12 @@ package domain
 
 import "time"
 
+// WorkoutExerciseType represents the type of exercise
+type WorkoutExerciseType string
+
 const (
-	WorkoutExerciseStrength = "strength"
-	WorkoutExerciseCardio   = "cardio"
+	WorkoutExerciseStrength WorkoutExerciseType = "strength"
+	WorkoutExerciseCardio   WorkoutExerciseType = "cardio"
 )
 
 type WorkoutPlan struct {
@@ -13,33 +16,42 @@ type WorkoutPlan struct {
 }
 
 type WorkoutExercise struct {
-	Name        string  `json:"name"`
-	Type        string  `json:"type"`
-	Weight      float64 `json:"weight,omitempty"`
-	Reps        int     `json:"reps,omitempty"`
-	Sets        int     `json:"sets,omitempty"`
-	RestSec     int     `json:"restSec,omitempty"`
-	DurationSec int     `json:"durationSec,omitempty"`
+	Name        string              `json:"name"`
+	Type        WorkoutExerciseType `json:"type"`
+	Weight      float64             `json:"weight,omitempty"`
+	Reps        int                 `json:"reps,omitempty"`
+	Sets        int                 `json:"sets,omitempty"`
+	RestSec     int                 `json:"restSec,omitempty"`
+	DurationSec int                 `json:"durationSec,omitempty"`
 }
 
-const (
-	WorkoutSessionStatusInProgress = "in_progress"
-	WorkoutSessionStatusPaused     = "paused"
-	WorkoutSessionStatusCompleted  = "completed"
-)
+// WorkoutSessionStatus represents the status of a workout session
+type WorkoutSessionStatus string
 
 const (
-	WorkoutSessionPhaseWarmup = "warmup"
-	WorkoutSessionPhaseSet    = "set"
-	WorkoutSessionPhaseRest   = "rest"
-	WorkoutSessionPhaseCardio = "cardio"
-	WorkoutSessionPhaseDone   = "done"
+	WorkoutSessionStatusInProgress WorkoutSessionStatus = "in_progress"
+	WorkoutSessionStatusPaused     WorkoutSessionStatus = "paused"
+	WorkoutSessionStatusCompleted  WorkoutSessionStatus = "completed"
 )
 
+// WorkoutSessionPhase represents the current phase of a workout session
+type WorkoutSessionPhase string
+
 const (
-	WorkoutTimerKindRest    = "rest"
-	WorkoutTimerKindBetween = "between"
-	WorkoutTimerKindCardio  = "cardio"
+	WorkoutSessionPhaseWarmup WorkoutSessionPhase = "warmup"
+	WorkoutSessionPhaseSet    WorkoutSessionPhase = "set"
+	WorkoutSessionPhaseRest   WorkoutSessionPhase = "rest"
+	WorkoutSessionPhaseCardio WorkoutSessionPhase = "cardio"
+	WorkoutSessionPhaseDone   WorkoutSessionPhase = "done"
+)
+
+// WorkoutTimerKind represents the type of timer being used
+type WorkoutTimerKind string
+
+const (
+	WorkoutTimerKindRest    WorkoutTimerKind = "rest"
+	WorkoutTimerKindBetween WorkoutTimerKind = "between"
+	WorkoutTimerKindCardio  WorkoutTimerKind = "cardio"
 )
 
 type WorkoutSession struct {
@@ -47,11 +59,11 @@ type WorkoutSession struct {
 	ChatID           int64
 	PlanID           *int64
 	PlanSnapshot     []byte
-	Status           string
-	Phase            string
+	Status           WorkoutSessionStatus
+	Phase            WorkoutSessionPhase
 	ExerciseIndex    int
 	SetIndex         int
-	TimerKind        string
+	TimerKind        WorkoutTimerKind
 	TimerStartedAt   *time.Time
 	TimerDurationSec int
 	WarmupEndedAt    *time.Time
@@ -68,7 +80,7 @@ type WorkoutSet struct {
 	SetIndex         int
 	IsWarmup         bool
 	ExerciseName     string
-	ExerciseType     string
+	ExerciseType     WorkoutExerciseType
 	TargetWeight     float64
 	TargetReps       int
 	TargetDurationSec int

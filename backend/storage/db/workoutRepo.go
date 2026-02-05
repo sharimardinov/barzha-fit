@@ -42,25 +42,6 @@ func (r *WorkoutRepo) GetStatus(ctx context.Context, userID int64, dayDate strin
 	return status, true, nil
 }
 
-func (r *WorkoutRepo) GetRecord(ctx context.Context, userID int64, dayDate string) (int, string, bool, error) {
-	var cycleDay int
-	var status string
-
-	err := r.db.QueryRow(ctx, `
-		select cycle_day, status
-		from workout_days
-		where user_id=$1 and day_date=$2::date
-	`, userID, dayDate).Scan(&cycleDay, &status)
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, "", false, nil
-		}
-		return 0, "", false, err
-	}
-	return cycleDay, status, true, nil
-}
-
 func (r *WorkoutRepo) ListByRange(ctx context.Context, userID int64, fromDate, toDate string) (map[string]string, error) {
 	rows, err := r.db.Query(ctx, `
 		select day_date, status

@@ -42,13 +42,6 @@ func (r *MealRepo) Add(ctx context.Context, m *Meal, aiRaw any) error {
 	return err
 }
 
-func rawJSON(b []byte) any {
-	if len(b) == 0 {
-		return nil
-	}
-	return string(b) // pgx нормально кастит string в jsonb через ::jsonb
-}
-
 func (r *MealRepo) DeleteLast(ctx context.Context, chatID int64) (bool, error) {
 	ct, err := r.db.Exec(ctx, `
 		delete from meals

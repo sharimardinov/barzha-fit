@@ -6,7 +6,6 @@ import (
 
 	"barzhafit/backend/domain"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -61,7 +60,7 @@ func (r *ProfileRepo) Get(ctx context.Context, chatID int64) (domain.Profile, bo
 	`, chatID).Scan(&sex, &age, &h, &w, &bf, &act, &goal, &years)
 
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if IsNotFound(err) {
 			return domain.Profile{}, false, nil
 		}
 		return domain.Profile{}, false, err
@@ -95,18 +94,4 @@ func (r *ProfileRepo) Get(ctx context.Context, chatID int64) (domain.Profile, bo
 	}
 
 	return p, true, nil
-}
-
-func nullStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-func nullInt(v int) any {
-	if v == 0 {
-		return nil
-	}
-	return v
 }

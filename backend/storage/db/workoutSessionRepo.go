@@ -63,7 +63,7 @@ func (r *WorkoutSessionRepo) GetActive(ctx context.Context, chatID int64) (domai
 		s.PlanID = &v
 	}
 	if timerKind.Valid {
-		s.TimerKind = timerKind.String
+		s.TimerKind = domain.WorkoutTimerKind(timerKind.String)
 	}
 	if timerStarted.Valid {
 		t := timerStarted.Time
@@ -95,7 +95,7 @@ func (r *WorkoutSessionRepo) Create(ctx context.Context, s *domain.WorkoutSessio
 	var timerKind sql.NullString
 	if s.TimerKind != "" {
 		timerKind.Valid = true
-		timerKind.String = s.TimerKind
+		timerKind.String = string(s.TimerKind)
 	}
 	var timerStarted sql.NullTime
 	if s.TimerStartedAt != nil {
@@ -164,7 +164,7 @@ func (r *WorkoutSessionRepo) Update(ctx context.Context, s *domain.WorkoutSessio
 	var timerKind sql.NullString
 	if s.TimerKind != "" {
 		timerKind.Valid = true
-		timerKind.String = s.TimerKind
+		timerKind.String = string(s.TimerKind)
 	}
 	var timerStarted sql.NullTime
 	if s.TimerStartedAt != nil {

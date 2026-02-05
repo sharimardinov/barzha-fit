@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -110,31 +108,6 @@ func (c *AIClient) postResponses(ctx context.Context, req respReq) (respOut, []b
 	return respOut{}, respBody, resp.StatusCode, nil
 }
 
-func (c *AIClient) appendAILog(kind, payload, note string) {
-	if c.logPath == "" {
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(c.logPath), 0o755); err != nil {
-		return
-	}
-	f, err := os.OpenFile(c.logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	ts := time.Now().Format(time.RFC3339)
-	if note != "" {
-		_, _ = fmt.Fprintf(f, "[%s] %s: %s\n", ts, kind, note)
-	} else {
-		_, _ = fmt.Fprintf(f, "[%s] %s:\n", ts, kind)
-	}
-	if payload != "" {
-		_, _ = fmt.Fprintln(f, payload)
-	}
-	_, _ = fmt.Fprintln(f, "-----")
-}
-
 func extractOutputText(out respOut) string {
 	rawText := ""
 	for _, item := range out.Output {
@@ -147,7 +120,3 @@ func extractOutputText(out respOut) string {
 	return strings.TrimSpace(rawText)
 }
 
-func cleanJSON(raw string) string {
-	raw = sanitizeJSON(raw)
-	return strings.TrimSpace(raw)
-}

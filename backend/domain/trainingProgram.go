@@ -21,7 +21,7 @@ type TemplateStructure struct {
 type TemplateDay struct {
 	Name         string   `json:"name"`
 	Type         string   `json:"type"`
-	MuscleGroups []string `json:"muscle_groups"`
+	MuscleGroups []string `json:"muscleGroups"`
 }
 
 type Exercise struct {
@@ -60,14 +60,14 @@ type GeneratedDay struct {
 }
 
 type GeneratedExercise struct {
-	ExerciseID  string   `json:"exercise_id"`
+	ExerciseID  string   `json:"exerciseId"`
 	Name        string   `json:"name"`
-	MuscleGroup string   `json:"muscle_group"`
+	MuscleGroup string   `json:"muscleGroup"`
 	Priority    string   `json:"priority"`
 	Sets        int      `json:"sets"`
 	Reps        string   `json:"reps"`
 	RPE         string   `json:"rpe"`
 	Rest        string   `json:"rest"`
-	Percent1RM  string   `json:"percent_1rm,omitempty"`
+	Percent1RM  string   `json:"percent1rm,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 }

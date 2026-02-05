@@ -580,7 +580,7 @@ func restForExercise(plan *domain.WorkoutPlan, ex domain.WorkoutExercise) int {
 	return defaultWorkoutRestSec
 }
 
-func startTimer(session *domain.WorkoutSession, phase, kind string, durationSec int, now time.Time) {
+func startTimer(session *domain.WorkoutSession, phase domain.WorkoutSessionPhase, kind domain.WorkoutTimerKind, durationSec int, now time.Time) {
 	session.Phase = phase
 	session.TimerKind = kind
 	session.TimerDurationSec = durationSec
