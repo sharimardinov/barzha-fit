@@ -2264,53 +2264,112 @@ button {
 .debug-panel.active {
   display: block;
 }
-.profile-goal-container {
+.profile-goal-segmented {
   width: 100%;
 }
 
-.tabs.profile-goal-tabs {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  flex: 1 1 auto;
-  gap: 0;
-  padding: 0;
-  background: #f2f2f2;
+.segmented-control {
+  position: relative;
+  display: flex;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  overflow: hidden;
 }
 
-.tabs.profile-goal-tabs .tab {
-  width: 100%;
-  min-width: 0;
+.segmented-option {
+  position: relative;
   flex: 1;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  text-align: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
 }
 
-.tabs.profile-goal-tabs input[type="radio"]:disabled + .tab {
+.segmented-option span {
+  position: relative;
+  z-index: 1;
+}
+
+.segmented-control input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented-control input[type="radio"]:disabled + .segmented-option {
   cursor: default;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
-.tabs.profile-goal-tabs input[type="radio"]:disabled + .tab:hover {
-  color: var(--black);
+.segmented-control input[type="radio"]:disabled + .segmented-option:hover {
+  color: var(--muted);
 }
 
-.tabs.profile-goal-tabs .glider {
-  width: calc(100% / 3);
-  left: 0;
+.segmented-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  height: calc(100% - 8px);
+  width: calc(33.333% - 2.667px);
+  background: var(--accent);
+  border-radius: 8px;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease;
+  box-shadow: 
+    0 2px 8px rgba(255, 3, 62, 0.3),
+    0 0 0 0 rgba(255, 3, 62, 0.4);
+  z-index: 1;
+  pointer-events: none;
 }
 
-.tabs.profile-goal-tabs input[id="goal-cut"]:checked ~ .glider {
+.segmented-control input[id="goal-cut"]:checked ~ .segmented-indicator {
   transform: translateX(0);
 }
 
-.tabs.profile-goal-tabs input[id="goal-balance"]:checked ~ .glider {
-  transform: translateX(100%);
+.segmented-control input[id="goal-balance"]:checked ~ .segmented-indicator {
+  transform: translateX(calc(100% + 4px));
 }
 
-.tabs.profile-goal-tabs input[id="goal-bulk"]:checked ~ .glider {
-  transform: translateX(200%);
+.segmented-control input[id="goal-bulk"]:checked ~ .segmented-indicator {
+  transform: translateX(calc(200% + 8px));
+}
+
+.segmented-control input[type="radio"]:checked + .segmented-option {
+  color: var(--white);
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s;
+}
+
+.segmented-control input[type="radio"]:checked + .segmented-option span {
+  position: relative;
+}
+
+.segmented-control input[type="radio"]:checked + .segmented-option span::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+  border-radius: 8px;
+  opacity: 0;
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .tabs.accent-text input[type="radio"]:checked + label {
   color: var(--accent);

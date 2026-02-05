@@ -250,15 +250,21 @@
           </div>
           <div class="form-grid">
             <label>Цель
-              <div class="tabs-container profile-goal-container" id="profile-goal">
-                <div class="tabs profile-goal-tabs">
+              <div class="profile-goal-segmented" id="profile-goal">
+                <div class="segmented-control">
                   <input type="radio" id="goal-cut" name="goal-tabs" value="cut" disabled>
-                  <label class="tab" for="goal-cut">CUT</label>
+                  <label class="segmented-option" for="goal-cut">
+                    <span>CUT</span>
+                  </label>
                   <input type="radio" id="goal-balance" name="goal-tabs" value="balance" checked disabled>
-                  <label class="tab" for="goal-balance">BALANCE</label>
+                  <label class="segmented-option" for="goal-balance">
+                    <span>BALANCE</span>
+                  </label>
                   <input type="radio" id="goal-bulk" name="goal-tabs" value="bulk" disabled>
-                  <label class="tab" for="goal-bulk">BULK</label>
-                  <span class="glider"></span>
+                  <label class="segmented-option" for="goal-bulk">
+                    <span>BULK</span>
+                  </label>
+                  <div class="segmented-indicator"></div>
                 </div>
               </div>
             </label>
