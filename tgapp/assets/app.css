@@ -1860,16 +1860,19 @@ button {
   left: 50%;
   transform: translateX(-50%);
   bottom: 16px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 10px 16px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   border-radius: 999px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(32px) saturate(1.5);
-  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(40px) saturate(1.8) brightness(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.1);
   z-index: 20;
   overflow: hidden;
   max-width: 420px;
@@ -1911,7 +1914,7 @@ button {
   display: grid;
   gap: 8px;
   justify-items: center;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--muted);
   border: 1px solid transparent;
   z-index: 2;
