@@ -17,62 +17,6 @@ import {
 import { loadToday } from "./today.js";
 import { loadPlan } from "./plan.js";
 
-let injuryOptions = [];
-let selectedInjuries = [];
-
-async function ensureInjuryOptions() {
-  if (injuryOptions.length > 0) {
-    return injuryOptions;
-  }
-  try {
-    const list = await api("/api/training/injuries");
-    injuryOptions = Array.isArray(list) ? list : [];
-  } catch (_) {
-    injuryOptions = [];
-  }
-  renderInjuryOptions();
-  return injuryOptions;
-}
-
-function renderInjuryOptions() {
-  const container = $("training-injuries");
-  if (!container) return;
-  container.innerHTML = "";
-  injuryOptions.forEach((item) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "option-card accent-fill";
-    btn.textContent = item.label;
-    btn.classList.toggle("active", selectedInjuries.includes(item.code));
-    btn.addEventListener("click", () => {
-      if (selectedInjuries.includes(item.code)) {
-        selectedInjuries = selectedInjuries.filter((v) => v !== item.code);
-      } else {
-        selectedInjuries = [...selectedInjuries, item.code];
-      }
-      btn.classList.toggle("active", selectedInjuries.includes(item.code));
-    });
-    container.appendChild(btn);
-  });
-}
-
-function setSelectedInjuries(raw) {
-  const list = String(raw || "")
-    .split(/[,;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (injuryOptions.length > 0) {
-    const allowed = new Set(injuryOptions.map((item) => item.code));
-    selectedInjuries = list.filter((item) => allowed.has(item));
-  } else {
-    selectedInjuries = list;
-  }
-  renderInjuryOptions();
-}
-
-function formatSelectedInjuries() {
-  return selectedInjuries.join(", ");
-}
 
 export async function loadProfile() {
   try {
@@ -91,10 +35,8 @@ export async function loadProfile() {
 }
 
 export async function loadTrainingProfile() {
-  await ensureInjuryOptions();
   try {
     const p = await api("/api/training/profile/get");
-    setSelectedInjuries(p.injuries || "");
     const parsed = splitGoalText(p.goal || "");
     if (parsed.type) {
       setGoalTabs(parsed.type);
@@ -102,11 +44,8 @@ export async function loadTrainingProfile() {
       setGoalTabs(p.goal || "balance");
     }
     $("training-times").value = p.trainings_per_week || "";
-    if (p.pharma === true) $("training-pharma").value = "yes";
-    else if (p.pharma === false) $("training-pharma").value = "no";
-    else $("training-pharma").value = "";
   } catch (_) {
-    setSelectedInjuries("");
+    // Ignore
   }
 }
 
@@ -162,12 +101,9 @@ export function validateTrainingInputs() {
   const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
   const goalType = getGoalTypeFromTabs();
   const goalNotes = "";
-  const pharmaValue = $("training-pharma").value;
-  const pharma = pharmaValue === "yes" ? true : pharmaValue === "no" ? false : null;
 
   if (!times.ok) issues.push(times.label);
   if (!goalType) issues.push("цель");
-  if (pharma === null) issues.push("фармакология");
 
   if (issues.length) {
     toast(`Заполни корректно: ${issues.join(", ")}`);
@@ -181,7 +117,6 @@ export function validateTrainingInputs() {
     times: times.value,
     goalType,
     goalNotes,
-    pharma,
   };
 }
 
@@ -224,10 +159,8 @@ export async function saveProfileFlow(payload, trainingPayload, button, opts = {
 }
 
 export function initProfileTab() {
-  ensureInjuryOptions();
-  
   let isEditMode = false;
-  const fields = ["profile-sex", "profile-age", "profile-height", "profile-weight", "profile-bodyfat", "training-pharma", "training-times"];
+  const fields = ["profile-sex", "profile-age", "profile-height", "profile-weight", "profile-bodyfat", "training-times"];
   
   const toggleEditMode = (enable) => {
     isEditMode = enable;
@@ -262,12 +195,12 @@ export function initProfileTab() {
     };
     const trainingGoal = buildTrainingGoalText(trainingValidated.goalType, trainingValidated.goalNotes);
     const trainingPayload = {
-      bench_kg: trainingValidated.bench || 0,
-      pullups: trainingValidated.pullups || 0,
-      run_km: trainingValidated.run || 0,
-      injuries: formatSelectedInjuries(),
+      bench_kg: 0,
+      pullups: 0,
+      run_km: 0,
+      injuries: "",
       goal: trainingGoal,
-      pharma: trainingValidated.pharma,
+      pharma: false,
       trainings_per_week: trainingValidated.times,
       wishes: "",
     };
@@ -279,10 +212,10 @@ export function initProfileTab() {
   
   const profileSettings = $("profile-settings");
   if (profileSettings) {
-    profileSettings.addEventListener("click", async () => {
+    profileSettings.addEventListener("click", () => {
       if (isEditMode) {
-        // Сохраняем и выходим
-        await saveProfile();
+        // Просто выходим из режима редактирования без сохранения
+        toggleEditMode(false);
       } else {
         // Включаем режим редактирования
         toggleEditMode(true);
@@ -340,8 +273,6 @@ export function isTrainingComplete(tp) {
     tp.trainings_per_week >= 1 &&
     tp.trainings_per_week <= 7 &&
     typeof tp.goal === "string" &&
-    tp.goal.trim().length > 0 &&
-    tp.pharma !== null &&
-    tp.pharma !== undefined
+    tp.goal.trim().length > 0
   );
 }

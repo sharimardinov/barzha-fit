@@ -103,6 +103,20 @@ body {
   padding: 6px;
   border-radius: 999px;
   gap: 4px;
+  border: none;
+  box-shadow: none;
+}
+
+.tabs.goal-tabs-highlight {
+  background-color: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.tabs.goal-tabs-highlight .glider {
+  border: none;
+  box-shadow: none;
 }
 
 .tabs * {
@@ -129,6 +143,8 @@ body {
   background: transparent;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  border: none;
+  box-shadow: none;
 }
 
 .tab:active {
@@ -164,6 +180,8 @@ body {
   z-index: 1;
   border-radius: 999px;
   transition: 0.25s ease-out;
+  border: none;
+  box-shadow: none;
 }
 
 .tabs.vertical {
@@ -187,6 +205,8 @@ body {
   align-items: center;
   padding: 0;
   box-sizing: border-box;
+  border: none;
+  box-shadow: none;
 }
 
 .tabs.wide .tab {
@@ -1615,6 +1635,24 @@ button {
   transition: background 0.4s linear;
 }
 
+.workout-timer-block::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: radial-gradient(
+    circle at var(--timer-progress) 50%,
+    rgba(255, 3, 62, 0.4) 0%,
+    rgba(255, 3, 62, 0.25) 25%,
+    rgba(255, 3, 62, 0.1) 50%,
+    transparent 70%
+  );
+  opacity: calc(var(--timer-progress) / 100);
+  pointer-events: none;
+  transition: opacity 0.4s linear, background-position 0.4s linear;
+  z-index: 0;
+}
+
 .workout-timer-label {
   font-size: 12px;
   color: transparent;
@@ -1627,6 +1665,8 @@ button {
   );
   -webkit-background-clip: text;
   background-clip: text;
+  position: relative;
+  z-index: 1;
 }
 
 .workout-timer-value {
@@ -1642,6 +1682,8 @@ button {
   );
   -webkit-background-clip: text;
   background-clip: text;
+  position: relative;
+  z-index: 1;
 }
 
 .workout-inputs {
@@ -2098,14 +2140,13 @@ button {
   top: 50%;
   left: 0;
   height: 44px;
-  width: 0;
-  border-radius: 999px;
+  width: 44px;
+  border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
   opacity: 0;
-  transform: translateY(-50%);
+  transform: translateY(-50%) translateX(0);
   transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-    width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 0.3s ease;
   pointer-events: none;
   z-index: 1;
@@ -2125,7 +2166,9 @@ button {
   color: var(--muted);
   border: 1px solid transparent;
   z-index: 2;
-  transition: color 0.3s ease, font-size 0.3s ease, font-weight 0.3s ease;
+  transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+    font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+    font-weight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   touch-action: manipulation;
@@ -2139,6 +2182,7 @@ button {
   font-weight: 700;
   font-size: 10px;
   z-index: 3;
+  color: var(--white);
 }
 
 .nav-btn svg {
@@ -2284,12 +2328,7 @@ button {
   background-color: var(--accent);
 }
 
-.tabs.goal-tabs-highlight {
-  box-shadow: 0 0 0 2px rgba(255, 3, 62, 0.2);
-  border-radius: 999px;
-  padding: 4px;
-}
-
 .tabs.goal-tabs-highlight input[type="radio"]:checked + .tab {
-  box-shadow: 0 0 0 2px rgba(255, 3, 62, 0.3);
+  box-shadow: 0 0 20px rgba(255, 3, 62, 0.3), 0 0 40px rgba(255, 3, 62, 0.15);
+  border: none;
 }
