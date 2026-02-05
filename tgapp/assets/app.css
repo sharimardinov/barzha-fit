@@ -516,12 +516,35 @@ body {
   grid-template-columns: auto 1fr;
   gap: 18px;
   align-items: center;
-  background: linear-gradient(135deg, var(--accent) 0%, #ff1a4d 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    #ff1a4d 25%,
+    #ff3366 50%,
+    #ff1a4d 75%,
+    var(--accent) 100%
+  );
+  background-size: 200% 200%;
+  animation: gradient-move 3s ease infinite;
   color: var(--white);
   border-color: transparent;
   padding: 18px;
   border-radius: 26px;
   box-shadow: 0 8px 24px rgba(255, 3, 62, 0.25), 0 4px 8px rgba(255, 3, 62, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes gradient-move {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .steps-card-left {
