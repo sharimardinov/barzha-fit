@@ -539,7 +539,7 @@ body {
   background: conic-gradient(
     from -90deg,
     rgba(255, 255, 255, 0.95) var(--steps-progress, 0deg),
-    rgba(255, 255, 255, 0.2) 0deg
+    rgba(255, 255, 255, 0.0) 0deg
   );
 }
 
