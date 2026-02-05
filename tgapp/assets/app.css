@@ -1860,7 +1860,7 @@ button {
   left: 50%;
   transform: translateX(-50%);
   bottom: 16px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 10px 16px;
   display: grid;
