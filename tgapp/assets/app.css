@@ -1508,7 +1508,7 @@ button {
 .workout-exercise-row {
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 8px 12px;
+  padding: 6px 8px;
   display: grid;
   gap: 8px;
 }
