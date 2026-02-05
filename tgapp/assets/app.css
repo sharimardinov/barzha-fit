@@ -5,7 +5,7 @@
   --border: rgba(0, 0, 0, 0.12);
   --muted: rgba(0, 0, 0, 0.6);
   --radius: 18px;
-  --nav-height: 120px;
+  --nav-height: 140px;
 }
 
 *,
@@ -1858,21 +1858,23 @@ button {
 
 .nav {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
   background: rgba(255, 255, 255, 0.72);
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 10px 16px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 10px 16px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(18px) saturate(1.35);
   -webkit-backdrop-filter: blur(18px) saturate(1.35);
   z-index: 20;
   overflow: hidden;
+  max-width: 420px;
+  width: calc(100% - 32px);
 }
 
 .nav-glass {
