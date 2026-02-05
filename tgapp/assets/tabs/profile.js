@@ -43,7 +43,6 @@ export async function loadTrainingProfile() {
     } else {
       setGoalTabs(p.goal || "balance");
     }
-    $("training-times").value = p.trainings_per_week || "";
   } catch (_) {
     // Ignore
   }
@@ -98,11 +97,9 @@ export function validateProfileInputs() {
 
 export function validateTrainingInputs() {
   const issues = [];
-  const times = parseNumberField("training-times", "тренировок в неделю", { required: true, integer: true, min: 1, max: 7 });
   const goalType = getGoalTypeFromTabs();
   const goalNotes = "";
 
-  if (!times.ok) issues.push(times.label);
   if (!goalType) issues.push("цель");
 
   if (issues.length) {
@@ -114,7 +111,7 @@ export function validateTrainingInputs() {
     bench: 0,
     pullups: 0,
     run: 0,
-    times: times.value,
+    times: 0,
     goalType,
     goalNotes,
   };
@@ -160,7 +157,7 @@ export async function saveProfileFlow(payload, trainingPayload, button, opts = {
 
 export function initProfileTab() {
   let isEditMode = false;
-  const fields = ["profile-sex", "profile-age", "profile-height", "profile-weight", "profile-bodyfat", "training-times"];
+  const fields = ["profile-sex", "profile-age", "profile-height", "profile-weight", "profile-bodyfat"];
   
   const toggleEditMode = (enable) => {
     isEditMode = enable;
@@ -201,7 +198,7 @@ export function initProfileTab() {
       injuries: "",
       goal: trainingGoal,
       pharma: false,
-      trainings_per_week: trainingValidated.times,
+      trainings_per_week: 0,
       wishes: "",
     };
     const profileSave = $("profile-save");
