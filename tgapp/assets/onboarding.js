@@ -366,6 +366,7 @@ export async function initOnboardingWizard() {
       if (step.wide) tabsClasses.push("wide");
       if (step.big) tabsClasses.push("big");
       if (step.id === "trainingStage") tabsClasses.push("accent-text");
+      if (step.id === "goalType") tabsClasses.push("goal-tabs-highlight");
       tabs.className = tabsClasses.join(" ");
       step.options.forEach((opt, index) => {
         const input = document.createElement("input");
@@ -465,7 +466,11 @@ export async function initOnboardingWizard() {
       const updateSliderTrack = (slider, value, min, max) => {
         if (max <= min) return;
         const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
-        slider.style.background = `linear-gradient(90deg, var(--accent) 0%, var(--accent) ${pct}%, rgba(0, 0, 0, 0.08) ${pct}%, rgba(0, 0, 0, 0.08) 100%)`;
+        // Мягкая граница с градиентом (4px переход)
+        const gradientStop = Math.max(0, pct - 2);
+        const gradientStart = Math.min(100, pct + 2);
+        slider.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${gradientStop}%, rgba(255, 3, 62, 0.4) ${gradientStop}%, rgba(255, 3, 62, 0.15) ${pct}%, rgba(0, 0, 0, 0.08) ${gradientStart}%, rgba(0, 0, 0, 0.08) 100%)`;
+        slider.style.backgroundSize = "100% 100%";
       };
 
       step.fields.forEach((field) => {
