@@ -78,24 +78,24 @@ func main() {
 	googleAuthSvc := service.NewGoogleAuthService(googleAuthRepo)
 
 	webServer := tgapp.NewServer(tgapp.Deps{
-		Addr:          cfg.WebAddr,
-		BotToken:      cfg.BotToken,
-		AuthBotToken:  cfg.AuthBotToken,
+		Addr:               cfg.WebAddr,
+		BotToken:           cfg.BotToken,
+		AuthBotToken:       cfg.AuthBotToken,
 		GoogleClientID:     cfg.GoogleClientID,
 		GoogleClientSecret: cfg.GoogleClientSecret,
-		TZ:            cfg.TZ,
-		Plan:          planSvc,
-		Workout:       workoutSvc,
-		Targets:       targetsSvc,
-		Nutrition:     nutSvc,
-		Steps:         stepsSvc,
-		Profile:       profileSvc,
-		Training:      trainingProfileSvc,
-		Inputs:        trainingInputSvc,
-		Injuries:      injuryTypeSvc,
-		Activity:      activityAI,
-		WorkoutTimer:  workoutTimerSvc,
-		GoogleAuth:    googleAuthSvc,
+		TZ:                 cfg.TZ,
+		Plan:               planSvc,
+		Workout:            workoutSvc,
+		Targets:            targetsSvc,
+		Nutrition:          nutSvc,
+		Steps:              stepsSvc,
+		Profile:            profileSvc,
+		Training:           trainingProfileSvc,
+		Inputs:             trainingInputSvc,
+		Injuries:           injuryTypeSvc,
+		Activity:           activityAI,
+		WorkoutTimer:       workoutTimerSvc,
+		GoogleAuth:         googleAuthSvc,
 	})
 	go func() {
 		if err := webServer.ListenAndServe(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -120,7 +120,26 @@ func runLinkBot(ctx context.Context, api *tgbotapi.BotAPI) error {
 		case <-ctx.Done():
 			return nil
 		case upd := <-updates:
+			if upd.PreCheckoutQuery != nil {
+				cfg := tgbotapi.PreCheckoutConfig{
+					PreCheckoutQueryID: upd.PreCheckoutQuery.ID,
+					OK:                 true,
+				}
+				if _, err := api.Request(cfg); err != nil {
+					log.Printf("pre_checkout failed: %v", err)
+				}
+				continue
+			}
 			if upd.Message != nil {
+				if upd.Message.SuccessfulPayment != nil {
+					payment := upd.Message.SuccessfulPayment
+					log.Printf("stars payment: user=%d amount=%d currency=%s payload=%s charge_id=%s", upd.Message.Chat.ID, payment.TotalAmount, payment.Currency, payment.InvoicePayload, payment.TelegramPaymentChargeID)
+					msg := tgbotapi.NewMessage(upd.Message.Chat.ID, "Спасибо за поддержку! ⭐")
+					if _, err := api.Send(msg); err != nil {
+						log.Printf("telegram send failed: chat_id=%d err=%v", upd.Message.Chat.ID, err)
+					}
+					continue
+				}
 				sendAppLink(api, upd.Message.Chat.ID)
 				continue
 			}

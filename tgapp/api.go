@@ -50,6 +50,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/plan/set", s.withAuth(s.handlePlanSet))
 	mux.HandleFunc("/api/profile/get", s.withAuth(s.handleProfileGet))
 	mux.HandleFunc("/api/profile/set", s.withAuth(s.handleProfileSet))
+	mux.HandleFunc("/api/stars/invoice", s.withAuth(s.handleStarsInvoice))
 	mux.HandleFunc("/api/activity/estimate", s.withAuth(s.handleActivityEstimate))
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
@@ -546,7 +547,6 @@ func (s *Server) handleTrainingInjuries(w http.ResponseWriter, r *http.Request, 
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
 }
 
-
 func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {
 	var payload struct {
 		WeightKG float64 `json:"weight_kg"`
@@ -702,7 +702,6 @@ func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth a
 		"monthStart": monthStart.Format("2006-01-02"),
 	}})
 }
-
 
 func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authContext) {
 	loc := util.MustLocation(s.tz)

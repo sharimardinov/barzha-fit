@@ -372,6 +372,15 @@ body {
   opacity: 1;
 }
 
+.profile-donate-row {
+  margin-top: 12px;
+  align-items: center;
+}
+
+.profile-donate-hint {
+  margin-top: 6px;
+}
+
 .plan {
   white-space: pre-wrap;
   border: 1px solid var(--border);

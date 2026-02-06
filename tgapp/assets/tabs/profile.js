@@ -2,6 +2,7 @@ import {
   $,
   api,
   state,
+  tg,
   toast,
   setButtonLoading,
   formatApiError,
@@ -237,6 +238,37 @@ export function initProfileTab() {
         return;
       }
       window.location.reload();
+    });
+  }
+
+  const profileDonate = $("profile-donate");
+  if (profileDonate) {
+    profileDonate.addEventListener("click", async () => {
+      if (!tg?.openInvoice) {
+        toast("Открой приложение в Telegram");
+        return;
+      }
+      const amount = Number(profileDonate.dataset.amount) || 10;
+      setButtonLoading(profileDonate, true, "Открываю...");
+      try {
+        const res = await api("/api/stars/invoice", { amount });
+        const url = res?.url;
+        if (!url) {
+          toast("Не удалось создать счёт");
+          return;
+        }
+        tg.openInvoice(url, (status) => {
+          if (status === "paid") {
+            toast("Спасибо за поддержку!");
+          } else if (status === "failed") {
+            toast("Оплата не прошла");
+          }
+        });
+      } catch (err) {
+        toast(formatApiError(err, "Не удалось открыть оплату"));
+      } finally {
+        setButtonLoading(profileDonate, false);
+      }
     });
   }
 }

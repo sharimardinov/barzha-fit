@@ -76,6 +76,8 @@ export function formatApiError(err, fallback) {
   if (code === "workout_session_paused") return "Тренировка на паузе";
   if (code === "google_auth_not_configured") return "Google вход недоступен";
   if (code === "google_auth_failed") return "Не удалось открыть Google";
+  if (code === "stars_unavailable") return "Оплата звёздами недоступна";
+  if (code === "stars_invoice_failed") return "Не удалось создать счёт на оплату";
   return fallback;
 }
 
