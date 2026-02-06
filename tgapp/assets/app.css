@@ -2336,6 +2336,6 @@ button {
 }
 
 .tabs.goal-tabs-highlight input[type="radio"]:checked + .tab {
-  box-shadow: 0 0 20px rgba(255, 3, 62, 0.3), 0 0 40px rgba(255, 3, 62, 0.15);
   border: none;
+  box-shadow: none;
 }
