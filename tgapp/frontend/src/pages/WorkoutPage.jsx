@@ -5,6 +5,7 @@ import { formatApiError } from "../services/errors";
 import { AccordionItem } from "../components/Accordion";
 import { postNativeMessage } from "../services/telegram";
 import { parsePlan } from "../services/planUtils";
+import AnimatedTimer from "../components/AnimatedTimer";
 
 function formatDuration(sec) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00";
@@ -246,7 +247,7 @@ export default function WorkoutPage() {
   const [reps, setReps] = useState("");
   const [timerDisplay, setTimerDisplay] = useState("00:00");
   const [timerProgress, setTimerProgress] = useState(0);
-  const [totalTime, setTotalTime] = useState("00:00");
+  const [totalTimeMs, setTotalTimeMs] = useState(0);
   const tickRef = useRef(null);
   const totalTickRef = useRef(null);
   const lastTimerKeyRef = useRef(null);
@@ -377,24 +378,24 @@ export default function WorkoutPage() {
     return () => clearInterval(tickRef.current);
   }, [session, loadData]);
 
-  // Total workout time
+  // Total workout time (ms precision)
   useEffect(() => {
     if (!session?.startedAt) {
-      setTotalTime("00:00");
+      setTotalTimeMs(0);
       if (totalTickRef.current) clearInterval(totalTickRef.current);
       return;
     }
     const update = () => {
       const now = Date.now();
       const startedAt = new Date(session.startedAt).getTime();
-      let elapsed = Math.floor((now - startedAt) / 1000) - (session.pausedTotalSec || 0);
+      let elapsedMs = (now - startedAt) - (session.pausedTotalSec || 0) * 1000;
       if (session.status === "paused" && session.pausedAt) {
-        elapsed -= Math.floor((now - new Date(session.pausedAt).getTime()) / 1000);
+        elapsedMs -= (now - new Date(session.pausedAt).getTime());
       }
-      setTotalTime(formatDuration(Math.max(0, elapsed)));
+      setTotalTimeMs(Math.max(0, elapsedMs));
     };
     update();
-    totalTickRef.current = setInterval(update, 1000);
+    totalTickRef.current = setInterval(update, 47); // ~21fps for smooth ms display
     return () => clearInterval(totalTickRef.current);
   }, [session]);
 
@@ -486,14 +487,10 @@ export default function WorkoutPage() {
       <div className="card">
         <div className="card-title">Таймер</div>
 
-        {/* Total workout time */}
+        {/* Total workout time — animated rolling digits */}
         {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: "14px 24px", borderRadius: 16, marginBottom: 12,
-            background: "var(--white)", border: "1px solid var(--border)",
-          }}>
-            <span style={{ fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--accent)", letterSpacing: 1 }}>{totalTime}</span>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <AnimatedTimer elapsedMs={totalTimeMs} fontSize={28} />
           </div>
         )}
 

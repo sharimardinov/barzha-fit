@@ -3,6 +3,7 @@ import { api } from "../services/api";
 import { useAppState } from "../hooks/useAppState";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
+import Stepper, { Step } from "../components/Stepper";
 
 const STEPS = [
   { id: "sex", title: "Твой пол", description: "Требуется для корректных норм и нагрузки" },
@@ -257,13 +258,20 @@ export default function OnboardingPage({ onComplete }) {
     }
   };
 
-  const next = () => {
-    if (!validate()) { toast("Заполни все поля"); return; }
-    if (step < STEPS.length - 1) { setStep(step + 1); return; }
-    submit();
+  const handleStepChange = (newStep) => {
+    // Validate current step before allowing forward navigation
+    const goingForward = newStep > step + 1;
+    if (goingForward && !validate()) {
+      toast("Заполни все поля");
+      return;
+    }
+    setStep(newStep - 1); // Stepper is 1-based, our state is 0-based
   };
 
-  const back = () => { if (step > 0) setStep(step - 1); };
+  const handleComplete = () => {
+    if (!validate()) { toast("Заполни все поля"); return; }
+    submit();
+  };
 
   const submit = useCallback(async () => {
     setSaving(true);
@@ -322,161 +330,151 @@ export default function OnboardingPage({ onComplete }) {
 
   return (
     <div className="screen active" style={{ padding: 16 }}>
-      {/* Progress bar */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-        {STEPS.map((_, i) => (
-          <div key={i} style={{
-            flex: 1, height: 4, borderRadius: 2,
-            background: i <= step ? "var(--accent)" : "rgba(0,0,0,0.08)",
-            transition: "background 0.3s ease",
-          }} />
-        ))}
-      </div>
+      <Stepper
+        currentStep={step + 1}
+        onStepChange={handleStepChange}
+        onComplete={handleComplete}
+        canProceed={validate()}
+        loading={saving}
+      >
+        {/* Step 1 — Sex */}
+        <Step>
+          <h2 style={{ marginBottom: 4 }}>{STEPS[0].title}</h2>
+          <p className="muted" style={{ marginBottom: 20 }}>{STEPS[0].description}</p>
+          <div style={{ display: "flex", gap: 12 }}>
+            {[{ v: "m", l: "М" }, { v: "f", l: "Ж" }].map((opt) => {
+              const active = data.sex === opt.v;
+              return (
+                <button key={opt.v} onClick={() => update("sex", opt.v)} style={{
+                  flex: 1, padding: "32px 16px", fontSize: 32, fontWeight: 700,
+                  borderRadius: 18, border: "none", cursor: "pointer",
+                  background: active ? "var(--accent)" : "rgba(0,0,0,0.04)",
+                  color: active ? "var(--white)" : "var(--black)",
+                  boxShadow: active ? "0 4px 20px rgba(255,3,62,0.3)" : "none",
+                  transition: "all 0.2s ease",
+                }}>{opt.l}</button>
+              );
+            })}
+          </div>
+        </Step>
 
-      <div className="muted" style={{ marginBottom: 4, fontSize: 13 }}>Шаг {step + 1} из {STEPS.length}</div>
-      <h2 style={{ marginBottom: 4 }}>{currentStep.title}</h2>
-      <p className="muted" style={{ marginBottom: 20 }}>{currentStep.description}</p>
+        {/* Step 2 — Body Metrics */}
+        <Step>
+          <h2 style={{ marginBottom: 4 }}>{STEPS[1].title}</h2>
+          <p className="muted" style={{ marginBottom: 20 }}>{STEPS[1].description}</p>
+          <div style={{ display: "grid", gap: 20 }}>
+            <MonoSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
+            <MonoSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" step={0.5} />
+            <MonoSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
+          </div>
+        </Step>
 
-      {/* Step 1 — Sex */}
-      {currentStep.id === "sex" && (
-        <div style={{ display: "flex", gap: 12 }}>
-          {[{ v: "m", l: "М" }, { v: "f", l: "Ж" }].map((opt) => {
-            const active = data.sex === opt.v;
-            return (
-              <button key={opt.v} onClick={() => update("sex", opt.v)} style={{
-                flex: 1, padding: "32px 16px", fontSize: 32, fontWeight: 700,
-                borderRadius: 18, border: "none", cursor: "pointer",
-                background: active ? "var(--accent)" : "rgba(0,0,0,0.04)",
-                color: active ? "var(--white)" : "var(--black)",
-                boxShadow: active ? "0 4px 20px rgba(255,3,62,0.3)" : "none",
+        {/* Step 3 — Training Stage */}
+        <Step>
+          <h2 style={{ marginBottom: 4 }}>{STEPS[2].title}</h2>
+          <p className="muted" style={{ marginBottom: 20 }}>{STEPS[2].description}</p>
+          <StageSelector value={data.trainingStage} onChange={(v) => update("trainingStage", v)} />
+        </Step>
+
+        {/* Step 4 — Bodyfat */}
+        <Step>
+          <h2 style={{ marginBottom: 4 }}>{STEPS[3].title}</h2>
+          <p className="muted" style={{ marginBottom: 20 }}>{STEPS[3].description}</p>
+          <BodyfatSlider value={data.bodyfat} onChange={(v) => update("bodyfat", v)} />
+        </Step>
+
+        {/* Step 5 — Goal Type */}
+        <Step>
+          <h2 style={{ marginBottom: 4 }}>{STEPS[4].title}</h2>
+          <p className="muted" style={{ marginBottom: 20 }}>{STEPS[4].description}</p>
+          <GoalPill value={data.goalType} onChange={(v) => update("goalType", v)} />
+        </Step>
+
+        {/* Step 6 — Plan Week */}
+        <Step>
+          <h2 style={{ marginBottom: 4 }}>{STEPS[5].title}</h2>
+          <p className="muted" style={{ marginBottom: 20 }}>{STEPS[5].description}</p>
+          <div style={{ display: "grid", gap: 10 }}>
+            {/* Mode toggle */}
+            <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.04)", borderRadius: 10, padding: 3 }}>
+              {[
+                { id: "text", label: "Текстом" },
+                { id: "structured", label: "По полям" },
+              ].map((m) => (
+                <button key={m.id} onClick={() => setPlanMode(m.id)} style={{
+                  flex: 1, padding: "6px 8px", borderRadius: 8, border: "none", cursor: "pointer",
+                  fontSize: 12, fontWeight: 600,
+                  background: planMode === m.id ? "var(--white)" : "transparent",
+                  color: planMode === m.id ? "var(--black)" : "var(--muted)",
+                  boxShadow: planMode === m.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.2s ease",
+                }}>{m.label}</button>
+              ))}
+            </div>
+
+            {planMode === "text" && (
+              <div style={{ fontSize: 11, color: "var(--muted)", padding: "0 2px" }}>
+                Формат: Название | 3x10 | 60кг | 120сек (по одному на строку)
+              </div>
+            )}
+
+            {data.planDays.map((day, i) => (
+              <div key={i} style={{
+                border: `1px solid ${day.isRest ? "rgba(0,0,0,0.06)" : "var(--border)"}`,
+                borderRadius: 14, padding: 12, background: day.isRest ? "rgba(0,0,0,0.02)" : "var(--white)",
                 transition: "all 0.2s ease",
-              }}>{opt.l}</button>
-            );
-          })}
-        </div>
-      )}
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: day.isRest ? 0 : 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{dayNamesFull[i]}</span>
+                  <button onClick={() => toggleRest(i)} style={{
+                    padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                    border: "none", cursor: "pointer", transition: "all 0.2s ease",
+                    background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)",
+                    color: day.isRest ? "var(--white)" : "var(--muted)",
+                  }}>{day.isRest ? "Отдых ✓" : "Отдых"}</button>
+                </div>
+                {!day.isRest && (
+                  <>
+                    <input type="text" placeholder="Фокус (грудь, спина...)" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 6 }} />
 
-      {/* Step 2 — Body Metrics */}
-      {currentStep.id === "bodyMetrics" && (
-        <div style={{ display: "grid", gap: 20 }}>
-          <MonoSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
-          <MonoSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" step={0.5} />
-          <MonoSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
-        </div>
-      )}
-
-      {/* Step 3 — Training Stage */}
-      {currentStep.id === "trainingStage" && (
-        <StageSelector value={data.trainingStage} onChange={(v) => update("trainingStage", v)} />
-      )}
-
-      {/* Step 4 — Bodyfat */}
-      {currentStep.id === "bodyfat" && (
-        <BodyfatSlider value={data.bodyfat} onChange={(v) => update("bodyfat", v)} />
-      )}
-
-      {/* Step 5 — Goal Type */}
-      {currentStep.id === "goalType" && (
-        <GoalPill value={data.goalType} onChange={(v) => update("goalType", v)} />
-      )}
-
-      {/* Step 6 — Plan Week */}
-      {currentStep.id === "planWeek" && (
-        <div style={{ display: "grid", gap: 10 }}>
-          {/* Mode toggle */}
-          <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.04)", borderRadius: 10, padding: 3 }}>
-            {[
-              { id: "text", label: "Текстом" },
-              { id: "structured", label: "По полям" },
-            ].map((m) => (
-              <button key={m.id} onClick={() => setPlanMode(m.id)} style={{
-                flex: 1, padding: "6px 8px", borderRadius: 8, border: "none", cursor: "pointer",
-                fontSize: 12, fontWeight: 600,
-                background: planMode === m.id ? "var(--white)" : "transparent",
-                color: planMode === m.id ? "var(--black)" : "var(--muted)",
-                boxShadow: planMode === m.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                transition: "all 0.2s ease",
-              }}>{m.label}</button>
+                    {planMode === "text" ? (
+                      <textarea placeholder="Упражнения (по одному на строку)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} />
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {(day.exercises || []).map((ex, j) => (
+                          <div key={j} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                            <input type="text" placeholder="Упражнение" value={ex.name}
+                              onChange={(e) => updateExercise(i, j, "name", e.target.value)}
+                              style={{ flex: 3, fontSize: 12, padding: "6px 8px" }} />
+                            <input type="text" placeholder="Подх" value={ex.sets}
+                              onChange={(e) => updateExercise(i, j, "sets", e.target.value)}
+                              style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                            <span style={{ fontSize: 12, color: "var(--muted)" }}>×</span>
+                            <input type="text" placeholder="Повт" value={ex.reps}
+                              onChange={(e) => updateExercise(i, j, "reps", e.target.value)}
+                              style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                            <input type="text" placeholder="Отдых" value={ex.rest}
+                              onChange={(e) => updateExercise(i, j, "rest", e.target.value)}
+                              style={{ flex: 0.8, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                            <button onClick={() => removeExercise(i, j)} style={{
+                              background: "none", border: "none", cursor: "pointer", color: "var(--muted)",
+                              fontSize: 14, padding: "2px 4px", flexShrink: 0,
+                            }}>✕</button>
+                          </div>
+                        ))}
+                        <button onClick={() => addExercise(i)} style={{
+                          padding: "6px 10px", borderRadius: 8, border: "1px dashed var(--border)",
+                          background: "none", cursor: "pointer", fontSize: 12, color: "var(--muted)",
+                        }}>+ упражнение</button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             ))}
           </div>
-
-          {planMode === "text" && (
-            <div style={{ fontSize: 11, color: "var(--muted)", padding: "0 2px" }}>
-              Формат: Название | 3x10 | 60кг | 120сек (по одному на строку)
-            </div>
-          )}
-
-          {data.planDays.map((day, i) => (
-            <div key={i} style={{
-              border: `1px solid ${day.isRest ? "rgba(0,0,0,0.06)" : "var(--border)"}`,
-              borderRadius: 14, padding: 12, background: day.isRest ? "rgba(0,0,0,0.02)" : "var(--white)",
-              transition: "all 0.2s ease",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: day.isRest ? 0 : 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>{dayNamesFull[i]}</span>
-                <button onClick={() => toggleRest(i)} style={{
-                  padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                  border: "none", cursor: "pointer", transition: "all 0.2s ease",
-                  background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)",
-                  color: day.isRest ? "var(--white)" : "var(--muted)",
-                }}>{day.isRest ? "Отдых ✓" : "Отдых"}</button>
-              </div>
-              {!day.isRest && (
-                <>
-                  <input type="text" placeholder="Фокус (грудь, спина...)" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 6 }} />
-
-                  {planMode === "text" ? (
-                    <textarea placeholder="Упражнения (по одному на строку)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} />
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {(day.exercises || []).map((ex, j) => (
-                        <div key={j} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                          <input
-                            type="text" placeholder="Упражнение" value={ex.name}
-                            onChange={(e) => updateExercise(i, j, "name", e.target.value)}
-                            style={{ flex: 3, fontSize: 12, padding: "6px 8px" }}
-                          />
-                          <input
-                            type="text" placeholder="Подх" value={ex.sets}
-                            onChange={(e) => updateExercise(i, j, "sets", e.target.value)}
-                            style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
-                          />
-                          <span style={{ fontSize: 12, color: "var(--muted)" }}>×</span>
-                          <input
-                            type="text" placeholder="Повт" value={ex.reps}
-                            onChange={(e) => updateExercise(i, j, "reps", e.target.value)}
-                            style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
-                          />
-                          <input
-                            type="text" placeholder="Отдых" value={ex.rest}
-                            onChange={(e) => updateExercise(i, j, "rest", e.target.value)}
-                            style={{ flex: 0.8, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
-                          />
-                          <button onClick={() => removeExercise(i, j)} style={{
-                            background: "none", border: "none", cursor: "pointer", color: "var(--muted)",
-                            fontSize: 14, padding: "2px 4px", flexShrink: 0,
-                          }}>✕</button>
-                        </div>
-                      ))}
-                      <button onClick={() => addExercise(i)} style={{
-                        padding: "6px 10px", borderRadius: 8, border: "1px dashed var(--border)",
-                        background: "none", cursor: "pointer", fontSize: 12, color: "var(--muted)",
-                      }}>+ упражнение</button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-        {step > 0 && <button className="btn btn-outline" onClick={back} style={{ flex: 1 }}>Назад</button>}
-        <button className="btn btn-accent" onClick={next} disabled={saving} style={{ flex: 1 }}>
-          {step === STEPS.length - 1 ? (saving ? "Сохраняю..." : "Готово") : "Далее"}
-        </button>
-      </div>
+        </Step>
+      </Stepper>
     </div>
   );
 }
