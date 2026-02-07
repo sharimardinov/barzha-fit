@@ -15,6 +15,9 @@ import (
 //go:embed assets/*
 var assets embed.FS
 
+//go:embed frontend/dist/*
+var reactAssets embed.FS
+
 //go:embed authweb/*
 var authAssets embed.FS
 
@@ -121,6 +124,38 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		})))
 	}
 	serveMiniapp("/miniapp")
+
+	// Serve React build at /app/
+	reactSub, err := fs.Sub(reactAssets, "frontend/dist")
+	if err != nil {
+		return fmt.Errorf("react assets: %w", err)
+	}
+	reactFS := http.FileServer(http.FS(reactSub))
+	mux.HandleFunc("/app", func(w http.ResponseWriter, r *http.Request) {
+		target := "/app/"
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	})
+	mux.Handle("/app/", http.StripPrefix("/app/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		// SPA fallback: serve index.html for non-asset routes
+		if path != "" && !strings.Contains(path, ".") {
+			path = ""
+		}
+		if path == "" || strings.HasSuffix(path, ".html") {
+			w.Header().Set("Cache-Control", "no-store")
+			if path != "" {
+				r.URL.Path = "/" + path
+			} else {
+				r.URL.Path = "/index.html"
+			}
+		} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		reactFS.ServeHTTP(w, r)
+	})))
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
