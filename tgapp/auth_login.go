@@ -118,7 +118,7 @@ func (s *Server) handleTelegramStart(w http.ResponseWriter, r *http.Request) {
 	base := baseURLFromRequest(r)
 	returnTo := strings.TrimSpace(r.URL.Query().Get("return_to"))
 	if returnTo == "" {
-		returnTo = "/miniapp/"
+		returnTo = "/app/"
 	}
 	callback := base + "/auth/telegram/callback?return_to=" + url.QueryEscape(returnTo)
 	oauth := fmt.Sprintf("https://oauth.telegram.org/auth?bot_id=%s&origin=%s&request_access=write&embed=1&return_to=%s",
@@ -136,7 +136,7 @@ func (s *Server) handleTelegramCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	returnTo := strings.TrimSpace(r.URL.Query().Get("return_to"))
 	if returnTo == "" {
-		returnTo = "/miniapp/"
+		returnTo = "/app/"
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")

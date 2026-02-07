@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "../services/api";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
-import { AccordionItem, Accordion } from "../components/Accordion";
+import { AccordionItem } from "../components/Accordion";
 import { postNativeMessage } from "../services/telegram";
 
 function formatDuration(sec) {
@@ -12,9 +12,21 @@ function formatDuration(sec) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function formatMinutes(seconds) {
+  const total = Math.max(0, Math.round(seconds || 0));
+  return Math.max(1, Math.round(total / 60));
+}
+
+function formatRest(seconds) {
+  const total = Math.max(0, Math.round(seconds || 0));
+  if (total % 60 === 0) return `${total / 60} мин`;
+  return `${total} сек`;
+}
+
 export default function WorkoutPage() {
   const toast = useToast();
   const [plan, setPlan] = useState(null);
+  const [planIssues, setPlanIssues] = useState([]);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -22,51 +34,182 @@ export default function WorkoutPage() {
   const [reps, setReps] = useState("");
   const [timerDisplay, setTimerDisplay] = useState("00:00");
   const [timerProgress, setTimerProgress] = useState(0);
+  const [totalTime, setTotalTime] = useState("00:00");
   const tickRef = useRef(null);
+  const totalTickRef = useRef(null);
+  const lastTimerKeyRef = useRef(null);
+  const lastTimerTotalRef = useRef(0);
+  const lastSetKeyRef = useRef(null);
+  const wakeLockRef = useRef(null);
 
+  // Wake lock
+  const requestWakeLock = useCallback(async () => {
+    if (!("wakeLock" in navigator) || wakeLockRef.current) return;
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request("screen");
+      wakeLockRef.current.addEventListener("release", () => { wakeLockRef.current = null; });
+    } catch { wakeLockRef.current = null; }
+  }, []);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (!wakeLockRef.current) return;
+    try { await wakeLockRef.current.release(); } catch {}
+    wakeLockRef.current = null;
+  }, []);
+
+  // Load data
   const loadData = useCallback(async () => {
     try {
-      const [planData, sessionData] = await Promise.all([
-        api("/api/workout/plan/get").catch(() => null),
-        api("/api/workout/session/get").catch(() => null),
-      ]);
+      // Fetch plan
+      let planData = null;
+      let issues = [];
+      try {
+        const pResp = await api("/api/workout/plan/get");
+        planData = pResp?.plan || null;
+      } catch (err) {
+        if (err.message === "workout_plan_invalid") {
+          issues = err.data?.issues || [];
+        } else if (err.message === "workout_plan_not_found") {
+          issues = ["План тренировок не найден"];
+        }
+      }
+
+      // Fetch session
+      let sessionData = null;
+      try {
+        const sResp = await api("/api/workout/session/get");
+        sessionData = sResp?.session || null;
+        if (sResp?.plan) {
+          planData = sResp.plan;
+          issues = [];
+        }
+      } catch (err) {
+        if (err.message !== "workout_session_not_found") {
+          // ignore not found
+        }
+      }
+
       setPlan(planData);
+      setPlanIssues(issues);
       setSession(sessionData);
-    } catch (err) {
-      toast(formatApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Timer tick
+  // Apply session from action response
+  const applySession = useCallback((data) => {
+    if (data?.plan) setPlan(data.plan);
+    if (data?.session?.status === "completed") {
+      setSession(null);
+      toast("Тренировка завершена");
+      postNativeMessage("workoutTimer", { action: "stop" });
+    } else {
+      const s = data?.session || null;
+      setSession(s);
+      postNativeMessage("workoutTimer", { action: s ? "start" : "stop" });
+    }
+  }, [toast]);
+
+  // Timer tick for rest/cardio
   useEffect(() => {
     if (!session || (session.phase !== "rest" && session.phase !== "cardio")) {
       setTimerDisplay("00:00");
       setTimerProgress(0);
+      if (tickRef.current) clearInterval(tickRef.current);
       return;
     }
+
     const tick = () => {
+      if (session.status === "paused") {
+        const remaining = Math.max(0, session.timerDurationSec || 0);
+        setTimerDisplay(formatDuration(remaining));
+        setTimerProgress(0);
+        return;
+      }
       if (!session.timerStartedAt || !session.timerDurationSec) return;
       const end = new Date(session.timerStartedAt).getTime() + session.timerDurationSec * 1000;
-      const remaining = Math.max(0, Math.round((end - Date.now()) / 1000));
+      const remainingMs = Math.max(0, end - Date.now());
+      const remaining = Math.ceil(remainingMs / 1000);
       setTimerDisplay(formatDuration(remaining));
-      const total = session.timerDurationSec || 1;
-      setTimerProgress(Math.min(1, 1 - remaining / total));
-      if (remaining <= 0) { clearInterval(tickRef.current); loadData(); }
+
+      // Resolve total for this timer key
+      const key = [session.phase, session.timerKind, session.exerciseIndex, session.setIndex].join("|");
+      if (key !== lastTimerKeyRef.current) {
+        lastTimerKeyRef.current = key;
+        lastTimerTotalRef.current = session.timerDurationSec || 0;
+      }
+      const total = Math.max(lastTimerTotalRef.current, remaining);
+      lastTimerTotalRef.current = total;
+      const totalMs = total * 1000;
+      const progress = totalMs > 0 ? Math.min(1, Math.max(0, 1 - remainingMs / totalMs)) : 0;
+      setTimerProgress(progress);
+
+      if (remaining <= 0) {
+        clearInterval(tickRef.current);
+        loadData();
+      }
     };
+
     tick();
-    tickRef.current = setInterval(tick, 200);
+    tickRef.current = setInterval(tick, 120);
     return () => clearInterval(tickRef.current);
   }, [session, loadData]);
+
+  // Total workout time
+  useEffect(() => {
+    if (!session?.startedAt) {
+      setTotalTime("00:00");
+      if (totalTickRef.current) clearInterval(totalTickRef.current);
+      return;
+    }
+    const update = () => {
+      const now = Date.now();
+      const startedAt = new Date(session.startedAt).getTime();
+      let elapsed = Math.floor((now - startedAt) / 1000) - (session.pausedTotalSec || 0);
+      if (session.status === "paused" && session.pausedAt) {
+        elapsed -= Math.floor((now - new Date(session.pausedAt).getTime()) / 1000);
+      }
+      setTotalTime(formatDuration(Math.max(0, elapsed)));
+    };
+    update();
+    totalTickRef.current = setInterval(update, 1000);
+    return () => clearInterval(totalTickRef.current);
+  }, [session]);
+
+  // Wake lock sync
+  useEffect(() => {
+    const shouldLock = session && session.status === "in_progress" && (session.phase === "rest" || session.phase === "cardio");
+    if (shouldLock) requestWakeLock();
+    else releaseWakeLock();
+    return () => releaseWakeLock();
+  }, [session, requestWakeLock, releaseWakeLock]);
+
+  // Auto-fill weight/reps for new set
+  useEffect(() => {
+    if (!session || session.phase !== "set" || !plan) return;
+    const ex = plan.exercises?.[session.exerciseIndex];
+    if (!ex || ex.type === "cardio") return;
+    const key = `${session.exerciseIndex}:${session.setIndex}`;
+    if (key !== lastSetKeyRef.current) {
+      lastSetKeyRef.current = key;
+      if (session.setIndex > 0) {
+        setWeight(String(ex.weight || ""));
+        setReps(String(ex.reps || ""));
+      } else {
+        setWeight("");
+        setReps("");
+      }
+    }
+  }, [session, plan]);
 
   const doAction = async (path, body) => {
     setActionLoading(true);
     try {
       const data = await api(path, body);
-      setSession(data);
+      applySession(data);
     } catch (err) {
       toast(formatApiError(err));
     } finally {
@@ -76,7 +219,17 @@ export default function WorkoutPage() {
 
   const startWorkout = () => doAction("/api/workout/session/start");
   const endWarmup = () => doAction("/api/workout/session/warmup/end");
-  const finishSet = () => doAction("/api/workout/session/set/finish", { weight_kg: Number(weight) || 0, reps: Number(reps) || 0 });
+  const finishSet = () => {
+    const isWarmup = session?.setIndex === 0;
+    const w = isWarmup ? 0 : Number(weight) || 0;
+    const r = isWarmup ? 0 : Math.round(Number(reps) || 0);
+    doAction("/api/workout/session/set/finish", {
+      exerciseIndex: session.exerciseIndex,
+      setIndex: session.setIndex,
+      actualWeight: w,
+      actualReps: r,
+    });
+  };
   const endRest = () => doAction("/api/workout/session/rest/end");
   const pause = () => doAction("/api/workout/session/pause");
   const resume = () => doAction("/api/workout/session/resume");
@@ -84,22 +237,55 @@ export default function WorkoutPage() {
 
   if (loading) return <div className="screen-loader is-loading"><div className="screen-spinner" /></div>;
 
-  const ex = session?.exercises?.[session?.exerciseIndex];
+  const exercises = plan?.exercises || [];
+  const ex = exercises[session?.exerciseIndex];
   const phase = session?.phase;
   const status = session?.status;
   const isActive = status === "in_progress";
+  const hasValidPlan = exercises.length > 0 && planIssues.length === 0;
+
+  // Set label text
+  let setLabelText = "";
+  if (ex && ex.type !== "cardio") {
+    if (phase === "set") {
+      setLabelText = session.setIndex === 0 ? "Разминочный подход" : `Подход ${session.setIndex} из ${ex.sets}`;
+    } else if (phase === "rest") {
+      if (session.timerKind === "rest") {
+        const finished = Math.max(0, session.setIndex - 1);
+        setLabelText = finished === 0 ? "Отдых после разминки" : `Отдых после подхода ${finished} из ${ex.sets}`;
+      } else {
+        setLabelText = "Отдых между упражнениями";
+      }
+    }
+  }
+
+  const showInputs = phase === "set" && session?.setIndex > 0 && ex?.type !== "cardio";
 
   return (
     <div className="screen active">
       {/* Session card */}
       <div className="card">
-        <div className="card-title">Таймер</div>
-        {!session || status === "finished" || status === "stopped" ? (
+        <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Таймер</span>
+          {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
+            <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>{totalTime}</span>
+          )}
+        </div>
+
+        {!session || status === "finished" || status === "stopped" || status === "completed" ? (
           <div style={{ textAlign: "center", padding: 16 }}>
-            <div className="muted" style={{ marginBottom: 12 }}>Нет активной тренировки</div>
-            <button className="btn btn-accent" onClick={startWorkout} disabled={actionLoading || !plan}>
-              Начать тренировку
-            </button>
+            {planIssues.length > 0 ? (
+              <div className="muted" style={{ marginBottom: 12 }}>Проверь формат плана в разделе «План»</div>
+            ) : !hasValidPlan ? (
+              <div className="muted" style={{ marginBottom: 12 }}>Сегодня нет тренировки</div>
+            ) : (
+              <>
+                <div className="muted" style={{ marginBottom: 12 }}>Нет активной тренировки</div>
+                <button className="btn btn-accent" onClick={startWorkout} disabled={actionLoading}>
+                  Начать тренировку
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div>
@@ -117,12 +303,12 @@ export default function WorkoutPage() {
               <div style={{ marginBottom: 8 }}>
                 <div className="workout-exercise-name" style={{ fontWeight: 700 }}>{ex.name}</div>
                 <div className="workout-exercise-target muted" style={{ fontSize: 13 }}>
-                  {ex.sets}x{ex.reps} · {ex.weightKg || 0} кг
+                  {ex.type === "cardio"
+                    ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
+                    : `Вес: ${ex.weight || "—"} кг · Повторы: ${ex.reps} · Подходы: ${ex.sets}`}
                 </div>
-                {phase === "set" && (
-                  <div className="workout-set-label muted" style={{ fontSize: 13 }}>
-                    Подход {(session.setIndex || 0) + 1} из {ex.sets}
-                  </div>
+                {setLabelText && (
+                  <div className="workout-set-label muted" style={{ fontSize: 13 }}>{setLabelText}</div>
                 )}
               </div>
             )}
@@ -138,10 +324,10 @@ export default function WorkoutPage() {
             )}
 
             {/* Input fields */}
-            {phase === "set" && (
+            {showInputs && (
               <div className="workout-inputs" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
                 <label>Вес (кг)
-                  <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder={String(ex?.weightKg || 0)} />
+                  <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder={String(ex?.weight || 0)} />
                 </label>
                 <label>Повторения
                   <input type="number" value={reps} onChange={(e) => setReps(e.target.value)} placeholder={String(ex?.reps || 0)} />
@@ -153,25 +339,39 @@ export default function WorkoutPage() {
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               {phase === "warmup" && <button className="btn btn-accent" onClick={endWarmup} disabled={actionLoading}>Закончить разминку</button>}
               {phase === "set" && <button className="btn btn-accent" onClick={finishSet} disabled={actionLoading}>Готово</button>}
-              {phase === "rest" && <button className="btn btn-outline" onClick={endRest} disabled={actionLoading}>Закончить отдых</button>}
+              {phase === "rest" && isActive && <button className="btn btn-outline" onClick={endRest} disabled={actionLoading}>Закончить отдых</button>}
               {isActive && status !== "paused" && <button className="btn btn-outline" onClick={pause} disabled={actionLoading}>Пауза</button>}
               {status === "paused" && <button className="btn btn-accent" onClick={resume} disabled={actionLoading}>Продолжить</button>}
-              <button className="btn btn-outline" onClick={stopWorkout} disabled={actionLoading} style={{ color: "var(--accent)" }}>Стоп</button>
+              {session && <button className="btn btn-outline" onClick={stopWorkout} disabled={actionLoading} style={{ color: "var(--accent)" }}>Стоп</button>}
             </div>
           </div>
         )}
       </div>
 
-      {/* Plan */}
-      {plan?.exercises && (
+      {/* Plan issues */}
+      {planIssues.length > 0 && (
+        <div className="card" style={{ color: "var(--accent)" }}>
+          {planIssues.map((issue, i) => <div key={i}>{issue}</div>)}
+        </div>
+      )}
+
+      {/* Plan exercises */}
+      {exercises.length > 0 && (
         <div className="card">
           <AccordionItem title="Программа тренировок">
             <div className="workout-plan-list">
-              {plan.exercises.map((ex, i) => (
-                <div key={i} className="workout-exercise-block">
-                  <div className="workout-exercise-name">{ex.name}</div>
-                  <div className="workout-exercise-target muted">
-                    {ex.type === "cardio" ? `${ex.durationMin || 0} мин` : `${ex.sets}x${ex.reps} · ${ex.weightKg || 0} кг · Отдых: ${ex.restSec || 120}с`}
+              {exercises.map((ex, i) => (
+                <div key={i} className="list-item workout-plan-item">
+                  <div>
+                    <div className="workout-plan-item-title">{ex.name || "—"}</div>
+                    <div className="workout-plan-item-meta">
+                      {ex.type === "cardio"
+                        ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
+                        : `Подходы: ${ex.sets}x${ex.reps} · Вес: ${ex.weight || "—"} кг · Отдых: ${formatRest(ex.restSec || 120)}`}
+                    </div>
+                  </div>
+                  <div className="workout-plan-item-tag">
+                    {ex.type === "cardio" ? "Кардио" : "Силовое"}
                   </div>
                 </div>
               ))}

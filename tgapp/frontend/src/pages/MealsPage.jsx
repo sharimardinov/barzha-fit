@@ -25,9 +25,9 @@ export default function MealsPage() {
 
   const totals = meals.reduce((acc, m) => ({
     kcal: acc.kcal + (m.kcal || 0),
-    protein: acc.protein + (m.protein || 0),
-    fat: acc.fat + (m.fat || 0),
-    carbs: acc.carbs + (m.carbs || 0),
+    protein: acc.protein + (m.protein_g || 0),
+    fat: acc.fat + (m.fat_g || 0),
+    carbs: acc.carbs + (m.carbs_g || 0),
   }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
 
   const addMeal = async () => {
@@ -77,14 +77,14 @@ export default function MealsPage() {
         {meals.length === 0 && <div className="muted" style={{ textAlign: "center", padding: 16 }}>Ещё нет записей</div>}
         <div className="meal-list-items">
           {meals.map((meal) => (
-            <div key={meal.id} className="list-item meal-item">
-              <div className="meal-item-info">
-                <div className="meal-item-name">{meal.text || meal.name || "Приём пищи"}</div>
-                <div className="meal-item-macros muted">
-                  {meal.kcal} ккал · Б {meal.protein} · Ж {meal.fat} · У {meal.carbs}
-                </div>
+            <div key={meal.id} className="list-item">
+              <div>
+                <div>{meal.text || meal.name || "Приём пищи"}</div>
+                <div className="meta">{meal.kcal} ккал • Б{meal.protein_g || 0} Ж{meal.fat_g || 0} У{meal.carbs_g || 0}</div>
               </div>
-              <button className="btn-icon meal-delete" onClick={() => deleteMeal(meal.id)} title="Удалить">✕</button>
+              <div className="actions">
+                <button className="btn btn-ghost" onClick={() => deleteMeal(meal.id)}>Удалить</button>
+              </div>
             </div>
           ))}
         </div>

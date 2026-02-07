@@ -376,7 +376,7 @@ func writeGoogleLoginSuccess(w http.ResponseWriter, session authSession) {
         window.webkit.messageHandlers.authComplete.postMessage(payload);
       } else {
         try { localStorage.setItem("auth_token", payload.token); } catch (_) {}
-        setTimeout(function () { window.location.href = "/miniapp/"; }, 400);
+        setTimeout(function () { window.location.href = "/app/"; }, 400);
       }
     </script>
   </body>

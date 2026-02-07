@@ -93,7 +93,15 @@ function AppContent() {
   return (
     <>
       <header className="app-header">
-        <div className="brand-logo">barzhafit</div>
+        <div className="brand">
+          <img className="brand-logo" src="/app/bott.png" alt="BarzhaFit" />
+        </div>
+        <div className="screen-label">{
+          state.activeTab === "today" ? "Сегодня" :
+          state.activeTab === "workout" ? "Тренировка" :
+          state.activeTab === "meals" ? "Еда" :
+          state.activeTab === "profile" ? "Профиль" : ""
+        }</div>
       </header>
       <main className="app">
         {renderPage()}
