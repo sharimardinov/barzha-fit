@@ -6,9 +6,9 @@ import { useState, Children, useRef, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 const stepVariants = {
-  enter: (dir) => ({ x: dir >= 0 ? "100%" : "-100%", opacity: 0 }),
-  center: { x: "0%", opacity: 1 },
-  exit: (dir) => ({ x: dir >= 0 ? "-50%" : "50%", opacity: 0 }),
+  enter: (dir) => ({ x: dir >= 0 ? 80 : -80, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir) => ({ x: dir >= 0 ? -80 : 80, opacity: 0 }),
 };
 
 function SlideTransition({ children, direction, onHeightReady }) {
@@ -25,7 +25,7 @@ function SlideTransition({ children, direction, onHeightReady }) {
       initial="enter"
       animate="center"
       exit="exit"
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
     >
       {children}
     </motion.div>
@@ -37,11 +37,11 @@ function StepContent({ isCompleted, currentStep, direction, children }) {
 
   return (
     <motion.div
-      style={{ position: "relative", overflow: "hidden" }}
+      style={{ position: "relative", overflow: "visible", minHeight: 0 }}
       animate={{ height: height || "auto" }}
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
     >
-      <AnimatePresence initial={false} custom={direction} mode="popLayout">
+      <AnimatePresence initial={false} custom={direction} mode="wait">
         {!isCompleted && (
           <SlideTransition key={currentStep} direction={direction} onHeightReady={(h) => setHeight(h)}>
             {children}

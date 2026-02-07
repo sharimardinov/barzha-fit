@@ -1,6 +1,6 @@
 /**
  * Animated Timer Display — inspired by reactbits.dev/components/counter
- * Rolling digit animation for workout timer in HH:MM:SS.mmm format.
+ * Rolling digit animation for workout timer in HH:MM:SS format.
  * No external deps besides motion/react.
  */
 import { motion, useSpring, useTransform } from "motion/react";
@@ -50,8 +50,8 @@ function Separator({ char, fontSize, color }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", justifyContent: "center",
-      width: char === "." ? "0.3em" : "0.4em", fontSize, fontWeight: 700,
-      color: color || "inherit", opacity: 0.5,
+      width: "0.4em", fontSize, fontWeight: 700,
+      color: color || "inherit", opacity: 0.4,
     }}>
       {char}
     </span>
@@ -59,14 +59,13 @@ function Separator({ char, fontSize, color }) {
 }
 
 /**
- * Parses elapsed seconds + ms into digit arrays for HH:MM:SS.mmm
+ * Parses elapsed ms into digit values for HH:MM:SS
  */
 function parseTime(elapsedMs) {
-  const totalMs = Math.max(0, Math.floor(elapsedMs));
-  const h = Math.floor(totalMs / 3600000);
-  const m = Math.floor((totalMs % 3600000) / 60000);
-  const s = Math.floor((totalMs % 60000) / 1000);
-  const ms = totalMs % 1000;
+  const totalSec = Math.max(0, Math.floor(elapsedMs / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
   return {
     h1: Math.floor(h / 10) % 10,
     h2: h % 10,
@@ -74,16 +73,13 @@ function parseTime(elapsedMs) {
     m2: m % 10,
     s1: Math.floor(s / 10),
     s2: s % 10,
-    ms1: Math.floor(ms / 100),
-    ms2: Math.floor((ms % 100) / 10),
-    ms3: ms % 10,
   };
 }
 
 export default function AnimatedTimer({
   elapsedMs = 0,
-  fontSize = 32,
-  color = "var(--accent)",
+  fontSize = 28,
+  color = "var(--black)",
   background = "var(--white)",
   style = {},
 }) {
@@ -92,16 +88,17 @@ export default function AnimatedTimer({
 
   return (
     <div style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      display: "flex", alignItems: "center", justifyContent: "center",
       position: "relative", fontSize, fontWeight: 700, lineHeight: 1.2,
-      background, borderRadius: 16, padding: "14px 20px",
+      background, borderRadius: 16, padding: "12px 0",
       border: "1px solid var(--border)",
       fontFamily: "'Aptos', Arial, sans-serif",
+      width: "100%",
       ...style,
     }}>
       {/* Top/bottom gradient masks */}
-      <div style={{ pointerEvents: "none", position: "absolute", top: 0, left: 0, right: 0, height: 12, borderRadius: "16px 16px 0 0", background: `linear-gradient(to bottom, ${gradientColor}, transparent)`, zIndex: 2 }} />
-      <div style={{ pointerEvents: "none", position: "absolute", bottom: 0, left: 0, right: 0, height: 12, borderRadius: "0 0 16px 16px", background: `linear-gradient(to top, ${gradientColor}, transparent)`, zIndex: 2 }} />
+      <div style={{ pointerEvents: "none", position: "absolute", top: 0, left: 0, right: 0, height: 10, borderRadius: "16px 16px 0 0", background: `linear-gradient(to bottom, ${gradientColor}, transparent)`, zIndex: 2 }} />
+      <div style={{ pointerEvents: "none", position: "absolute", bottom: 0, left: 0, right: 0, height: 10, borderRadius: "0 0 16px 16px", background: `linear-gradient(to top, ${gradientColor}, transparent)`, zIndex: 2 }} />
 
       <RollingDigit value={t.h1} fontSize={fontSize} color={color} />
       <RollingDigit value={t.h2} fontSize={fontSize} color={color} />
@@ -111,10 +108,6 @@ export default function AnimatedTimer({
       <Separator char=":" fontSize={fontSize} color={color} />
       <RollingDigit value={t.s1} fontSize={fontSize} color={color} />
       <RollingDigit value={t.s2} fontSize={fontSize} color={color} />
-      <Separator char="." fontSize={fontSize} color={color} />
-      <RollingDigit value={t.ms1} fontSize={fontSize * 0.65} color={color} />
-      <RollingDigit value={t.ms2} fontSize={fontSize * 0.65} color={color} />
-      <RollingDigit value={t.ms3} fontSize={fontSize * 0.65} color={color} />
     </div>
   );
 }

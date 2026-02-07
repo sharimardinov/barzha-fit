@@ -378,7 +378,7 @@ export default function WorkoutPage() {
     return () => clearInterval(tickRef.current);
   }, [session, loadData]);
 
-  // Total workout time (ms precision)
+  // Total workout time (ms precision for animated digits)
   useEffect(() => {
     if (!session?.startedAt) {
       setTotalTimeMs(0);
@@ -395,7 +395,7 @@ export default function WorkoutPage() {
       setTotalTimeMs(Math.max(0, elapsedMs));
     };
     update();
-    totalTickRef.current = setInterval(update, 47); // ~21fps for smooth ms display
+    totalTickRef.current = setInterval(update, 500);
     return () => clearInterval(totalTickRef.current);
   }, [session]);
 
@@ -489,8 +489,8 @@ export default function WorkoutPage() {
 
         {/* Total workout time — animated rolling digits */}
         {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <AnimatedTimer elapsedMs={totalTimeMs} fontSize={28} />
+          <div style={{ marginBottom: 12 }}>
+            <AnimatedTimer elapsedMs={totalTimeMs} />
           </div>
         )}
 
