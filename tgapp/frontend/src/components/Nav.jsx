@@ -1,11 +1,12 @@
 import PillNav from "./PillNav";
+import { Home, Timer, Utensils, User } from "lucide-react";
 import { useAppState } from "../hooks/useAppState";
 
 const tabs = [
-  { id: "today", label: "Сегодня" },
-  { id: "workout", label: "Тренировка" },
-  { id: "meals", label: "Еда" },
-  { id: "profile", label: "Профиль" },
+  { id: "today", label: "Сегодня", icon: Home },
+  { id: "workout", label: "Тренировка", icon: Timer },
+  { id: "meals", label: "Еда", icon: Utensils },
+  { id: "profile", label: "Профиль", icon: User },
 ];
 
 export default function Nav() {

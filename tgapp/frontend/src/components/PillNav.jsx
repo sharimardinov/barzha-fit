@@ -83,10 +83,17 @@ const PillNav = ({
                       circleRefs.current[i] = el;
                     }}
                   />
-                  <span className="label-stack">
-                    <span className="pill-label">{item.label}</span>
-                    <span className="pill-label-hover" aria-hidden="true">
-                      {item.label}
+                  <span className="pill-content">
+                    {item.icon && (
+                      <span className="pill-icon" aria-hidden="true">
+                        <item.icon size={18} strokeWidth={2} />
+                      </span>
+                    )}
+                    <span className="label-stack">
+                      <span className="pill-label">{item.label}</span>
+                      <span className="pill-label-hover" aria-hidden="true">
+                        {item.label}
+                      </span>
                     </span>
                   </span>
                 </button>
