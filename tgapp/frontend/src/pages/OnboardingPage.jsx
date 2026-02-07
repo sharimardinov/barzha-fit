@@ -4,6 +4,7 @@ import { useAppState } from "../hooks/useAppState";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
 import Stepper, { Step } from "../components/Stepper";
+import ElasticSlider from "../components/ElasticSlider";
 
 const STEPS = [
   { id: "sex", title: "Твой пол", description: "Требуется для корректных норм и нагрузки" },
@@ -14,39 +15,7 @@ const STEPS = [
   { id: "planWeek", title: "План на неделю", description: "Опиши свой тренировочный план" },
 ];
 
-/* Monolithic slider — thick track, no visible thumb, filled with accent */
-function MonoSlider({ min, max, value, onChange, label, unit = "", step = 1, color = "var(--accent)" }) {
-  const pct = ((value - min) / (max - min)) * 100;
-  return (
-    <div style={{ marginBottom: 4 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-        <span style={{ fontSize: 14, color: "var(--muted)" }}>{label}</span>
-        <span style={{ fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-          {value}<span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)", marginLeft: 2 }}>{unit}</span>
-        </span>
-      </div>
-      <div style={{ position: "relative", height: 12, borderRadius: 999, background: "rgba(0,0,0,0.06)", overflow: "hidden" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`, background: color, borderRadius: 999, transition: "width 0.05s ease" }} />
-        <input
-          type="range" min={min} max={max} step={step} value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="mono-slider-input"
-          style={{
-            position: "absolute", inset: 0, width: "100%", height: "100%",
-            WebkitAppearance: "none", appearance: "none", background: "transparent",
-            cursor: "pointer", margin: 0, padding: 0,
-          }}
-        />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-        <span>{min}{unit}</span>
-        <span>{max}{unit}</span>
-      </div>
-    </div>
-  );
-}
-
-/* Bodyfat circle + monolithic slider */
+/* Bodyfat circle + elastic slider */
 function BodyfatSlider({ value, onChange }) {
   const pct = ((value - 3) / (50 - 3)) * 100;
   const getCategory = (v) => {
@@ -78,7 +47,7 @@ function BodyfatSlider({ value, onChange }) {
         background: cat.color + "15", color: cat.color, fontWeight: 600, fontSize: 13, marginBottom: 16,
         transition: "all 0.3s ease",
       }}>{cat.label}</div>
-      <MonoSlider min={3} max={50} value={value} onChange={onChange} label="" unit="%" color={cat.color} />
+      <ElasticSlider min={3} max={50} value={value} onChange={onChange} label="" unit="%" color={cat.color} />
     </div>
   );
 }
@@ -117,6 +86,7 @@ function GoalPill({ value, onChange }) {
           >
             <div style={{
               fontSize: 15, fontWeight: 700, letterSpacing: 1,
+              fontFamily: "'Aptos', Arial, sans-serif",
               color: value === opt.id ? "var(--accent)" : "var(--muted)",
               transition: "color 0.2s ease",
             }}>{opt.label}</div>
@@ -133,14 +103,13 @@ function GoalPill({ value, onChange }) {
 }
 
 /* Training stage cards — CORE / FLOW / PEAK */
+/* Uses mask-image for pixel-perfect #ff033e coloring instead of CSS filter */
 function StageSelector({ value, onChange }) {
   const stages = [
     { id: "core", label: "CORE", desc: "Начинающий", img: "/app/core.svg" },
     { id: "flow", label: "FLOW", desc: "Средний", img: "/app/flow.svg" },
     { id: "peak", label: "PEAK", desc: "Продвинутый", img: "/app/peak.svg" },
   ];
-  // CSS filter to turn black SVG → #ff033e
-  const accentFilter = "brightness(0) saturate(100%) invert(12%) sepia(96%) saturate(7471%) hue-rotate(345deg) brightness(102%) contrast(113%)";
   return (
     <div style={{ display: "flex", gap: 10 }}>
       {stages.map((s) => {
@@ -151,23 +120,32 @@ function StageSelector({ value, onChange }) {
             border: "none",
             background: active ? "rgba(255,3,62,0.06)" : "rgba(0,0,0,0.03)",
             boxShadow: active ? "0 4px 20px rgba(255,3,62,0.15)" : "none",
-            transition: "all 0.25s ease", display: "flex", flexDirection: "column",
+            transition: "all 0.35s ease", display: "flex", flexDirection: "column",
             alignItems: "center", gap: 8,
           }}>
-            <img src={s.img} alt={s.label} style={{
-              width: 60, height: 100, objectFit: "contain",
-              filter: active ? accentFilter : "grayscale(0.6) opacity(0.4)",
-              transition: "filter 0.25s ease",
+            {/* Use mask-image to color SVG precisely */}
+            <div style={{
+              width: 60, height: 100,
+              WebkitMaskImage: `url(${s.img})`,
+              maskImage: `url(${s.img})`,
+              WebkitMaskSize: "contain",
+              maskSize: "contain",
+              WebkitMaskRepeat: "no-repeat",
+              maskRepeat: "no-repeat",
+              WebkitMaskPosition: "center",
+              maskPosition: "center",
+              backgroundColor: active ? "#ff033e" : "rgba(0,0,0,0.25)",
+              transition: "background-color 0.35s ease",
             }} />
             <div style={{
               fontSize: 14, fontWeight: 700, letterSpacing: 1,
               color: active ? "#ff033e" : "var(--muted)",
-              transition: "color 0.2s ease",
+              transition: "color 0.35s ease",
             }}>{s.label}</div>
             <div style={{
               fontSize: 11,
               color: active ? "#ff033e" : "var(--muted)",
-              transition: "color 0.2s ease",
+              transition: "color 0.35s ease",
             }}>{s.desc}</div>
           </button>
         );
@@ -224,10 +202,13 @@ export default function OnboardingPage({ onComplete }) {
     });
   };
 
-  const addExercise = (dayIdx) => {
+  const addExercise = (dayIdx, type = "strength") => {
     setData((prev) => {
       const days = [...prev.planDays];
-      const exercises = [...(days[dayIdx].exercises || []), { name: "", sets: "", reps: "", rest: "" }];
+      const base = type === "cardio"
+        ? { name: "", type: "cardio", duration: "", sets: "", reps: "", rest: "" }
+        : { name: "", type: "strength", sets: "", reps: "", rest: "", duration: "" };
+      const exercises = [...(days[dayIdx].exercises || []), base];
       days[dayIdx] = { ...days[dayIdx], exercises };
       return { ...prev, planDays: days };
     });
@@ -259,13 +240,12 @@ export default function OnboardingPage({ onComplete }) {
   };
 
   const handleStepChange = (newStep) => {
-    // Validate current step before allowing forward navigation
     const goingForward = newStep > step + 1;
     if (goingForward && !validate()) {
       toast("Заполни все поля");
       return;
     }
-    setStep(newStep - 1); // Stepper is 1-based, our state is 0-based
+    setStep(newStep - 1);
   };
 
   const handleComplete = () => {
@@ -297,9 +277,13 @@ export default function OnboardingPage({ onComplete }) {
             .filter((ex) => ex.name.trim())
             .map((ex) => {
               let line = ex.name.trim();
-              if (ex.sets && ex.reps) line += ` | ${ex.sets}x${ex.reps}`;
-              else if (ex.sets) line += ` | ${ex.sets}`;
-              if (ex.rest) line += ` | ${ex.rest}`;
+              if (ex.type === "cardio") {
+                if (ex.duration) line += ` | ${ex.duration} мин`;
+              } else {
+                if (ex.sets && ex.reps) line += ` | ${ex.sets}x${ex.reps}`;
+                else if (ex.sets) line += ` | ${ex.sets}`;
+                if (ex.rest) line += ` | ${ex.rest}`;
+              }
               return line;
             });
           if (items.length === 0) items = ["Отдых"];
@@ -324,7 +308,7 @@ export default function OnboardingPage({ onComplete }) {
     } finally {
       setSaving(false);
     }
-  }, [data, dispatch, onComplete, toast]);
+  }, [data, dispatch, onComplete, toast, planMode]);
 
   const dayNamesFull = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 
@@ -358,14 +342,14 @@ export default function OnboardingPage({ onComplete }) {
           </div>
         </Step>
 
-        {/* Step 2 — Body Metrics */}
+        {/* Step 2 — Body Metrics (ElasticSlider) */}
         <Step>
           <h2 style={{ marginBottom: 4 }}>{STEPS[1].title}</h2>
           <p className="muted" style={{ marginBottom: 20 }}>{STEPS[1].description}</p>
           <div style={{ display: "grid", gap: 20 }}>
-            <MonoSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
-            <MonoSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" step={0.5} />
-            <MonoSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
+            <ElasticSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
+            <ElasticSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" step={0.5} />
+            <ElasticSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
           </div>
         </Step>
 
@@ -376,7 +360,7 @@ export default function OnboardingPage({ onComplete }) {
           <StageSelector value={data.trainingStage} onChange={(v) => update("trainingStage", v)} />
         </Step>
 
-        {/* Step 4 — Bodyfat */}
+        {/* Step 4 — Bodyfat (ElasticSlider via BodyfatSlider) */}
         <Step>
           <h2 style={{ marginBottom: 4 }}>{STEPS[3].title}</h2>
           <p className="muted" style={{ marginBottom: 20 }}>{STEPS[3].description}</p>
@@ -442,30 +426,64 @@ export default function OnboardingPage({ onComplete }) {
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {(day.exercises || []).map((ex, j) => (
-                          <div key={j} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                            <input type="text" placeholder="Упражнение" value={ex.name}
-                              onChange={(e) => updateExercise(i, j, "name", e.target.value)}
-                              style={{ flex: 3, fontSize: 12, padding: "6px 8px" }} />
-                            <input type="text" placeholder="Подх" value={ex.sets}
-                              onChange={(e) => updateExercise(i, j, "sets", e.target.value)}
-                              style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
-                            <span style={{ fontSize: 12, color: "var(--muted)" }}>×</span>
-                            <input type="text" placeholder="Повт" value={ex.reps}
-                              onChange={(e) => updateExercise(i, j, "reps", e.target.value)}
-                              style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
-                            <input type="text" placeholder="Отдых" value={ex.rest}
-                              onChange={(e) => updateExercise(i, j, "rest", e.target.value)}
-                              style={{ flex: 0.8, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
-                            <button onClick={() => removeExercise(i, j)} style={{
-                              background: "none", border: "none", cursor: "pointer", color: "var(--muted)",
-                              fontSize: 14, padding: "2px 4px", flexShrink: 0,
-                            }}>✕</button>
+                          <div key={j}>
+                            {/* Exercise type badge */}
+                            <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                              <button onClick={() => updateExercise(i, j, "type", "strength")} style={{
+                                padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer",
+                                background: (ex.type || "strength") === "strength" ? "rgba(255,3,62,0.1)" : "rgba(0,0,0,0.04)",
+                                color: (ex.type || "strength") === "strength" ? "var(--accent)" : "var(--muted)",
+                                transition: "all 0.2s",
+                              }}>Силовое</button>
+                              <button onClick={() => updateExercise(i, j, "type", "cardio")} style={{
+                                padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer",
+                                background: ex.type === "cardio" ? "rgba(34,197,94,0.1)" : "rgba(0,0,0,0.04)",
+                                color: ex.type === "cardio" ? "#22c55e" : "var(--muted)",
+                                transition: "all 0.2s",
+                              }}>Кардио</button>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                              <input type="text" placeholder={ex.type === "cardio" ? "Бег, велосипед..." : "Упражнение"} value={ex.name}
+                                onChange={(e) => updateExercise(i, j, "name", e.target.value)}
+                                style={{ flex: 3, fontSize: 12, padding: "6px 8px" }} />
+
+                              {ex.type === "cardio" ? (
+                                <input type="text" placeholder="Мин" value={ex.duration || ""}
+                                  onChange={(e) => updateExercise(i, j, "duration", e.target.value)}
+                                  style={{ flex: 1, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                              ) : (
+                                <>
+                                  <input type="text" placeholder="Подх" value={ex.sets}
+                                    onChange={(e) => updateExercise(i, j, "sets", e.target.value)}
+                                    style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                                  <span style={{ fontSize: 12, color: "var(--muted)" }}>×</span>
+                                  <input type="text" placeholder="Повт" value={ex.reps}
+                                    onChange={(e) => updateExercise(i, j, "reps", e.target.value)}
+                                    style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                                  <input type="text" placeholder="Отдых" value={ex.rest}
+                                    onChange={(e) => updateExercise(i, j, "rest", e.target.value)}
+                                    style={{ flex: 0.8, fontSize: 12, padding: "6px 4px", textAlign: "center" }} />
+                                </>
+                              )}
+
+                              <button onClick={() => removeExercise(i, j)} style={{
+                                background: "none", border: "none", cursor: "pointer", color: "var(--muted)",
+                                fontSize: 14, padding: "2px 4px", flexShrink: 0,
+                              }}>✕</button>
+                            </div>
                           </div>
                         ))}
-                        <button onClick={() => addExercise(i)} style={{
-                          padding: "6px 10px", borderRadius: 8, border: "1px dashed var(--border)",
-                          background: "none", cursor: "pointer", fontSize: 12, color: "var(--muted)",
-                        }}>+ упражнение</button>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button onClick={() => addExercise(i, "strength")} style={{
+                            flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px dashed var(--border)",
+                            background: "none", cursor: "pointer", fontSize: 12, color: "var(--muted)",
+                          }}>+ силовое</button>
+                          <button onClick={() => addExercise(i, "cardio")} style={{
+                            flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px dashed rgba(34,197,94,0.3)",
+                            background: "none", cursor: "pointer", fontSize: 12, color: "#22c55e",
+                          }}>+ кардио</button>
+                        </div>
                       </div>
                     )}
                   </>
