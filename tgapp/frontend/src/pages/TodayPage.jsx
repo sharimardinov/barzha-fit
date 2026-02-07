@@ -6,6 +6,7 @@ import { formatApiError } from "../services/errors";
 import { parsePlan } from "../services/planUtils";
 import StepsCard from "../components/StepsCard";
 import { AccordionItem } from "../components/Accordion";
+import ProgressBar from "../components/ProgressBar";
 
 export default function TodayPage() {
   const { state, dispatch } = useAppState();
@@ -61,7 +62,6 @@ export default function TodayPage() {
     { label: "Белки", value: today?.protein || 0, target: t.protein || 0, icon: icons.protein, id: "protein" },
     { label: "Жиры", value: today?.fat || 0, target: t.fat || 0, icon: icons.fat, id: "fat" },
     { label: "Углеводы", value: today?.carbs || 0, target: t.carbs || 0, icon: icons.carbs, id: "carbs" },
-    { label: "Шаги", value: steps.steps, target: steps.target, icon: icons.steps, id: "steps" },
   ];
 
   return (
@@ -70,65 +70,21 @@ export default function TodayPage() {
 
       <div className="card">
         <div className="card-title">Прогресс</div>
-        <div style={{ display: "grid", gap: 16 }}>
-          {metrics.map((m) => {
-            const ratio = m.target > 0 ? m.value / m.target : 0;
-            const pct = Math.min(Math.max(ratio * 100, 0), 100);
-            const isOver = m.value > m.target;
-            const color = m.icon === "green" ? "#22c55e" : m.icon === "red" ? "#ef4444" : "var(--accent)";
-            
-            return (
-              <div key={m.id} style={{
-                padding: "12px 16px",
-                background: isOver ? "rgba(34,197,94,0.06)" : "rgba(0,0,0,0.02)",
-                borderRadius: 12,
-                border: `1px solid ${isOver ? "rgba(34,197,94,0.2)" : "rgba(0,0,0,0.06)"}`,
-                transition: "all 0.2s ease",
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", marginBottom: 4 }}>
-                      {m.label}
-                    </div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: isOver ? "#22c55e" : "var(--black)" }}>
-                      {Math.round(m.value)}
-                      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--muted)", marginLeft: 4 }}>
-                        / {m.target}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize: 12, fontWeight: 700,
-                    color: isOver ? "#22c55e" : pct >= 80 ? color : "var(--muted)",
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: isOver ? "rgba(34,197,94,0.1)" : pct >= 80 ? `${color}15` : "rgba(0,0,0,0.04)",
-                  }}>
-                    {isOver ? "✓" : `${Math.round(pct)}%`}
-                  </div>
-                </div>
-                <div style={{
-                  height: 8,
-                  background: isOver ? "rgba(34,197,94,0.15)" : "rgba(0,0,0,0.06)",
-                  borderRadius: 999,
-                  overflow: "hidden",
-                  position: "relative",
-                }}>
-                  <div style={{
-                    height: "100%",
-                    width: `${Math.min(pct, 100)}%`,
-                    background: isOver 
-                      ? "linear-gradient(90deg, #22c55e 0%, #16a34a 100%)"
-                      : `linear-gradient(90deg, ${color} 0%, ${color}dd 100%)`,
-                    borderRadius: 999,
-                    transition: "width 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
-                    boxShadow: pct > 0 ? `0 2px 6px ${color}40` : "none",
-                  }} />
-                </div>
+        {metrics.map((m) => {
+          const status = m.icon === "green" ? "ok" : m.icon === "red" ? "bad" : "none";
+          return (
+            <div key={m.id} className="progress-item">
+              <div className="progress-head">
+                <span className="label">{m.label}</span>
+                <span className="value">
+                  {Math.round(m.value)} / {m.target}
+                  <span className={`indicator ${status}`} />
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <ProgressBar current={m.value} target={m.target} />
+            </div>
+          );
+        })}
       </div>
 
       {today?.todayTraining && (
