@@ -80,15 +80,7 @@ function AppContent() {
     return <OnboardingPage onComplete={handleOnboardingComplete} />;
   }
 
-  const renderPage = () => {
-    switch (state.activeTab) {
-      case "today": return <TodayPage />;
-      case "workout": return <WorkoutPage />;
-      case "meals": return <MealsPage />;
-      case "profile": return <ProfilePage />;
-      default: return <TodayPage />;
-    }
-  };
+  const tab = state.activeTab;
 
   return (
     <>
@@ -97,14 +89,17 @@ function AppContent() {
           <img className="brand-logo" src="/app/bott.png" alt="BarzhaFit" />
         </div>
         <div className="screen-label">{
-          state.activeTab === "today" ? "Сегодня" :
-          state.activeTab === "workout" ? "Тренировка" :
-          state.activeTab === "meals" ? "Еда" :
-          state.activeTab === "profile" ? "Профиль" : ""
+          tab === "today" ? "Сегодня" :
+          tab === "workout" ? "Тренировка" :
+          tab === "meals" ? "Еда" :
+          tab === "profile" ? "Профиль" : ""
         }</div>
       </header>
       <main className="app">
-        {renderPage()}
+        <div style={{ display: tab === "today" ? "block" : "none" }}><TodayPage /></div>
+        <div style={{ display: tab === "workout" ? "block" : "none" }}><WorkoutPage /></div>
+        <div style={{ display: tab === "meals" ? "block" : "none" }}><MealsPage /></div>
+        <div style={{ display: tab === "profile" ? "block" : "none" }}><ProfilePage /></div>
       </main>
       <Nav />
     </>
