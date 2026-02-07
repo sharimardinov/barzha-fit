@@ -5,6 +5,11 @@
   --border: rgba(0, 0, 0, 0.12);
   --muted: rgba(0, 0, 0, 0.6);
   --radius: 18px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
   --nav-height: calc(140px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -36,8 +41,8 @@ body {
 .app {
   max-width: 680px;
   margin: 0 auto;
-  padding: 16px;
-  padding-top: calc(16px + env(safe-area-inset-top));
+  padding: var(--space-4);
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top));
 }
 
 @media (max-width: 720px) {
@@ -47,7 +52,7 @@ body {
 }
 
 .no-telegram .app {
-  padding-top: calc(16px + env(safe-area-inset-top));
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top));
 }
 
 @media (max-width: 720px) {
@@ -60,9 +65,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0 12px;
+  padding: var(--space-2) 0 var(--space-3);
   border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   position: relative;
 }
 
@@ -243,7 +248,7 @@ body {
 
 .tab-with-icon {
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
   justify-content: center;
   text-align: center;
 }
@@ -295,14 +300,14 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 10px;
+  gap: var(--space-2);
+  padding: var(--space-2);
 }
 
 .option-list.sex-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .option-card.sex-option {
@@ -345,8 +350,8 @@ body {
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 14px;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -362,8 +367,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
   letter-spacing: -0.01em;
 }
 
@@ -644,7 +649,7 @@ body {
 
 .row {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -665,7 +670,7 @@ body {
 
 .stack {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .progress-item {
@@ -826,32 +831,37 @@ button {
 }
 
 .btn-outline {
-  background: var(--white);
+  background: #f7f7f7;
   color: var(--black);
-  border: 1.5px solid var(--black);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  border: none;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -2px 6px rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .btn-outline:hover {
-  background: rgba(0, 0, 0, 0.02);
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+  background: #f3f3f3;
+  color: var(--black);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 -2px 6px rgba(255, 255, 255, 0.9),
+    0 3px 8px rgba(0, 0, 0, 0.06);
 }
 
 .btn-outline:active {
-  background: rgba(0, 0, 0, 0.05);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  background: #ededed;
+  box-shadow:
+    inset 0 3px 6px rgba(0, 0, 0, 0.12),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.7);
 }
 
 .today-actions .btn-outline {
-  border-color: var(--border);
+  color: var(--black);
 }
 
 .today-actions .btn-outline:hover {
-  border-color: rgba(0, 0, 0, 0.2);
-  color: var(--black);
-  background: rgba(0, 0, 0, 0.02);
+  background: #f2f2f2;
 }
 
 .btn.loading {
@@ -1036,7 +1046,7 @@ button {
 
 .option-list {
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .option-card {
@@ -1216,8 +1226,8 @@ button {
 
 .list {
   display: grid;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .list-item {
@@ -1250,8 +1260,8 @@ button {
 
 .form-grid {
   display: grid;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .training-editor {
@@ -1266,8 +1276,8 @@ button {
 
 .plan-actions {
   align-items: center;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .plan-actions .btn {
@@ -1705,7 +1715,7 @@ button {
 
 .workout-inputs {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .workout-actions .btn {
