@@ -559,7 +559,7 @@ export default function WorkoutPage() {
             )}
           </div>
         ) : (
-          <div>
+          <div style={{ minHeight: 320, display: "flex", flexDirection: "column" }}>
             {/* Total time block — same style as rest timer */}
             <div style={{
               border: "1px solid var(--border)", borderRadius: 16, padding: "12px 16px",
@@ -585,7 +585,7 @@ export default function WorkoutPage() {
             </div>
 
             {/* Phase label */}
-            <div className="workout-phase-label" style={{ marginBottom: 8, fontWeight: 600 }}>
+            <div className="workout-phase-label" style={{ marginBottom: 8, fontWeight: 600, minHeight: 20 }}>
               {phase === "warmup" && "Разминка"}
               {phase === "set" && "Подход"}
               {phase === "rest" && (session.timerKind === "between" ? "Отдых между упражнениями" : "Отдых между подходами")}
@@ -593,45 +593,51 @@ export default function WorkoutPage() {
               {phase === "finished" && "Готово"}
             </div>
 
-            {/* Exercise info */}
-            {ex && (
-              <div style={{ marginBottom: 8 }}>
-                <div className="workout-exercise-name" style={{ fontWeight: 700 }}>{ex.name}</div>
-                <div className="workout-exercise-target muted" style={{ fontSize: 13 }}>
-                  {ex.type === "cardio"
-                    ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
-                    : `Вес: ${ex.weight || "—"} кг · Повторы: ${ex.reps} · Подходы: ${ex.sets}`}
+            {/* Exercise info — fixed height container */}
+            <div style={{ marginBottom: 8, minHeight: 60 }}>
+              {ex && (
+                <>
+                  <div className="workout-exercise-name" style={{ fontWeight: 700 }}>{ex.name}</div>
+                  <div className="workout-exercise-target muted" style={{ fontSize: 13 }}>
+                    {ex.type === "cardio"
+                      ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
+                      : `Вес: ${ex.weight || "—"} кг · Повторы: ${ex.reps} · Подходы: ${ex.sets}`}
+                  </div>
+                  {setLabelText && (
+                    <div className="workout-set-label muted" style={{ fontSize: 13 }}>{setLabelText}</div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Rest/Cardio timer — fixed height */}
+            <div style={{ minHeight: phase === "rest" || phase === "cardio" ? 0 : 0, marginBottom: 8 }}>
+              {(phase === "rest" || phase === "cardio") && (
+                <div className="workout-timer-block" style={{ "--timer-progress": `${timerProgress * 100}%` }}>
+                  <div className="workout-timer-label">
+                    {phase === "cardio" ? "Осталось" : session.timerKind === "between" ? "Отдых между упражнениями" : "Отдых"}
+                  </div>
+                  <div className="workout-timer-value">{timerDisplay}</div>
                 </div>
-                {setLabelText && (
-                  <div className="workout-set-label muted" style={{ fontSize: 13 }}>{setLabelText}</div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Rest/Cardio timer */}
-            {(phase === "rest" || phase === "cardio") && (
-              <div className="workout-timer-block" style={{ "--timer-progress": `${timerProgress * 100}%` }}>
-                <div className="workout-timer-label">
-                  {phase === "cardio" ? "Осталось" : session.timerKind === "between" ? "Отдых между упражнениями" : "Отдых"}
+            {/* Input fields — fixed height */}
+            <div style={{ minHeight: showInputs ? 0 : 0, marginBottom: 8 }}>
+              {showInputs && (
+                <div className="workout-inputs" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <label>Вес (кг)
+                    <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder={String(ex?.weight || 0)} />
+                  </label>
+                  <label>Повторения
+                    <input type="number" value={reps} onChange={(e) => setReps(e.target.value)} placeholder={String(ex?.reps || 0)} />
+                  </label>
                 </div>
-                <div className="workout-timer-value">{timerDisplay}</div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Input fields */}
-            {showInputs && (
-              <div className="workout-inputs" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                <label>Вес (кг)
-                  <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder={String(ex?.weight || 0)} />
-                </label>
-                <label>Повторения
-                  <input type="number" value={reps} onChange={(e) => setReps(e.target.value)} placeholder={String(ex?.reps || 0)} />
-                </label>
-              </div>
-            )}
-
-            {/* Actions — pause/stop left, action button right */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "stretch" }}>
+            {/* Actions — fixed at bottom */}
+            <div style={{ display: "flex", gap: 8, marginTop: "auto", alignItems: "stretch" }}>
               {/* Left group: pause + stop */}
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 {isActive && status !== "paused" && (
