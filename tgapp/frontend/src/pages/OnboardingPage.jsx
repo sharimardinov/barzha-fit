@@ -145,19 +145,23 @@ function StageSelector({ value, onChange }) {
         return (
           <button key={s.id} onClick={() => onChange(s.id)} style={{
             flex: 1, padding: "16px 8px", borderRadius: 16, cursor: "pointer",
-            border: `2px solid ${active ? "var(--accent)" : "var(--border)"}`,
-            background: active ? "rgba(255,3,62,0.04)" : "var(--white)",
-            transition: "all 0.2s ease", display: "flex", flexDirection: "column",
+            border: "none",
+            background: active ? "rgba(255,3,62,0.06)" : "rgba(0,0,0,0.03)",
+            boxShadow: active ? "0 4px 20px rgba(255,3,62,0.15)" : "none",
+            transition: "all 0.25s ease", display: "flex", flexDirection: "column",
             alignItems: "center", gap: 8,
           }}>
             <img src={s.img} alt={s.label} style={{
               width: 60, height: 100, objectFit: "contain",
-              filter: active ? "none" : "grayscale(0.5) opacity(0.6)",
-              transition: "filter 0.2s ease",
+              filter: active
+                ? "invert(13%) sepia(95%) saturate(7000%) hue-rotate(340deg) brightness(95%) contrast(105%)"
+                : "grayscale(0.6) opacity(0.4)",
+              transition: "filter 0.25s ease",
             }} />
             <div style={{
               fontSize: 14, fontWeight: 700, letterSpacing: 1,
-              color: active ? "var(--accent)" : "var(--black)",
+              color: active ? "var(--accent)" : "var(--muted)",
+              transition: "color 0.2s ease",
             }}>{s.label}</div>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{s.desc}</div>
           </button>
@@ -239,6 +243,8 @@ export default function OnboardingPage({ onComplete }) {
 
       const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
       const weekPlan = data.planDays.map((d, i) => ({
+        day: i + 1,
+        name: `День ${i + 1}`,
         dayName: dayNames[i],
         focus: d.focus || "",
         items: d.isRest ? ["Отдых"] : (d.items ? d.items.split("\n").map((s) => s.trim()).filter(Boolean) : ["Отдых"]),

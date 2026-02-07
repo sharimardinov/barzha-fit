@@ -13,7 +13,7 @@ export function formatWeekPlan(items) {
   if (!Array.isArray(items)) return "";
   const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
   return items.map((day, i) => {
-    const name = day.dayName || dayNames[i] || `День ${i + 1}`;
+    const name = day.dayName || day.name || dayNames[i] || `День ${i + 1}`;
     const focus = day.focus ? ` — ${day.focus}` : "";
     const header = `${name}${focus}`;
     const lines = (day.items || []).map((item) => {
@@ -34,7 +34,9 @@ export function parsePlan(plan) {
 
 export function buildWeekPlanTemplate(restText = "Отдых") {
   const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
-  return dayNames.map((name) => ({
+  return dayNames.map((name, i) => ({
+    day: i + 1,
+    name: `День ${i + 1}`,
     dayName: name,
     type: "rest",
     focus: "",
@@ -47,10 +49,12 @@ export function normalizeWeekPlan(items) {
   const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
   return dayNames.map((name, i) => {
     const day = items[i] || {};
-    const dayItems = day.items || [];
-    const lowered = dayItems.join(" ").toLowerCase();
-    const isRest = /(выходн|отдых|rest|off)/i.test(lowered) || dayItems.length === 0;
+    const dayItems = (day.items || []).map((it) => typeof it === "string" ? it : it.name || "");
+    const onlyRestWords = dayItems.every((s) => /^[\s]*(отдых|выходн|rest|off|—|-|)[\s]*$/i.test(s));
+    const isRest = (onlyRestWords && dayItems.length <= 1) || dayItems.length === 0;
     return {
+      day: i + 1,
+      name: `День ${i + 1}`,
       dayName: name,
       type: isRest ? "rest" : "train",
       focus: day.focus || "",

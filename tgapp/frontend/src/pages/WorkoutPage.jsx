@@ -26,40 +26,138 @@ function formatRest(seconds) {
 
 function ProgramEditor({ weekPlan, onSave, onCancel }) {
   const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+  const [mode, setMode] = useState("text"); // "text" or "structured"
+
+  // Helper: check if items are only rest words
+  const isRestItems = (items) => {
+    if (!items || items.length === 0) return true;
+    const joined = items.join(" ").toLowerCase();
+    return /^[\s]*(отдых|выходн|rest|off|—|-)[\s]*$/i.test(joined);
+  };
+
   const [days, setDays] = useState(() =>
     dayNames.map((name, i) => {
       const day = weekPlan[i] || {};
-      const items = (day.items || []).map((it) => typeof it === "string" ? it : it.name || "").join("\n");
-      const lowered = items.toLowerCase();
-      const isRest = day.type === "rest" || /(^|\s)(отдых|выходн|rest|off)(\s|$)/i.test(lowered);
-      return { dayName: name, focus: day.focus || "", items: isRest ? "" : items, isRest };
+      const rawItems = (day.items || []).map((it) => typeof it === "string" ? it : it.name || "");
+      const isRest = isRestItems(rawItems);
+      return {
+        dayName: name,
+        focus: day.focus || "",
+        textItems: isRest ? "" : rawItems.join("\n"),
+        structuredItems: isRest ? [] : rawItems.map((line) => {
+          // Parse "Name | 3x10 | 60 | 120" format
+          const parts = line.split("|").map((s) => s.trim());
+          const exName = parts[0] || "";
+          let sets = "", reps = "", rest = "";
+          if (parts[1]) {
+            const sxr = parts[1].match(/^(\d+)\s*[xх×]\s*(\d+)$/i);
+            if (sxr) { sets = sxr[1]; reps = sxr[2]; }
+            else { sets = parts[1]; }
+          }
+          if (parts[2]) rest = parts[2];
+          return { name: exName, sets, reps, rest };
+        }),
+        isRest,
+      };
     })
   );
 
   const updateDay = (i, field, value) => {
     setDays((prev) => { const d = [...prev]; d[i] = { ...d[i], [field]: value }; return d; });
   };
+
   const toggleRest = (i) => {
     setDays((prev) => {
       const d = [...prev];
       const isRest = !d[i].isRest;
-      d[i] = { ...d[i], isRest, items: isRest ? "" : d[i].items, focus: isRest ? "" : d[i].focus };
+      d[i] = { ...d[i], isRest, textItems: isRest ? "" : d[i].textItems, focus: isRest ? "" : d[i].focus };
+      if (isRest) d[i].structuredItems = [];
+      return d;
+    });
+  };
+
+  const updateStructuredItem = (dayIdx, itemIdx, field, value) => {
+    setDays((prev) => {
+      const d = [...prev];
+      const items = [...d[dayIdx].structuredItems];
+      items[itemIdx] = { ...items[itemIdx], [field]: value };
+      d[dayIdx] = { ...d[dayIdx], structuredItems: items };
+      return d;
+    });
+  };
+
+  const addStructuredItem = (dayIdx) => {
+    setDays((prev) => {
+      const d = [...prev];
+      d[dayIdx] = { ...d[dayIdx], structuredItems: [...d[dayIdx].structuredItems, { name: "", sets: "", reps: "", rest: "" }] };
+      return d;
+    });
+  };
+
+  const removeStructuredItem = (dayIdx, itemIdx) => {
+    setDays((prev) => {
+      const d = [...prev];
+      d[dayIdx] = { ...d[dayIdx], structuredItems: d[dayIdx].structuredItems.filter((_, j) => j !== itemIdx) };
       return d;
     });
   };
 
   const save = () => {
-    const result = days.map((d) => ({
-      dayName: d.dayName,
-      focus: d.focus,
-      items: d.isRest ? ["Отдых"] : d.items.split("\n").map((s) => s.trim()).filter(Boolean),
-      type: d.isRest ? "rest" : "train",
-    }));
+    const result = days.map((d, i) => {
+      let items;
+      if (d.isRest) {
+        items = ["Отдых"];
+      } else if (mode === "structured") {
+        items = d.structuredItems
+          .filter((ex) => ex.name.trim())
+          .map((ex) => {
+            let line = ex.name.trim();
+            if (ex.sets && ex.reps) line += ` | ${ex.sets}x${ex.reps}`;
+            else if (ex.sets) line += ` | ${ex.sets}`;
+            if (ex.rest) line += ` | ${ex.rest}`;
+            return line;
+          });
+        if (items.length === 0) items = ["Отдых"];
+      } else {
+        items = d.textItems.split("\n").map((s) => s.trim()).filter(Boolean);
+        if (items.length === 0) items = ["Отдых"];
+      }
+      return {
+        day: i + 1,
+        name: `День ${i + 1}`,
+        focus: d.focus,
+        items,
+        type: d.isRest ? "rest" : "train",
+      };
+    });
     onSave(result);
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+      {/* Mode toggle */}
+      <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.04)", borderRadius: 10, padding: 3 }}>
+        {[
+          { id: "text", label: "Текстом" },
+          { id: "structured", label: "По полям" },
+        ].map((m) => (
+          <button key={m.id} onClick={() => setMode(m.id)} style={{
+            flex: 1, padding: "6px 8px", borderRadius: 8, border: "none", cursor: "pointer",
+            fontSize: 12, fontWeight: 600,
+            background: mode === m.id ? "var(--white)" : "transparent",
+            color: mode === m.id ? "var(--black)" : "var(--muted)",
+            boxShadow: mode === m.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+            transition: "all 0.2s ease",
+          }}>{m.label}</button>
+        ))}
+      </div>
+
+      {mode === "text" && (
+        <div style={{ fontSize: 11, color: "var(--muted)", padding: "0 2px" }}>
+          Формат: Название | 3x10 | 60кг | 120сек (по одному на строку)
+        </div>
+      )}
+
       {days.map((day, i) => (
         <div key={i} style={{
           border: `1px solid ${day.isRest ? "rgba(0,0,0,0.06)" : "var(--border)"}`,
@@ -72,10 +170,56 @@ function ProgramEditor({ weekPlan, onSave, onCancel }) {
               background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)", color: day.isRest ? "var(--white)" : "var(--muted)",
             }}>{day.isRest ? "Отдых ✓" : "Отдых"}</button>
           </div>
+
           {!day.isRest && (
             <>
-              <input type="text" placeholder="Фокус" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 4, fontSize: 13 }} />
-              <textarea placeholder="Упражнения (по строке)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} style={{ fontSize: 13 }} />
+              <input type="text" placeholder="Фокус (напр. Грудь / Спина)" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 4, fontSize: 13 }} />
+
+              {mode === "text" ? (
+                <textarea
+                  placeholder="Упражнения (по одному на строку)"
+                  value={day.textItems}
+                  onChange={(e) => updateDay(i, "textItems", e.target.value)}
+                  rows={3}
+                  style={{ fontSize: 13 }}
+                />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {day.structuredItems.map((ex, j) => (
+                    <div key={j} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      <input
+                        type="text" placeholder="Упражнение" value={ex.name}
+                        onChange={(e) => updateStructuredItem(i, j, "name", e.target.value)}
+                        style={{ flex: 3, fontSize: 12, padding: "6px 8px" }}
+                      />
+                      <input
+                        type="text" placeholder="Подх" value={ex.sets}
+                        onChange={(e) => updateStructuredItem(i, j, "sets", e.target.value)}
+                        style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
+                      />
+                      <span style={{ fontSize: 12, color: "var(--muted)" }}>×</span>
+                      <input
+                        type="text" placeholder="Повт" value={ex.reps}
+                        onChange={(e) => updateStructuredItem(i, j, "reps", e.target.value)}
+                        style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
+                      />
+                      <input
+                        type="text" placeholder="Отдых" value={ex.rest}
+                        onChange={(e) => updateStructuredItem(i, j, "rest", e.target.value)}
+                        style={{ flex: 0.8, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
+                      />
+                      <button onClick={() => removeStructuredItem(i, j)} style={{
+                        background: "none", border: "none", cursor: "pointer", color: "var(--muted)",
+                        fontSize: 14, padding: "2px 4px", flexShrink: 0,
+                      }}>✕</button>
+                    </div>
+                  ))}
+                  <button onClick={() => addStructuredItem(i)} style={{
+                    padding: "4px 10px", borderRadius: 8, border: "1px dashed var(--border)",
+                    background: "none", cursor: "pointer", fontSize: 11, color: "var(--muted)",
+                  }}>+ упражнение</button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -475,47 +619,52 @@ export default function WorkoutPage() {
               onClick={() => setEditingProgram(true)}
             >Редактировать</button>
           </div>
-          {editingProgram && <ProgramEditor
-            weekPlan={weekPlan}
-            onSave={async (newPlan) => {
-              try {
-                await api("/api/plan/set", { text: JSON.stringify({ week_plan: newPlan }) });
-                setWeekPlan(newPlan);
-                setEditingProgram(false);
-                toast("Программа сохранена");
-                loadData();
-              } catch (err) { toast(formatApiError(err)); }
-            }}
-            onCancel={() => setEditingProgram(false)}
-          />}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {weekPlan.map((day, i) => {
-              const items = day.items || [];
-              const lowered = items.map(it => typeof it === "string" ? it : it.name || "").join(" ").toLowerCase();
-              const isRest = day.type === "rest" || (items.length <= 1 && /(^|\s)(отдых|выходн|rest|off)(\s|$)/i.test(lowered));
-              return (
-                <AccordionItem key={i} title={
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {day.dayName || `День ${i + 1}`}
-                    {day.focus && <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400 }}>— {day.focus}</span>}
-                    {isRest && <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 999, background: "rgba(0,0,0,0.05)", color: "var(--muted)" }}>Отдых</span>}
-                  </span>
-                }>
-                  {isRest ? (
-                    <div className="muted" style={{ padding: "8px 0", fontSize: 13 }}>День отдыха</div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 0" }}>
-                      {(day.items || []).map((item, j) => (
-                        <div key={j} style={{ fontSize: 13, padding: "4px 0", borderBottom: j < day.items.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
-                          {typeof item === "string" ? item : `${item.name || "—"}${item.sets ? ` ${item.sets}x${item.reps || ""}` : ""}${item.duration ? ` ${item.duration}` : ""}`}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </AccordionItem>
-              );
-            })}
-          </div>
+          {editingProgram ? (
+            <ProgramEditor
+              weekPlan={weekPlan}
+              onSave={async (newPlan) => {
+                try {
+                  await api("/api/plan/set", { text: JSON.stringify({ week_plan: newPlan }) });
+                  setEditingProgram(false);
+                  toast("Программа сохранена");
+                  loadData();
+                } catch (err) { toast(formatApiError(err)); }
+              }}
+              onCancel={() => setEditingProgram(false)}
+            />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {weekPlan.map((day, i) => {
+                const items = day.items || [];
+                const itemStrings = items.map(it => typeof it === "string" ? it : it.name || "");
+                // Only consider "rest" if items are truly rest-like words (not exercises)
+                const onlyRestWords = itemStrings.every((s) => /^[\s]*(отдых|выходн|rest|off|—|-|)[\s]*$/i.test(s));
+                const isRest = onlyRestWords && (day.type === "rest" || items.length === 0);
+                const dayLabel = day.dayName || day.name || `День ${day.day || i + 1}`;
+                return (
+                  <AccordionItem key={i} title={
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {dayLabel}
+                      {day.focus && <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400 }}>— {day.focus}</span>}
+                      {isRest && <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 999, background: "rgba(0,0,0,0.05)", color: "var(--muted)" }}>Отдых</span>}
+                    </span>
+                  }>
+                    {isRest ? (
+                      <div className="muted" style={{ padding: "8px 0", fontSize: 13 }}>День отдыха</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 0" }}>
+                        {itemStrings.map((item, j) => (
+                          <div key={j} style={{ fontSize: 13, padding: "4px 0", borderBottom: j < items.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                            {item || "—"}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </AccordionItem>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
