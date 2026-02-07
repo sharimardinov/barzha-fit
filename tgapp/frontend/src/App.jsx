@@ -92,7 +92,7 @@ function AppContent() {
 
   return (
     <>
-      <header className="app-header">
+      <header className="app-header" style={{ padding: "8px 16px 12px" }}>
         <div className="brand">
           <img className="brand-logo" src="/app/bott.png" alt="BarzhaFit" />
         </div>

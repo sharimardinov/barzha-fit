@@ -88,8 +88,18 @@ export default function ProfilePage() {
       <div className="card">
         <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           Профиль
-          <button className="btn-icon" onClick={() => setEditMode(!editMode)} title="Настройки">
-            <Settings size={18} />
+          <button
+            onClick={() => setEditMode(!editMode)}
+            title="Настройки"
+            style={{
+              background: editMode ? "rgba(255,3,62,0.08)" : "rgba(0,0,0,0.04)",
+              border: "none", borderRadius: 10, padding: "6px 8px", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background 0.2s, transform 0.2s",
+              transform: editMode ? "rotate(90deg)" : "rotate(0deg)",
+            }}
+          >
+            <Settings size={18} color={editMode ? "var(--accent)" : "#71717a"} strokeWidth={2} />
           </button>
         </div>
         <div className="form-grid">

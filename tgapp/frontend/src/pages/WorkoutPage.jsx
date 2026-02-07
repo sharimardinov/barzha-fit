@@ -265,12 +265,19 @@ export default function WorkoutPage() {
     <div className="screen active">
       {/* Session card */}
       <div className="card">
-        <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Таймер</span>
-          {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
-            <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>{totalTime}</span>
-          )}
-        </div>
+        <div className="card-title">Таймер</div>
+
+        {/* Total workout time */}
+        {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
+          <div className="workout-total-timer" style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            padding: "10px 20px", borderRadius: 999, marginBottom: 12,
+            background: "rgba(0,0,0,0.04)", border: "1px solid var(--border)"
+          }}>
+            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>Общее время</span>
+            <span style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{totalTime}</span>
+          </div>
+        )}
 
         {!session || status === "finished" || status === "stopped" || status === "completed" ? (
           <div style={{ textAlign: "center", padding: 16 }}>
