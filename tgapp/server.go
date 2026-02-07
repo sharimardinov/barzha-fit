@@ -144,14 +144,20 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		if path != "" && !strings.Contains(path, ".") {
 			path = ""
 		}
-		if path == "" || strings.HasSuffix(path, ".html") {
-			w.Header().Set("Cache-Control", "no-store")
-			if path != "" {
-				r.URL.Path = "/" + path
-			} else {
-				r.URL.Path = "/index.html"
+		if path == "" {
+			// Serve index.html directly to avoid FileServer's redirect loop
+			data, err := fs.ReadFile(reactSub, "index.html")
+			if err != nil {
+				http.NotFound(w, r)
+				return
 			}
-		} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(data)
+			return
+		}
+		if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		}
 		reactFS.ServeHTTP(w, r)
