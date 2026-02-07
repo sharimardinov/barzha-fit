@@ -52,52 +52,48 @@ function BodyfatSlider({ value, onChange }) {
   );
 }
 
-/* Goal selector — segmented pill with sliding highlight */
+/* Goal selector — PillNav style (dark pills, inspired by reactbits.dev/components/pill-nav) */
 function GoalPill({ value, onChange }) {
   const options = [
     { id: "cut", label: "CUT", desc: "Сушка" },
     { id: "balance", label: "BALANCE", desc: "Поддержание" },
     { id: "bulk", label: "BULK", desc: "Набор массы" },
   ];
-  const idx = options.findIndex((o) => o.id === value);
 
   return (
-    <div>
-      <div style={{
-        display: "flex", background: "rgba(0,0,0,0.04)", borderRadius: 14, padding: 4, position: "relative",
-      }}>
-        {/* sliding highlight */}
-        <div style={{
-          position: "absolute", top: 4, bottom: 4, width: `calc(${100 / options.length}% - 4px)`,
-          left: `calc(${(idx * 100) / options.length}% + 2px)`,
-          background: "var(--white)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-          transition: "left 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-          zIndex: 0,
-        }} />
-        {options.map((opt) => (
+    <div style={{
+      display: "flex", gap: 6, background: "#f0f0f0", borderRadius: 999, padding: 4,
+    }}>
+      {options.map((opt) => {
+        const active = value === opt.id;
+        return (
           <button
             key={opt.id}
             onClick={() => onChange(opt.id)}
             style={{
-              flex: 1, position: "relative", zIndex: 1, border: "none", background: "transparent",
-              padding: "14px 8px", cursor: "pointer", borderRadius: 12,
-              transition: "color 0.2s ease",
+              flex: 1, position: "relative", border: "none", cursor: "pointer",
+              borderRadius: 999, padding: "14px 8px",
+              background: active ? "#111" : "transparent",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              overflow: "hidden",
             }}
           >
             <div style={{
-              fontSize: 15, fontWeight: 700, letterSpacing: 1,
+              fontSize: 14, fontWeight: 700, letterSpacing: 1,
               fontFamily: "'Aptos', Arial, sans-serif",
-              color: value === opt.id ? "var(--accent)" : "var(--muted)",
-              transition: "color 0.2s ease",
+              color: active ? "#fff" : "rgba(0,0,0,0.35)",
+              transition: "color 0.3s ease",
+              lineHeight: 1.2,
             }}>{opt.label}</div>
             <div style={{
-              fontSize: 11, marginTop: 2,
-              color: value === opt.id ? "var(--black)" : "var(--muted)",
-              transition: "color 0.2s ease",
+              fontSize: 10, marginTop: 3,
+              color: active ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.2)",
+              transition: "color 0.3s ease",
+              lineHeight: 1,
             }}>{opt.desc}</div>
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
