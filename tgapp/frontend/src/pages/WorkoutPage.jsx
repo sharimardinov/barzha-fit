@@ -548,7 +548,7 @@ export default function WorkoutPage() {
                 onClick={startWorkout}
                 disabled={actionLoading}
                 style={{
-                  width: "100%", padding: "20px 0", border: "none", borderRadius: 16,
+                  width: "100%", padding: "20px 0", border: "none", borderRadius: 999,
                   background: "var(--accent)", color: "#fff", fontSize: 18, fontWeight: 700,
                   letterSpacing: 2, cursor: "pointer", textTransform: "uppercase",
                   boxShadow: "0 4px 16px rgba(255,3,62,0.25)",
