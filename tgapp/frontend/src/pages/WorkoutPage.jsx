@@ -4,6 +4,7 @@ import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
 import { AccordionItem } from "../components/Accordion";
 import { postNativeMessage } from "../services/telegram";
+import { parsePlan } from "../services/planUtils";
 
 function formatDuration(sec) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00";
@@ -27,6 +28,7 @@ export default function WorkoutPage() {
   const toast = useToast();
   const [plan, setPlan] = useState(null);
   const [planIssues, setPlanIssues] = useState([]);
+  const [weekPlan, setWeekPlan] = useState([]);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -92,6 +94,13 @@ export default function WorkoutPage() {
       setPlan(planData);
       setPlanIssues(issues);
       setSession(sessionData);
+
+      // Fetch full week plan for training program
+      try {
+        const planResp = await api("/api/plan/get");
+        const parsed = parsePlan(planResp?.text || "");
+        if (parsed.items?.length > 0) setWeekPlan(parsed.items);
+      } catch { /* ignore */ }
     } finally {
       setLoading(false);
     }
@@ -269,13 +278,12 @@ export default function WorkoutPage() {
 
         {/* Total workout time */}
         {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
-          <div className="workout-total-timer" style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            padding: "10px 20px", borderRadius: 999, marginBottom: 12,
-            background: "rgba(0,0,0,0.04)", border: "1px solid var(--border)"
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "14px 24px", borderRadius: 16, marginBottom: 12,
+            background: "var(--accent)",
           }}>
-            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>Общее время</span>
-            <span style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{totalTime}</span>
+            <span style={{ fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--white)", letterSpacing: 1 }}>{totalTime}</span>
           </div>
         )}
 
@@ -362,28 +370,64 @@ export default function WorkoutPage() {
         </div>
       )}
 
-      {/* Plan exercises */}
+      {/* Today's plan - flat, no accordion */}
       {exercises.length > 0 && (
         <div className="card">
-          <AccordionItem title="Программа тренировок">
-            <div className="workout-plan-list">
-              {exercises.map((ex, i) => (
-                <div key={i} className="list-item workout-plan-item">
-                  <div>
-                    <div className="workout-plan-item-title">{ex.name || "—"}</div>
-                    <div className="workout-plan-item-meta">
-                      {ex.type === "cardio"
-                        ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
-                        : `Подходы: ${ex.sets}x${ex.reps} · Вес: ${ex.weight || "—"} кг · Отдых: ${formatRest(ex.restSec || 120)}`}
-                    </div>
-                  </div>
-                  <div className="workout-plan-item-tag">
-                    {ex.type === "cardio" ? "Кардио" : "Силовое"}
+          <div className="card-title">План тренировки</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {exercises.map((ex, i) => (
+              <div key={i} className="list-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{ex.name || "—"}</div>
+                  <div className="meta">
+                    {ex.type === "cardio"
+                      ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
+                      : `${ex.sets}x${ex.reps} · ${ex.weight || "—"} кг · Отдых: ${formatRest(ex.restSec || 120)}`}
                   </div>
                 </div>
-              ))}
-            </div>
-          </AccordionItem>
+                <div style={{
+                  padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600,
+                  background: ex.type === "cardio" ? "rgba(34,197,94,0.1)" : "rgba(255,3,62,0.08)",
+                  color: ex.type === "cardio" ? "#22c55e" : "var(--accent)",
+                }}>
+                  {ex.type === "cardio" ? "Кардио" : "Силовое"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Full training program - week view */}
+      {weekPlan.length > 0 && (
+        <div className="card">
+          <div className="card-title">Тренировочная программа</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {weekPlan.map((day, i) => {
+              const isRest = day.type === "rest" || (day.items?.length === 1 && /(отдых|rest|off)/i.test(day.items[0]));
+              return (
+                <AccordionItem key={i} title={
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {day.dayName || `День ${i + 1}`}
+                    {day.focus && <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400 }}>— {day.focus}</span>}
+                    {isRest && <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 999, background: "rgba(0,0,0,0.05)", color: "var(--muted)" }}>Отдых</span>}
+                  </span>
+                }>
+                  {isRest ? (
+                    <div className="muted" style={{ padding: "8px 0", fontSize: 13 }}>День отдыха</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 0" }}>
+                      {(day.items || []).map((item, j) => (
+                        <div key={j} style={{ fontSize: 13, padding: "4px 0", borderBottom: j < day.items.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                          {typeof item === "string" ? item : `${item.name || "—"}${item.sets ? ` ${item.sets}x${item.reps || ""}` : ""}${item.duration ? ` ${item.duration}` : ""}`}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </AccordionItem>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

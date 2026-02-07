@@ -13,6 +13,88 @@ const STEPS = [
   { id: "planWeek", title: "План на неделю", description: "Опиши свой тренировочный план" },
 ];
 
+/* Custom range slider component */
+function AccentSlider({ min, max, value, onChange, label, unit = "" }) {
+  const pct = ((value - min) / (max - min)) * 100;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+        <span style={{ fontSize: 14, color: "var(--muted)" }}>{label}</span>
+        <span style={{ fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+          {value}<span style={{ fontSize: 14, fontWeight: 400, color: "var(--muted)", marginLeft: 2 }}>{unit}</span>
+        </span>
+      </div>
+      <div style={{ position: "relative", height: 36, display: "flex", alignItems: "center" }}>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          style={{
+            WebkitAppearance: "none", appearance: "none", width: "100%", height: 6,
+            borderRadius: 999, outline: "none", cursor: "pointer",
+            background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(0,0,0,0.08) ${pct}%, rgba(0,0,0,0.08) 100%)`,
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+        <span>{min}{unit}</span>
+        <span>{max}{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+/* Bodyfat visual selector */
+function BodyfatSlider({ value, onChange }) {
+  const pct = ((value - 3) / (50 - 3)) * 100;
+  const getCategory = (v) => {
+    if (v <= 8) return { label: "Атлет", color: "#22c55e" };
+    if (v <= 14) return { label: "Спортсмен", color: "#84cc16" };
+    if (v <= 20) return { label: "Фитнес", color: "#eab308" };
+    if (v <= 30) return { label: "Среднее", color: "#f97316" };
+    return { label: "Высокое", color: "#ef4444" };
+  };
+  const cat = getCategory(value);
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{
+        width: 120, height: 120, borderRadius: "50%", margin: "0 auto 16px",
+        background: `conic-gradient(${cat.color} ${pct * 3.6}deg, rgba(0,0,0,0.06) 0deg)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <div style={{
+          width: 96, height: 96, borderRadius: "50%", background: "var(--white)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }}>{value}</span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>%</span>
+        </div>
+      </div>
+      <div style={{
+        display: "inline-block", padding: "4px 14px", borderRadius: 999,
+        background: cat.color + "18", color: cat.color, fontWeight: 600, fontSize: 13, marginBottom: 16,
+      }}>{cat.label}</div>
+      <div style={{ position: "relative", height: 36, display: "flex", alignItems: "center" }}>
+        <input
+          type="range" min={3} max={50} value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          style={{
+            WebkitAppearance: "none", appearance: "none", width: "100%", height: 6,
+            borderRadius: 999, outline: "none", cursor: "pointer",
+            background: `linear-gradient(to right, ${cat.color} 0%, ${cat.color} ${pct}%, rgba(0,0,0,0.08) ${pct}%, rgba(0,0,0,0.08) 100%)`,
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+        <span>3%</span>
+        <span>50%</span>
+      </div>
+    </div>
+  );
+}
+
 export default function OnboardingPage({ onComplete }) {
   const { dispatch } = useAppState();
   const toast = useToast();
@@ -25,11 +107,12 @@ export default function OnboardingPage({ onComplete }) {
     height: 175,
     bodyfat: 15,
     goalType: "balance",
-    planDays: Array(7).fill("").map((_, i) => ({ focus: "", items: i >= 5 ? "Отдых" : "" })),
+    planDays: Array(7).fill(null).map((_, i) => ({
+      focus: "", items: i >= 5 ? "Отдых" : "", isRest: i >= 5,
+    })),
   });
 
   const currentStep = STEPS[step];
-
   const update = (field, value) => setData((prev) => ({ ...prev, [field]: value }));
 
   const updateDay = (index, field, value) => {
@@ -40,13 +123,22 @@ export default function OnboardingPage({ onComplete }) {
     });
   };
 
+  const toggleRest = (index) => {
+    setData((prev) => {
+      const days = [...prev.planDays];
+      const isRest = !days[index].isRest;
+      days[index] = { ...days[index], isRest, items: isRest ? "Отдых" : "", focus: isRest ? "" : days[index].focus };
+      return { ...prev, planDays: days };
+    });
+  };
+
   const validate = () => {
     switch (currentStep.id) {
       case "sex": return !!data.sex;
       case "bodyMetrics": return data.age >= 14 && data.weight >= 30 && data.height >= 120;
       case "bodyfat": return data.bodyfat >= 1 && data.bodyfat <= 60;
       case "goalType": return !!data.goalType;
-      case "planWeek": return data.planDays.every((d) => d.items?.trim());
+      case "planWeek": return data.planDays.every((d) => d.isRest || d.items?.trim());
       default: return true;
     }
   };
@@ -63,12 +155,8 @@ export default function OnboardingPage({ onComplete }) {
     setSaving(true);
     try {
       await api("/api/profile/set", {
-        sex: data.sex,
-        age: data.age,
-        height_cm: data.height,
-        weight_kg: data.weight,
-        bodyfat_pct: data.bodyfat,
-        goal: data.goalType,
+        sex: data.sex, age: data.age, height_cm: data.height,
+        weight_kg: data.weight, bodyfat_pct: data.bodyfat, goal: data.goalType,
       });
       await api("/api/targets/refresh");
       await api("/api/training/profile/set", {
@@ -81,8 +169,8 @@ export default function OnboardingPage({ onComplete }) {
       const weekPlan = data.planDays.map((d, i) => ({
         dayName: dayNames[i],
         focus: d.focus || "",
-        items: d.items ? d.items.split("\n").map((s) => s.trim()).filter(Boolean) : ["Отдых"],
-        type: /(отдых|rest|off)/i.test(d.items || "") ? "rest" : "train",
+        items: d.isRest ? ["Отдых"] : (d.items ? d.items.split("\n").map((s) => s.trim()).filter(Boolean) : ["Отдых"]),
+        type: d.isRest ? "rest" : "train",
       }));
       await api("/api/plan/set", { text: JSON.stringify({ week_plan: weekPlan }) });
 
@@ -96,22 +184,41 @@ export default function OnboardingPage({ onComplete }) {
   }, [data, dispatch, onComplete, toast]);
 
   const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const dayNamesFull = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 
   return (
     <div className="screen active" style={{ padding: 16 }}>
-      <div className="muted" style={{ marginBottom: 8 }}>Шаг {step + 1} из {STEPS.length}</div>
+      {/* Progress bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+        {STEPS.map((_, i) => (
+          <div key={i} style={{
+            flex: 1, height: 4, borderRadius: 2,
+            background: i <= step ? "var(--accent)" : "rgba(0,0,0,0.08)",
+            transition: "background 0.3s ease",
+          }} />
+        ))}
+      </div>
+
+      <div className="muted" style={{ marginBottom: 4, fontSize: 13 }}>Шаг {step + 1} из {STEPS.length}</div>
       <h2 style={{ marginBottom: 4 }}>{currentStep.title}</h2>
-      <p className="muted" style={{ marginBottom: 16 }}>{currentStep.description}</p>
+      <p className="muted" style={{ marginBottom: 20 }}>{currentStep.description}</p>
 
       {currentStep.id === "sex" && (
         <div style={{ display: "flex", gap: 12 }}>
-          {[{ v: "m", l: "Мужской" }, { v: "f", l: "Женский" }].map((opt) => (
+          {[{ v: "m", l: "Мужской", emoji: "👨" }, { v: "f", l: "Женский", emoji: "👩" }].map((opt) => (
             <button
               key={opt.v}
-              className={`option-card sex-option${data.sex === opt.v ? " active" : ""}`}
               onClick={() => update("sex", opt.v)}
-              style={{ flex: 1, padding: 20, fontSize: 16, fontWeight: 600 }}
+              style={{
+                flex: 1, padding: "24px 16px", fontSize: 16, fontWeight: 600,
+                borderRadius: 16, border: `2px solid ${data.sex === opt.v ? "var(--accent)" : "var(--border)"}`,
+                background: data.sex === opt.v ? "rgba(255,3,62,0.06)" : "var(--white)",
+                color: data.sex === opt.v ? "var(--accent)" : "var(--black)",
+                cursor: "pointer", transition: "all 0.2s ease",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+              }}
             >
+              <span style={{ fontSize: 32 }}>{opt.emoji}</span>
               {opt.l}
             </button>
           ))}
@@ -119,25 +226,15 @@ export default function OnboardingPage({ onComplete }) {
       )}
 
       {currentStep.id === "bodyMetrics" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          <label>Возраст: <strong>{data.age}</strong>
-            <input type="range" min={14} max={80} value={data.age} onChange={(e) => update("age", Number(e.target.value))} />
-          </label>
-          <label>Вес: <strong>{data.weight} кг</strong>
-            <input type="range" min={30} max={150} value={data.weight} onChange={(e) => update("weight", Number(e.target.value))} />
-          </label>
-          <label>Рост: <strong>{data.height} см</strong>
-            <input type="range" min={120} max={220} value={data.height} onChange={(e) => update("height", Number(e.target.value))} />
-          </label>
+        <div style={{ display: "grid", gap: 20 }}>
+          <AccentSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
+          <AccentSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" />
+          <AccentSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
         </div>
       )}
 
       {currentStep.id === "bodyfat" && (
-        <div>
-          <label>Процент жира: <strong>{data.bodyfat}%</strong>
-            <input type="range" min={3} max={50} value={data.bodyfat} onChange={(e) => update("bodyfat", Number(e.target.value))} />
-          </label>
-        </div>
+        <BodyfatSlider value={data.bodyfat} onChange={(v) => update("bodyfat", v)} />
       )}
 
       {currentStep.id === "goalType" && (
@@ -145,23 +242,41 @@ export default function OnboardingPage({ onComplete }) {
       )}
 
       {currentStep.id === "planWeek" && (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "grid", gap: 10 }}>
           {data.planDays.map((day, i) => (
-            <div key={i} className="card" style={{ padding: 12 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>{dayNames[i]}</div>
-              <input
-                type="text"
-                placeholder="Фокус (грудь, спина...)"
-                value={day.focus}
-                onChange={(e) => updateDay(i, "focus", e.target.value)}
-                style={{ marginBottom: 6 }}
-              />
-              <textarea
-                placeholder="Упражнения (по одному на строку) или 'Отдых'"
-                value={day.items}
-                onChange={(e) => updateDay(i, "items", e.target.value)}
-                rows={3}
-              />
+            <div key={i} style={{
+              border: `1px solid ${day.isRest ? "rgba(0,0,0,0.06)" : "var(--border)"}`,
+              borderRadius: 14, padding: 12, background: day.isRest ? "rgba(0,0,0,0.02)" : "var(--white)",
+              transition: "all 0.2s ease",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: day.isRest ? 0 : 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{dayNamesFull[i]}</span>
+                <button
+                  onClick={() => toggleRest(i)}
+                  style={{
+                    padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                    border: "none", cursor: "pointer", transition: "all 0.2s ease",
+                    background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)",
+                    color: day.isRest ? "var(--white)" : "var(--muted)",
+                  }}
+                >
+                  {day.isRest ? "Отдых ✓" : "Отдых"}
+                </button>
+              </div>
+              {!day.isRest && (
+                <>
+                  <input
+                    type="text" placeholder="Фокус (грудь, спина...)"
+                    value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)}
+                    style={{ marginBottom: 6 }}
+                  />
+                  <textarea
+                    placeholder="Упражнения (по одному на строку)"
+                    value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)}
+                    rows={2}
+                  />
+                </>
+              )}
             </div>
           ))}
         </div>
