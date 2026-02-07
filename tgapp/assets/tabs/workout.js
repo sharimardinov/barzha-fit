@@ -428,11 +428,10 @@ function updatePhaseControls() {
   }
 
   if (timerBlock) {
-    const showTimer = phase === "rest" || phase === "cardio";
-    timerBlock.classList.toggle("hidden", !showTimer);
     if (timerLabel) {
       if (phase === "cardio") timerLabel.textContent = "Осталось";
-      else timerLabel.textContent = session?.timerKind === "between" ? "Отдых между упражнениями" : "Отдых";
+      else if (phase === "rest") timerLabel.textContent = session?.timerKind === "between" ? "Отдых между упражнениями" : "Отдых";
+      else timerLabel.textContent = "Отдых";
     }
   }
 
@@ -502,7 +501,7 @@ function updateTimers() {
       }
     }
   } else if (timerValue) {
-    timerValue.textContent = "00:00";
+    timerValue.textContent = "--:--";
   }
   if (timerBlock) {
     const totalMs = total > 0 ? total * 1000 : 0;

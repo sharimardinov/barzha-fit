@@ -1,6 +1,7 @@
 export default function StepsCard({ steps = 0, target = 0, distance, kcal }) {
   const ratio = target > 0 ? Math.min(steps / target, 1) : 0;
   const deg = Math.round(ratio * 360);
+  const formatInt = (value) => (Number.isFinite(value) ? Math.round(value).toLocaleString("ru-RU") : "—");
 
   return (
     <div className="card steps-card">
@@ -17,8 +18,8 @@ export default function StepsCard({ steps = 0, target = 0, distance, kcal }) {
         <div className="steps-goal">Цель: <span>{target > 0 ? target.toLocaleString("ru-RU") : "—"}</span></div>
         <div className="steps-divider" />
         <div className="steps-meta">
-          <div><span>{distance ?? "—"}</span> м</div>
-          <div><span>{kcal ?? "—"}</span> ккал</div>
+          <div><span>{formatInt(distance)}</span> м</div>
+          <div><span>{formatInt(kcal)}</span> ккал</div>
         </div>
       </div>
     </div>

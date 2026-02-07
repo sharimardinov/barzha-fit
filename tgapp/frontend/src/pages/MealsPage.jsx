@@ -213,6 +213,7 @@ export default function MealsPage() {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
+                    flexWrap: "wrap",
                   }}>
                     <span style={{
                       fontWeight: 600,
@@ -222,6 +223,9 @@ export default function MealsPage() {
                       background: "rgba(255,3,62,0.1)",
                     }}>
                       {meal.kcal || 0} ккал
+                    </span>
+                    <span>
+                      Б {meal.protein_g || 0} • Ж {meal.fat_g || 0} • У {meal.carbs_g || 0}
                     </span>
                   </div>
                 </div>

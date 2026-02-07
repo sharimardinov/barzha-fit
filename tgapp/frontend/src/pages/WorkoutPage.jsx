@@ -363,7 +363,7 @@ export default function WorkoutPage() {
   // Timer tick for rest/cardio
   useEffect(() => {
     if (!session || (session.phase !== "rest" && session.phase !== "cardio")) {
-      setTimerDisplay("00:00");
+      setTimerDisplay("--:--");
       setTimerProgress(0);
       if (tickRef.current) clearInterval(tickRef.current);
       return;
@@ -610,16 +610,20 @@ export default function WorkoutPage() {
               )}
             </div>
 
-            {/* Rest/Cardio timer — fixed height */}
-            <div style={{ minHeight: phase === "rest" || phase === "cardio" ? 0 : 0, marginBottom: 8 }}>
-              {(phase === "rest" || phase === "cardio") && (
-                <div className="workout-timer-block" style={{ "--timer-progress": `${timerProgress * 100}%` }}>
-                  <div className="workout-timer-label">
-                    {phase === "cardio" ? "Осталось" : session.timerKind === "between" ? "Отдых между упражнениями" : "Отдых"}
-                  </div>
-                  <div className="workout-timer-value">{timerDisplay}</div>
+            {/* Rest/Cardio timer — always visible */}
+            <div style={{ minHeight: 0, marginBottom: 8 }}>
+              <div className="workout-timer-block" style={{ "--timer-progress": `${timerProgress * 100}%` }}>
+                <div className="workout-timer-label">
+                  {phase === "cardio"
+                    ? "Осталось"
+                    : phase === "rest"
+                      ? (session.timerKind === "between" ? "Отдых между упражнениями" : "Отдых")
+                      : "Отдых"}
                 </div>
-              )}
+                <div className="workout-timer-value">
+                  {phase === "rest" || phase === "cardio" ? timerDisplay : "--:--"}
+                </div>
+              </div>
             </div>
 
             {/* Input fields — fixed height */}

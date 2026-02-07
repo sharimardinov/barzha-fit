@@ -90,14 +90,14 @@ function updateStepsCardValues(steps, target, distanceMeters, kcalValue) {
   if (value) value.textContent = Number.isFinite(steps) ? steps.toLocaleString("ru-RU") : "0";
   if (goal) goal.textContent = Number.isFinite(target) && target > 0 ? target.toLocaleString("ru-RU") : "—";
   if (distance) {
-    if (Number.isFinite(distanceMeters) && distanceMeters > 0) {
+    if (Number.isFinite(distanceMeters) && distanceMeters >= 0) {
       distance.textContent = Math.round(distanceMeters).toLocaleString("ru-RU");
     } else {
       distance.textContent = "—";
     }
   }
   if (kcal) {
-    if (Number.isFinite(kcalValue) && kcalValue > 0) {
+    if (Number.isFinite(kcalValue) && kcalValue >= 0) {
       kcal.textContent = Math.round(kcalValue).toLocaleString("ru-RU");
     } else {
       kcal.textContent = "—";
