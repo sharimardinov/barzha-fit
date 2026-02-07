@@ -10,7 +10,7 @@
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
-  --nav-height: calc(140px + env(safe-area-inset-bottom, 0px));
+  --nav-height: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 html {
