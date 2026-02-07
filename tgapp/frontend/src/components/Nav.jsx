@@ -16,8 +16,8 @@ export default function Nav() {
       items={tabs}
       activeId={state.activeTab}
       onItemClick={(item) => dispatch({ type: "SET_TAB", payload: item.id })}
-      baseColor="#ff033e"
-      pillColor="#ffffff"
+      baseColor="#ffffff"
+      pillColor="#f7f7f7"
       hoveredPillTextColor="#ffffff"
       pillTextColor="#000000"
     />

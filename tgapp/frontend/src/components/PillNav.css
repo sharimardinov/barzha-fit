@@ -2,7 +2,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   z-index: 20;
   width: calc(100% - 32px);
   max-width: 420px;
@@ -11,8 +11,8 @@
 }
 
 .pill-nav {
-  --nav-h: 46px;
-  --pill-pad-x: 14px;
+  --nav-h: 56px;
+  --pill-pad-x: 16px;
   --pill-gap: 6px;
   width: 100%;
   display: flex;
@@ -26,13 +26,14 @@
   display: flex;
   align-items: center;
   height: var(--nav-h);
-  background: var(--base, #ff033e);
+  background: var(--base, #ffffff);
   border-radius: 9999px;
   padding: 4px;
   width: 100%;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
   box-shadow:
-    0 10px 28px rgba(255, 3, 62, 0.24),
-    0 4px 10px rgba(0, 0, 0, 0.08);
+    0 10px 28px rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.06);
 }
 
 .pill-list {
@@ -65,8 +66,8 @@
   border-radius: 9999px;
   box-sizing: border-box;
   font-weight: 700;
-  font-size: 12px;
-  line-height: 1;
+  font-size: 13px;
+  line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
   position: relative;
@@ -79,7 +80,7 @@
   left: 50%;
   bottom: 0;
   border-radius: 50%;
-  background: var(--base, #ff033e);
+  background: var(--accent, #ff033e);
   z-index: 1;
   display: block;
   pointer-events: none;
@@ -141,19 +142,19 @@
   transform: translateX(-50%);
   width: 10px;
   height: 10px;
-  background: var(--base, #ff033e);
+  background: var(--accent, #ff033e);
   border-radius: 50px;
   z-index: 4;
 }
 
 @media (max-width: 520px) {
   .pill-nav {
-    --nav-h: 44px;
-    --pill-pad-x: 10px;
+    --nav-h: 52px;
+    --pill-pad-x: 12px;
     --pill-gap: 4px;
   }
 
   .pill {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
