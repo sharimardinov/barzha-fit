@@ -3,42 +3,41 @@ import { api } from "../services/api";
 import { useAppState } from "../hooks/useAppState";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
-import GoalSelector from "../components/GoalSelector";
 
 const STEPS = [
-  { id: "sex", title: "Пол", description: "Выбери свой пол" },
-  { id: "bodyMetrics", title: "Параметры тела", description: "Укажи свои параметры" },
-  { id: "bodyfat", title: "Процент жира", description: "Укажи примерный процент жира" },
+  { id: "sex", title: "Твой пол", description: "Требуется для корректных норм и нагрузки" },
+  { id: "bodyMetrics", title: "Твои параметры", description: "Для расчёта норм и целей" },
+  { id: "trainingStage", title: "Уровень подготовки", description: "Выбери свой текущий уровень" },
+  { id: "bodyfat", title: "Процент жира", description: "Для точных целей по весу и форме" },
   { id: "goalType", title: "Твоя цель", description: "Выбери направление тренировок" },
   { id: "planWeek", title: "План на неделю", description: "Опиши свой тренировочный план" },
 ];
 
-/* Custom range slider component */
-function AccentSlider({ min, max, value, onChange, label, unit = "" }) {
+/* Monolithic slider — thick track, no visible thumb, filled with accent */
+function MonoSlider({ min, max, value, onChange, label, unit = "", step = 1, color = "var(--accent)" }) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
         <span style={{ fontSize: 14, color: "var(--muted)" }}>{label}</span>
         <span style={{ fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-          {value}<span style={{ fontSize: 14, fontWeight: 400, color: "var(--muted)", marginLeft: 2 }}>{unit}</span>
+          {value}<span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)", marginLeft: 2 }}>{unit}</span>
         </span>
       </div>
-      <div style={{ position: "relative", height: 36, display: "flex", alignItems: "center" }}>
+      <div style={{ position: "relative", height: 12, borderRadius: 999, background: "rgba(0,0,0,0.06)", overflow: "hidden" }}>
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`, background: color, borderRadius: 999, transition: "width 0.05s ease" }} />
         <input
-          type="range"
-          min={min}
-          max={max}
-          value={value}
+          type="range" min={min} max={max} step={step} value={value}
           onChange={(e) => onChange(Number(e.target.value))}
+          className="mono-slider-input"
           style={{
-            WebkitAppearance: "none", appearance: "none", width: "100%", height: 6,
-            borderRadius: 999, outline: "none", cursor: "pointer",
-            background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(0,0,0,0.08) ${pct}%, rgba(0,0,0,0.08) 100%)`,
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            WebkitAppearance: "none", appearance: "none", background: "transparent",
+            cursor: "pointer", margin: 0, padding: 0,
           }}
         />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
         <span>{min}{unit}</span>
         <span>{max}{unit}</span>
       </div>
@@ -46,51 +45,124 @@ function AccentSlider({ min, max, value, onChange, label, unit = "" }) {
   );
 }
 
-/* Bodyfat visual selector */
+/* Bodyfat circle + monolithic slider */
 function BodyfatSlider({ value, onChange }) {
   const pct = ((value - 3) / (50 - 3)) * 100;
   const getCategory = (v) => {
     if (v <= 8) return { label: "Атлет", color: "#22c55e" };
-    if (v <= 14) return { label: "Спортсмен", color: "#84cc16" };
-    if (v <= 20) return { label: "Фитнес", color: "#eab308" };
-    if (v <= 30) return { label: "Среднее", color: "#f97316" };
-    return { label: "Высокое", color: "#ef4444" };
+    if (v <= 14) return { label: "Спортсмен", color: "#65a30d" };
+    if (v <= 20) return { label: "Фитнес", color: "#ca8a04" };
+    if (v <= 30) return { label: "Среднее", color: "#ea580c" };
+    return { label: "Высокое", color: "#dc2626" };
   };
   const cat = getCategory(value);
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{
-        width: 120, height: 120, borderRadius: "50%", margin: "0 auto 16px",
+        width: 130, height: 130, borderRadius: "50%", margin: "0 auto 16px",
         background: `conic-gradient(${cat.color} ${pct * 3.6}deg, rgba(0,0,0,0.06) 0deg)`,
         display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 0.3s ease",
       }}>
         <div style={{
-          width: 96, height: 96, borderRadius: "50%", background: "var(--white)",
+          width: 104, height: 104, borderRadius: "50%", background: "var(--white)",
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }}>{value}</span>
+          <span style={{ fontSize: 36, fontWeight: 700, lineHeight: 1 }}>{value}</span>
           <span style={{ fontSize: 12, color: "var(--muted)" }}>%</span>
         </div>
       </div>
       <div style={{
-        display: "inline-block", padding: "4px 14px", borderRadius: 999,
-        background: cat.color + "18", color: cat.color, fontWeight: 600, fontSize: 13, marginBottom: 16,
+        display: "inline-block", padding: "4px 16px", borderRadius: 999,
+        background: cat.color + "15", color: cat.color, fontWeight: 600, fontSize: 13, marginBottom: 16,
+        transition: "all 0.3s ease",
       }}>{cat.label}</div>
-      <div style={{ position: "relative", height: 36, display: "flex", alignItems: "center" }}>
-        <input
-          type="range" min={3} max={50} value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          style={{
-            WebkitAppearance: "none", appearance: "none", width: "100%", height: 6,
-            borderRadius: 999, outline: "none", cursor: "pointer",
-            background: `linear-gradient(to right, ${cat.color} 0%, ${cat.color} ${pct}%, rgba(0,0,0,0.08) ${pct}%, rgba(0,0,0,0.08) 100%)`,
-          }}
-        />
+      <MonoSlider min={3} max={50} value={value} onChange={onChange} label="" unit="%" color={cat.color} />
+    </div>
+  );
+}
+
+/* Goal selector — segmented pill with sliding highlight */
+function GoalPill({ value, onChange }) {
+  const options = [
+    { id: "cut", label: "CUT", desc: "Сушка" },
+    { id: "balance", label: "BALANCE", desc: "Поддержание" },
+    { id: "bulk", label: "BULK", desc: "Набор массы" },
+  ];
+  const idx = options.findIndex((o) => o.id === value);
+
+  return (
+    <div>
+      <div style={{
+        display: "flex", background: "rgba(0,0,0,0.04)", borderRadius: 14, padding: 4, position: "relative",
+      }}>
+        {/* sliding highlight */}
+        <div style={{
+          position: "absolute", top: 4, bottom: 4, width: `calc(${100 / options.length}% - 4px)`,
+          left: `calc(${(idx * 100) / options.length}% + 2px)`,
+          background: "var(--white)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          transition: "left 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          zIndex: 0,
+        }} />
+        {options.map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => onChange(opt.id)}
+            style={{
+              flex: 1, position: "relative", zIndex: 1, border: "none", background: "transparent",
+              padding: "14px 8px", cursor: "pointer", borderRadius: 12,
+              transition: "color 0.2s ease",
+            }}
+          >
+            <div style={{
+              fontSize: 15, fontWeight: 700, letterSpacing: 1,
+              color: value === opt.id ? "var(--accent)" : "var(--muted)",
+              transition: "color 0.2s ease",
+            }}>{opt.label}</div>
+            <div style={{
+              fontSize: 11, marginTop: 2,
+              color: value === opt.id ? "var(--black)" : "var(--muted)",
+              transition: "color 0.2s ease",
+            }}>{opt.desc}</div>
+          </button>
+        ))}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-        <span>3%</span>
-        <span>50%</span>
-      </div>
+    </div>
+  );
+}
+
+/* Training stage cards — CORE / FLOW / PEAK */
+function StageSelector({ value, onChange }) {
+  const stages = [
+    { id: "core", label: "CORE", desc: "Начинающий", img: "/app/core.svg" },
+    { id: "flow", label: "FLOW", desc: "Средний", img: "/app/flow.svg" },
+    { id: "peak", label: "PEAK", desc: "Продвинутый", img: "/app/peak.svg" },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 10 }}>
+      {stages.map((s) => {
+        const active = value === s.id;
+        return (
+          <button key={s.id} onClick={() => onChange(s.id)} style={{
+            flex: 1, padding: "16px 8px", borderRadius: 16, cursor: "pointer",
+            border: `2px solid ${active ? "var(--accent)" : "var(--border)"}`,
+            background: active ? "rgba(255,3,62,0.04)" : "var(--white)",
+            transition: "all 0.2s ease", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 8,
+          }}>
+            <img src={s.img} alt={s.label} style={{
+              width: 60, height: 100, objectFit: "contain",
+              filter: active ? "none" : "grayscale(0.5) opacity(0.6)",
+              transition: "filter 0.2s ease",
+            }} />
+            <div style={{
+              fontSize: 14, fontWeight: 700, letterSpacing: 1,
+              color: active ? "var(--accent)" : "var(--black)",
+            }}>{s.label}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{s.desc}</div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -102,9 +174,8 @@ export default function OnboardingPage({ onComplete }) {
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState({
     sex: "",
-    age: 25,
-    weight: 70,
-    height: 175,
+    age: 25, weight: 70, height: 175,
+    trainingStage: "core",
     bodyfat: 15,
     goalType: "balance",
     planDays: Array(7).fill(null).map((_, i) => ({
@@ -136,6 +207,7 @@ export default function OnboardingPage({ onComplete }) {
     switch (currentStep.id) {
       case "sex": return !!data.sex;
       case "bodyMetrics": return data.age >= 14 && data.weight >= 30 && data.height >= 120;
+      case "trainingStage": return !!data.trainingStage;
       case "bodyfat": return data.bodyfat >= 1 && data.bodyfat <= 60;
       case "goalType": return !!data.goalType;
       case "planWeek": return data.planDays.every((d) => d.isRest || d.items?.trim());
@@ -183,7 +255,6 @@ export default function OnboardingPage({ onComplete }) {
     }
   }, [data, dispatch, onComplete, toast]);
 
-  const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
   const dayNamesFull = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 
   return (
@@ -203,44 +274,50 @@ export default function OnboardingPage({ onComplete }) {
       <h2 style={{ marginBottom: 4 }}>{currentStep.title}</h2>
       <p className="muted" style={{ marginBottom: 20 }}>{currentStep.description}</p>
 
+      {/* Step 1 — Sex */}
       {currentStep.id === "sex" && (
         <div style={{ display: "flex", gap: 12 }}>
-          {[{ v: "m", l: "Мужской", emoji: "👨" }, { v: "f", l: "Женский", emoji: "👩" }].map((opt) => (
-            <button
-              key={opt.v}
-              onClick={() => update("sex", opt.v)}
-              style={{
-                flex: 1, padding: "24px 16px", fontSize: 16, fontWeight: 600,
-                borderRadius: 16, border: `2px solid ${data.sex === opt.v ? "var(--accent)" : "var(--border)"}`,
-                background: data.sex === opt.v ? "rgba(255,3,62,0.06)" : "var(--white)",
-                color: data.sex === opt.v ? "var(--accent)" : "var(--black)",
-                cursor: "pointer", transition: "all 0.2s ease",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 32 }}>{opt.emoji}</span>
-              {opt.l}
-            </button>
-          ))}
+          {[{ v: "m", l: "М" }, { v: "f", l: "Ж" }].map((opt) => {
+            const active = data.sex === opt.v;
+            return (
+              <button key={opt.v} onClick={() => update("sex", opt.v)} style={{
+                flex: 1, padding: "32px 16px", fontSize: 32, fontWeight: 700,
+                borderRadius: 18, border: "none", cursor: "pointer",
+                background: active ? "var(--accent)" : "rgba(0,0,0,0.04)",
+                color: active ? "var(--white)" : "var(--black)",
+                boxShadow: active ? "0 4px 20px rgba(255,3,62,0.3)" : "none",
+                transition: "all 0.2s ease",
+              }}>{opt.l}</button>
+            );
+          })}
         </div>
       )}
 
+      {/* Step 2 — Body Metrics */}
       {currentStep.id === "bodyMetrics" && (
         <div style={{ display: "grid", gap: 20 }}>
-          <AccentSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
-          <AccentSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" />
-          <AccentSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
+          <MonoSlider label="Возраст" min={14} max={80} value={data.age} onChange={(v) => update("age", v)} unit=" лет" />
+          <MonoSlider label="Вес" min={30} max={150} value={data.weight} onChange={(v) => update("weight", v)} unit=" кг" step={0.5} />
+          <MonoSlider label="Рост" min={120} max={220} value={data.height} onChange={(v) => update("height", v)} unit=" см" />
         </div>
       )}
 
+      {/* Step 3 — Training Stage */}
+      {currentStep.id === "trainingStage" && (
+        <StageSelector value={data.trainingStage} onChange={(v) => update("trainingStage", v)} />
+      )}
+
+      {/* Step 4 — Bodyfat */}
       {currentStep.id === "bodyfat" && (
         <BodyfatSlider value={data.bodyfat} onChange={(v) => update("bodyfat", v)} />
       )}
 
+      {/* Step 5 — Goal Type */}
       {currentStep.id === "goalType" && (
-        <GoalSelector value={data.goalType} onChange={(v) => update("goalType", v)} />
+        <GoalPill value={data.goalType} onChange={(v) => update("goalType", v)} />
       )}
 
+      {/* Step 6 — Plan Week */}
       {currentStep.id === "planWeek" && (
         <div style={{ display: "grid", gap: 10 }}>
           {data.planDays.map((day, i) => (
@@ -251,30 +328,17 @@ export default function OnboardingPage({ onComplete }) {
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: day.isRest ? 0 : 8 }}>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{dayNamesFull[i]}</span>
-                <button
-                  onClick={() => toggleRest(i)}
-                  style={{
-                    padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                    border: "none", cursor: "pointer", transition: "all 0.2s ease",
-                    background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)",
-                    color: day.isRest ? "var(--white)" : "var(--muted)",
-                  }}
-                >
-                  {day.isRest ? "Отдых ✓" : "Отдых"}
-                </button>
+                <button onClick={() => toggleRest(i)} style={{
+                  padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                  border: "none", cursor: "pointer", transition: "all 0.2s ease",
+                  background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)",
+                  color: day.isRest ? "var(--white)" : "var(--muted)",
+                }}>{day.isRest ? "Отдых ✓" : "Отдых"}</button>
               </div>
               {!day.isRest && (
                 <>
-                  <input
-                    type="text" placeholder="Фокус (грудь, спина...)"
-                    value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)}
-                    style={{ marginBottom: 6 }}
-                  />
-                  <textarea
-                    placeholder="Упражнения (по одному на строку)"
-                    value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)}
-                    rows={2}
-                  />
+                  <input type="text" placeholder="Фокус (грудь, спина...)" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 6 }} />
+                  <textarea placeholder="Упражнения (по одному на строку)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} />
                 </>
               )}
             </div>

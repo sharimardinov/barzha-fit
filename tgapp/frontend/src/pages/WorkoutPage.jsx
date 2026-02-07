@@ -24,6 +24,70 @@ function formatRest(seconds) {
   return `${total} сек`;
 }
 
+function ProgramEditor({ weekPlan, onSave, onCancel }) {
+  const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+  const [days, setDays] = useState(() =>
+    dayNames.map((name, i) => {
+      const day = weekPlan[i] || {};
+      const items = (day.items || []).map((it) => typeof it === "string" ? it : it.name || "").join("\n");
+      const lowered = items.toLowerCase();
+      const isRest = day.type === "rest" || /(^|\s)(отдых|выходн|rest|off)(\s|$)/i.test(lowered);
+      return { dayName: name, focus: day.focus || "", items: isRest ? "" : items, isRest };
+    })
+  );
+
+  const updateDay = (i, field, value) => {
+    setDays((prev) => { const d = [...prev]; d[i] = { ...d[i], [field]: value }; return d; });
+  };
+  const toggleRest = (i) => {
+    setDays((prev) => {
+      const d = [...prev];
+      const isRest = !d[i].isRest;
+      d[i] = { ...d[i], isRest, items: isRest ? "" : d[i].items, focus: isRest ? "" : d[i].focus };
+      return d;
+    });
+  };
+
+  const save = () => {
+    const result = days.map((d) => ({
+      dayName: d.dayName,
+      focus: d.focus,
+      items: d.isRest ? ["Отдых"] : d.items.split("\n").map((s) => s.trim()).filter(Boolean),
+      type: d.isRest ? "rest" : "train",
+    }));
+    onSave(result);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+      {days.map((day, i) => (
+        <div key={i} style={{
+          border: `1px solid ${day.isRest ? "rgba(0,0,0,0.06)" : "var(--border)"}`,
+          borderRadius: 12, padding: 10, background: day.isRest ? "rgba(0,0,0,0.02)" : "var(--white)",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: day.isRest ? 0 : 6 }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{day.dayName}</span>
+            <button onClick={() => toggleRest(i)} style={{
+              padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer",
+              background: day.isRest ? "var(--accent)" : "rgba(0,0,0,0.06)", color: day.isRest ? "var(--white)" : "var(--muted)",
+            }}>{day.isRest ? "Отдых ✓" : "Отдых"}</button>
+          </div>
+          {!day.isRest && (
+            <>
+              <input type="text" placeholder="Фокус" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 4, fontSize: 13 }} />
+              <textarea placeholder="Упражнения (по строке)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} style={{ fontSize: 13 }} />
+            </>
+          )}
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-outline" onClick={onCancel} style={{ flex: 1 }}>Отмена</button>
+        <button className="btn btn-accent" onClick={save} style={{ flex: 1 }}>Сохранить</button>
+      </div>
+    </div>
+  );
+}
+
 export default function WorkoutPage() {
   const toast = useToast();
   const [plan, setPlan] = useState(null);
@@ -32,6 +96,8 @@ export default function WorkoutPage() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [editingProgram, setEditingProgram] = useState(false);
+  const [editDays, setEditDays] = useState([]);
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
   const [timerDisplay, setTimerDisplay] = useState("00:00");
@@ -281,9 +347,9 @@ export default function WorkoutPage() {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: "14px 24px", borderRadius: 16, marginBottom: 12,
-            background: "var(--accent)",
+            background: "var(--white)", border: "1px solid var(--border)",
           }}>
-            <span style={{ fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--white)", letterSpacing: 1 }}>{totalTime}</span>
+            <span style={{ fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--accent)", letterSpacing: 1 }}>{totalTime}</span>
           </div>
         )}
 
@@ -401,10 +467,32 @@ export default function WorkoutPage() {
       {/* Full training program - week view */}
       {weekPlan.length > 0 && (
         <div className="card">
-          <div className="card-title">Тренировочная программа</div>
+          <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Тренировочная программа</span>
+            <button
+              className="btn btn-outline"
+              style={{ fontSize: 12, padding: "4px 12px" }}
+              onClick={() => setEditingProgram(true)}
+            >Редактировать</button>
+          </div>
+          {editingProgram && <ProgramEditor
+            weekPlan={weekPlan}
+            onSave={async (newPlan) => {
+              try {
+                await api("/api/plan/set", { text: JSON.stringify({ week_plan: newPlan }) });
+                setWeekPlan(newPlan);
+                setEditingProgram(false);
+                toast("Программа сохранена");
+                loadData();
+              } catch (err) { toast(formatApiError(err)); }
+            }}
+            onCancel={() => setEditingProgram(false)}
+          />}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {weekPlan.map((day, i) => {
-              const isRest = day.type === "rest" || (day.items?.length === 1 && /(отдых|rest|off)/i.test(day.items[0]));
+              const items = day.items || [];
+              const lowered = items.map(it => typeof it === "string" ? it : it.name || "").join(" ").toLowerCase();
+              const isRest = day.type === "rest" || (items.length <= 1 && /(^|\s)(отдых|выходн|rest|off)(\s|$)/i.test(lowered));
               return (
                 <AccordionItem key={i} title={
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
