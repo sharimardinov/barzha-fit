@@ -12,10 +12,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html,
-body {
-  overscroll-behavior-y: none;
-}
 
 *,
 *::before,
@@ -39,7 +35,6 @@ body {
   margin: 0 auto;
   padding: 16px;
   padding-top: calc(16px + env(safe-area-inset-top));
-  overscroll-behavior-y: contain;
 }
 
 @media (max-width: 720px) {
@@ -2175,7 +2170,7 @@ button {
     inset 0 -1px 0 rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(40px) saturate(1.8) brightness(1.1);
   -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.1);
-  z-index: 20;
+  z-index: 9999;
   overflow: hidden;
   max-width: 420px;
   width: calc(100% - 32px);
