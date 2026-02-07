@@ -37,8 +37,10 @@ export default function TodayPage() {
   }, [dispatch, toast, state.planText]);
 
   useEffect(() => {
-    loadToday();
-  }, [loadToday]);
+    if (state.activeTab === "today") {
+      loadToday();
+    }
+  }, [state.activeTab, loadToday]);
 
   useEffect(() => {
     const handler = (event) => {

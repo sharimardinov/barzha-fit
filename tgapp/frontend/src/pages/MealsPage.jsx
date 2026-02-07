@@ -98,18 +98,18 @@ export default function MealsPage() {
           {/* Calories */}
           <div style={{
             padding: "16px",
-            background: "linear-gradient(135deg, rgba(255,3,62,0.08) 0%, rgba(255,3,62,0.04) 100%)",
+            background: "rgba(0,0,0,0.02)",
             borderRadius: 12,
-            border: "1px solid rgba(255,3,62,0.15)",
+            border: "1px solid rgba(0,0,0,0.06)",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)" }}>Калории</span>
               <span style={{
                 fontSize: 12, fontWeight: 700,
-                color: totals.kcal > targets.kcal ? "#22c55e" : "var(--accent)",
+                color: "var(--accent)",
                 padding: "2px 8px",
                 borderRadius: 999,
-                background: totals.kcal > targets.kcal ? "rgba(34,197,94,0.1)" : "rgba(255,3,62,0.1)",
+                background: "rgba(255,3,62,0.1)",
               }}>
                 {Math.round(getProgress(totals.kcal, targets.kcal))}%
               </span>
@@ -122,16 +122,14 @@ export default function MealsPage() {
             </div>
             <div style={{
               height: 6,
-              background: "rgba(255,3,62,0.15)",
+              background: "rgba(0,0,0,0.08)",
               borderRadius: 999,
               overflow: "hidden",
             }}>
               <div style={{
                 height: "100%",
                 width: `${getProgress(totals.kcal, targets.kcal)}%`,
-                background: totals.kcal > targets.kcal
-                  ? "linear-gradient(90deg, #22c55e 0%, #16a34a 100%)"
-                  : "linear-gradient(90deg, #ff033e 0%, #ff1a4d 100%)",
+                background: "var(--accent)",
                 borderRadius: 999,
                 transition: "width 0.4s ease",
               }} />
@@ -141,21 +139,21 @@ export default function MealsPage() {
           {/* Macros Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             {[
-              { label: "Белки", value: totals.protein, target: targets.protein, color: "#3b82f6", unit: "г" },
-              { label: "Жиры", value: totals.fat, target: targets.fat, color: "#f59e0b", unit: "г" },
-              { label: "Углеводы", value: totals.carbs, target: targets.carbs, color: "#8b5cf6", unit: "г" },
+              { label: "Белки", value: totals.protein, target: targets.protein, unit: "г" },
+              { label: "Жиры", value: totals.fat, target: targets.fat, unit: "г" },
+              { label: "Углеводы", value: totals.carbs, target: targets.carbs, unit: "г" },
             ].map((macro) => (
               <div key={macro.label} style={{
                 padding: "12px",
-                background: `${macro.color}08`,
+                background: "rgba(0,0,0,0.02)",
                 borderRadius: 12,
-                border: `1px solid ${macro.color}20`,
+                border: "1px solid rgba(0,0,0,0.06)",
                 textAlign: "center",
               }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", marginBottom: 6 }}>
                   {macro.label}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: macro.color, marginBottom: 4 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--black)", marginBottom: 4 }}>
                   {Math.round(macro.value)}
                 </div>
                 <div style={{ fontSize: 10, color: "var(--muted)" }}>
