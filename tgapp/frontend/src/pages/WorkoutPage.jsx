@@ -5,7 +5,33 @@ import { formatApiError } from "../services/errors";
 import { AccordionItem } from "../components/Accordion";
 import { postNativeMessage } from "../services/telegram";
 import { parsePlan } from "../services/planUtils";
-import AnimatedTimer from "../components/AnimatedTimer";
+
+/* Heart rate from HealthKit via native bridge */
+function useHeartRate() {
+  const [bpm, setBpm] = useState(null);
+  useEffect(() => {
+    window.onHeartRateUpdate = (value) => {
+      if (typeof value === "number" && value > 0) setBpm(value);
+    };
+    // Request heart rate from native app
+    postNativeMessage("requestHeartRate", {});
+    const interval = setInterval(() => postNativeMessage("requestHeartRate", {}), 5000);
+    return () => {
+      clearInterval(interval);
+      delete window.onHeartRateUpdate;
+    };
+  }, []);
+  return bpm;
+}
+
+/* Heart icon SVG */
+function HeartIcon({ size = 16, color = "#ff033e" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+  );
+}
 
 function formatDuration(sec) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00";
@@ -235,6 +261,7 @@ function ProgramEditor({ weekPlan, onSave, onCancel }) {
 
 export default function WorkoutPage() {
   const toast = useToast();
+  const heartRate = useHeartRate();
   const [plan, setPlan] = useState(null);
   const [planIssues, setPlanIssues] = useState([]);
   const [weekPlan, setWeekPlan] = useState([]);
@@ -481,36 +508,82 @@ export default function WorkoutPage() {
 
   const showInputs = phase === "set" && session?.setIndex > 0 && ex?.type !== "cardio";
 
+  // Format total time as HH:MM:SS
+  const formatTotal = (ms) => {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  // Determine action button
+  let actionLabel = "";
+  let actionFn = null;
+  if (session && status !== "finished" && status !== "stopped" && status !== "completed") {
+    if (status === "paused") { actionLabel = "Продолжить"; actionFn = resume; }
+    else if (phase === "warmup") { actionLabel = "Закончить разминку"; actionFn = endWarmup; }
+    else if (phase === "set") { actionLabel = "Готово"; actionFn = finishSet; }
+    else if (phase === "rest") { actionLabel = "Закончить отдых"; actionFn = endRest; }
+    else if (phase === "cardio") { actionLabel = "Пропустить"; actionFn = endRest; }
+  }
+
+  const sessionActive = session && status !== "finished" && status !== "stopped" && status !== "completed";
+
   return (
     <div className="screen active">
       {/* Session card */}
       <div className="card">
         <div className="card-title">Таймер</div>
 
-        {/* Total workout time — animated rolling digits */}
-        {session && status !== "finished" && status !== "stopped" && status !== "completed" && (
-          <div style={{ marginBottom: 12 }}>
-            <AnimatedTimer elapsedMs={totalTimeMs} />
-          </div>
-        )}
-
-        {!session || status === "finished" || status === "stopped" || status === "completed" ? (
-          <div style={{ textAlign: "center", padding: 16 }}>
+        {/* No session — big START button */}
+        {!sessionActive ? (
+          <div>
             {planIssues.length > 0 ? (
-              <div className="muted" style={{ marginBottom: 12 }}>Проверь формат плана в разделе «План»</div>
+              <div className="muted" style={{ textAlign: "center", padding: 16 }}>Проверь формат плана в разделе «План»</div>
             ) : !hasValidPlan ? (
-              <div className="muted" style={{ marginBottom: 12 }}>Сегодня нет тренировки</div>
+              <div className="muted" style={{ textAlign: "center", padding: 16 }}>Сегодня нет тренировки</div>
             ) : (
-              <>
-                <div className="muted" style={{ marginBottom: 12 }}>Нет активной тренировки</div>
-                <button className="btn btn-accent" onClick={startWorkout} disabled={actionLoading}>
-                  Начать тренировку
-                </button>
-              </>
+              <button
+                onClick={startWorkout}
+                disabled={actionLoading}
+                style={{
+                  width: "100%", padding: "20px 0", border: "none", borderRadius: 16,
+                  background: "var(--accent)", color: "#fff", fontSize: 18, fontWeight: 700,
+                  letterSpacing: 2, cursor: "pointer", textTransform: "uppercase",
+                  boxShadow: "0 4px 16px rgba(255,3,62,0.25)",
+                  transition: "all 0.2s ease",
+                  opacity: actionLoading ? 0.7 : 1,
+                }}
+              >НАЧАТЬ</button>
             )}
           </div>
         ) : (
           <div>
+            {/* Total time block — same style as rest timer */}
+            <div style={{
+              border: "1px solid var(--border)", borderRadius: 16, padding: "12px 16px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: "var(--white)", marginBottom: 12,
+            }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Общее время</div>
+                <div style={{ fontSize: 28, fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: 1 }}>
+                  {formatTotal(totalTimeMs)}
+                </div>
+              </div>
+              {/* Heart rate */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <HeartIcon size={20} color={heartRate ? "#ff033e" : "rgba(0,0,0,0.15)" } />
+                <span style={{
+                  fontSize: 22, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                  color: heartRate ? "#ff033e" : "var(--muted)",
+                }}>
+                  {heartRate || "—"}
+                </span>
+              </div>
+            </div>
+
             {/* Phase label */}
             <div className="workout-phase-label" style={{ marginBottom: 8, fontWeight: 600 }}>
               {phase === "warmup" && "Разминка"}
@@ -535,7 +608,7 @@ export default function WorkoutPage() {
               </div>
             )}
 
-            {/* Timer */}
+            {/* Rest/Cardio timer */}
             {(phase === "rest" || phase === "cardio") && (
               <div className="workout-timer-block" style={{ "--timer-progress": `${timerProgress * 100}%` }}>
                 <div className="workout-timer-label">
@@ -557,14 +630,28 @@ export default function WorkoutPage() {
               </div>
             )}
 
-            {/* Actions */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-              {phase === "warmup" && <button className="btn btn-accent" onClick={endWarmup} disabled={actionLoading}>Закончить разминку</button>}
-              {phase === "set" && <button className="btn btn-accent" onClick={finishSet} disabled={actionLoading}>Готово</button>}
-              {phase === "rest" && isActive && <button className="btn btn-outline" onClick={endRest} disabled={actionLoading}>Закончить отдых</button>}
-              {isActive && status !== "paused" && <button className="btn btn-outline" onClick={pause} disabled={actionLoading}>Пауза</button>}
-              {status === "paused" && <button className="btn btn-accent" onClick={resume} disabled={actionLoading}>Продолжить</button>}
-              {session && <button className="btn btn-outline" onClick={stopWorkout} disabled={actionLoading} style={{ color: "var(--accent)" }}>Стоп</button>}
+            {/* Actions — pause/stop left, action button right */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "stretch" }}>
+              {/* Left group: pause + stop */}
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {isActive && status !== "paused" && (
+                  <button className="btn btn-outline" onClick={pause} disabled={actionLoading}
+                    style={{ padding: "10px 14px", fontSize: 13, whiteSpace: "nowrap" }}>
+                    Пауза
+                  </button>
+                )}
+                <button className="btn btn-outline" onClick={stopWorkout} disabled={actionLoading}
+                  style={{ padding: "10px 14px", fontSize: 13, color: "var(--accent)", whiteSpace: "nowrap" }}>
+                  Стоп
+                </button>
+              </div>
+              {/* Right: action button fills remaining space */}
+              {actionFn && (
+                <button className="btn btn-accent" onClick={actionFn} disabled={actionLoading}
+                  style={{ flex: 1, fontSize: 14 }}>
+                  {actionLabel}
+                </button>
+              )}
             </div>
           </div>
         )}
