@@ -13,7 +13,7 @@ import (
 )
 
 //go:embed assets/*
-var assets embed.FS
+var _ embed.FS // old miniapp assets, kept for embed but no longer served
 
 //go:embed frontend/dist/*
 var reactAssets embed.FS
@@ -100,30 +100,21 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("auth assets: %w", err)
 	}
-	sub, err := fs.Sub(assets, "assets")
-	if err != nil {
-		return fmt.Errorf("miniapp assets: %w", err)
-	}
-	fileServer := http.FileServer(http.FS(sub))
-	serveMiniapp := func(prefix string) {
-		mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
-			target := prefix + "/"
-			if r.URL.RawQuery != "" {
-				target += "?" + r.URL.RawQuery
-			}
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
-		})
-		mux.Handle(prefix+"/", http.StripPrefix(prefix+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			path := strings.TrimPrefix(r.URL.Path, "/")
-			if path == "" || strings.HasSuffix(path, ".html") {
-				w.Header().Set("Cache-Control", "no-store")
-			} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
-				w.Header().Set("Cache-Control", "no-cache")
-			}
-			fileServer.ServeHTTP(w, r)
-		})))
-	}
-	serveMiniapp("/miniapp")
+	// Redirect old /miniapp/ to /app/
+	mux.HandleFunc("/miniapp", func(w http.ResponseWriter, r *http.Request) {
+		target := "/app/"
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	})
+	mux.Handle("/miniapp/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		target := "/app/"
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}))
 
 	// Serve React build at /app/
 	reactSub, err := fs.Sub(reactAssets, "frontend/dist")

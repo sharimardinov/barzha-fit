@@ -138,6 +138,8 @@ function StageSelector({ value, onChange }) {
     { id: "flow", label: "FLOW", desc: "Средний", img: "/app/flow.svg" },
     { id: "peak", label: "PEAK", desc: "Продвинутый", img: "/app/peak.svg" },
   ];
+  // CSS filter to turn black SVG → #ff033e
+  const accentFilter = "brightness(0) saturate(100%) invert(12%) sepia(96%) saturate(7471%) hue-rotate(345deg) brightness(102%) contrast(113%)";
   return (
     <div style={{ display: "flex", gap: 10 }}>
       {stages.map((s) => {
@@ -153,17 +155,19 @@ function StageSelector({ value, onChange }) {
           }}>
             <img src={s.img} alt={s.label} style={{
               width: 60, height: 100, objectFit: "contain",
-              filter: active
-                ? "invert(13%) sepia(95%) saturate(7000%) hue-rotate(340deg) brightness(95%) contrast(105%)"
-                : "grayscale(0.6) opacity(0.4)",
+              filter: active ? accentFilter : "grayscale(0.6) opacity(0.4)",
               transition: "filter 0.25s ease",
             }} />
             <div style={{
               fontSize: 14, fontWeight: 700, letterSpacing: 1,
-              color: active ? "var(--accent)" : "var(--muted)",
+              color: active ? "#ff033e" : "var(--muted)",
               transition: "color 0.2s ease",
             }}>{s.label}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>{s.desc}</div>
+            <div style={{
+              fontSize: 11,
+              color: active ? "#ff033e" : "var(--muted)",
+              transition: "color 0.2s ease",
+            }}>{s.desc}</div>
           </button>
         );
       })}
@@ -176,6 +180,7 @@ export default function OnboardingPage({ onComplete }) {
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [planMode, setPlanMode] = useState("text"); // "text" or "structured"
   const [data, setData] = useState({
     sex: "",
     age: 25, weight: 70, height: 175,
@@ -184,6 +189,7 @@ export default function OnboardingPage({ onComplete }) {
     goalType: "balance",
     planDays: Array(7).fill(null).map((_, i) => ({
       focus: "", items: i >= 5 ? "Отдых" : "", isRest: i >= 5,
+      exercises: [], // for structured mode
     })),
   });
 
@@ -202,7 +208,34 @@ export default function OnboardingPage({ onComplete }) {
     setData((prev) => {
       const days = [...prev.planDays];
       const isRest = !days[index].isRest;
-      days[index] = { ...days[index], isRest, items: isRest ? "Отдых" : "", focus: isRest ? "" : days[index].focus };
+      days[index] = { ...days[index], isRest, items: isRest ? "Отдых" : "", focus: isRest ? "" : days[index].focus, exercises: [] };
+      return { ...prev, planDays: days };
+    });
+  };
+
+  const updateExercise = (dayIdx, exIdx, field, value) => {
+    setData((prev) => {
+      const days = [...prev.planDays];
+      const exercises = [...(days[dayIdx].exercises || [])];
+      exercises[exIdx] = { ...exercises[exIdx], [field]: value };
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, planDays: days };
+    });
+  };
+
+  const addExercise = (dayIdx) => {
+    setData((prev) => {
+      const days = [...prev.planDays];
+      const exercises = [...(days[dayIdx].exercises || []), { name: "", sets: "", reps: "", rest: "" }];
+      days[dayIdx] = { ...days[dayIdx], exercises };
+      return { ...prev, planDays: days };
+    });
+  };
+
+  const removeExercise = (dayIdx, exIdx) => {
+    setData((prev) => {
+      const days = [...prev.planDays];
+      days[dayIdx] = { ...days[dayIdx], exercises: days[dayIdx].exercises.filter((_, j) => j !== exIdx) };
       return { ...prev, planDays: days };
     });
   };
@@ -214,7 +247,12 @@ export default function OnboardingPage({ onComplete }) {
       case "trainingStage": return !!data.trainingStage;
       case "bodyfat": return data.bodyfat >= 1 && data.bodyfat <= 60;
       case "goalType": return !!data.goalType;
-      case "planWeek": return data.planDays.every((d) => d.isRest || d.items?.trim());
+      case "planWeek":
+        return data.planDays.every((d) => {
+          if (d.isRest) return true;
+          if (planMode === "structured") return (d.exercises || []).some((ex) => ex.name.trim());
+          return d.items?.trim();
+        });
       default: return true;
     }
   };
@@ -242,14 +280,33 @@ export default function OnboardingPage({ onComplete }) {
       });
 
       const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
-      const weekPlan = data.planDays.map((d, i) => ({
-        day: i + 1,
-        name: `День ${i + 1}`,
-        dayName: dayNames[i],
-        focus: d.focus || "",
-        items: d.isRest ? ["Отдых"] : (d.items ? d.items.split("\n").map((s) => s.trim()).filter(Boolean) : ["Отдых"]),
-        type: d.isRest ? "rest" : "train",
-      }));
+      const weekPlan = data.planDays.map((d, i) => {
+        let items;
+        if (d.isRest) {
+          items = ["Отдых"];
+        } else if (planMode === "structured") {
+          items = (d.exercises || [])
+            .filter((ex) => ex.name.trim())
+            .map((ex) => {
+              let line = ex.name.trim();
+              if (ex.sets && ex.reps) line += ` | ${ex.sets}x${ex.reps}`;
+              else if (ex.sets) line += ` | ${ex.sets}`;
+              if (ex.rest) line += ` | ${ex.rest}`;
+              return line;
+            });
+          if (items.length === 0) items = ["Отдых"];
+        } else {
+          items = d.items ? d.items.split("\n").map((s) => s.trim()).filter(Boolean) : ["Отдых"];
+        }
+        return {
+          day: i + 1,
+          name: `День ${i + 1}`,
+          dayName: dayNames[i],
+          focus: d.focus || "",
+          items,
+          type: d.isRest ? "rest" : "train",
+        };
+      });
       await api("/api/plan/set", { text: JSON.stringify({ week_plan: weekPlan }) });
 
       dispatch({ type: "SET_ONBOARDING", payload: false });
@@ -326,6 +383,29 @@ export default function OnboardingPage({ onComplete }) {
       {/* Step 6 — Plan Week */}
       {currentStep.id === "planWeek" && (
         <div style={{ display: "grid", gap: 10 }}>
+          {/* Mode toggle */}
+          <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.04)", borderRadius: 10, padding: 3 }}>
+            {[
+              { id: "text", label: "Текстом" },
+              { id: "structured", label: "По полям" },
+            ].map((m) => (
+              <button key={m.id} onClick={() => setPlanMode(m.id)} style={{
+                flex: 1, padding: "6px 8px", borderRadius: 8, border: "none", cursor: "pointer",
+                fontSize: 12, fontWeight: 600,
+                background: planMode === m.id ? "var(--white)" : "transparent",
+                color: planMode === m.id ? "var(--black)" : "var(--muted)",
+                boxShadow: planMode === m.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                transition: "all 0.2s ease",
+              }}>{m.label}</button>
+            ))}
+          </div>
+
+          {planMode === "text" && (
+            <div style={{ fontSize: 11, color: "var(--muted)", padding: "0 2px" }}>
+              Формат: Название | 3x10 | 60кг | 120сек (по одному на строку)
+            </div>
+          )}
+
           {data.planDays.map((day, i) => (
             <div key={i} style={{
               border: `1px solid ${day.isRest ? "rgba(0,0,0,0.06)" : "var(--border)"}`,
@@ -344,7 +424,46 @@ export default function OnboardingPage({ onComplete }) {
               {!day.isRest && (
                 <>
                   <input type="text" placeholder="Фокус (грудь, спина...)" value={day.focus} onChange={(e) => updateDay(i, "focus", e.target.value)} style={{ marginBottom: 6 }} />
-                  <textarea placeholder="Упражнения (по одному на строку)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} />
+
+                  {planMode === "text" ? (
+                    <textarea placeholder="Упражнения (по одному на строку)" value={day.items} onChange={(e) => updateDay(i, "items", e.target.value)} rows={2} />
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(day.exercises || []).map((ex, j) => (
+                        <div key={j} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                          <input
+                            type="text" placeholder="Упражнение" value={ex.name}
+                            onChange={(e) => updateExercise(i, j, "name", e.target.value)}
+                            style={{ flex: 3, fontSize: 12, padding: "6px 8px" }}
+                          />
+                          <input
+                            type="text" placeholder="Подх" value={ex.sets}
+                            onChange={(e) => updateExercise(i, j, "sets", e.target.value)}
+                            style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
+                          />
+                          <span style={{ fontSize: 12, color: "var(--muted)" }}>×</span>
+                          <input
+                            type="text" placeholder="Повт" value={ex.reps}
+                            onChange={(e) => updateExercise(i, j, "reps", e.target.value)}
+                            style={{ flex: 0.7, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
+                          />
+                          <input
+                            type="text" placeholder="Отдых" value={ex.rest}
+                            onChange={(e) => updateExercise(i, j, "rest", e.target.value)}
+                            style={{ flex: 0.8, fontSize: 12, padding: "6px 4px", textAlign: "center" }}
+                          />
+                          <button onClick={() => removeExercise(i, j)} style={{
+                            background: "none", border: "none", cursor: "pointer", color: "var(--muted)",
+                            fontSize: 14, padding: "2px 4px", flexShrink: 0,
+                          }}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={() => addExercise(i)} style={{
+                        padding: "6px 10px", borderRadius: 8, border: "1px dashed var(--border)",
+                        background: "none", cursor: "pointer", fontSize: 12, color: "var(--muted)",
+                      }}>+ упражнение</button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
