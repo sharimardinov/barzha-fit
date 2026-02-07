@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { AppProvider, useAppState } from "./hooks/useAppState";
 import { ToastProvider } from "./components/Toast";
 import Nav from "./components/Nav";
+import GradualBlur from "./components/GradualBlur";
 import TodayPage from "./pages/TodayPage";
 import WorkoutPage from "./pages/WorkoutPage";
 import MealsPage from "./pages/MealsPage";
@@ -101,6 +102,7 @@ function AppContent() {
         <div style={{ display: tab === "meals" ? "block" : "none" }}><MealsPage /></div>
         <div style={{ display: tab === "profile" ? "block" : "none" }}><ProfilePage /></div>
       </main>
+      <GradualBlur position="bottom" height="8rem" strength={1.5} layers={5} />
       <Nav />
     </>
   );
