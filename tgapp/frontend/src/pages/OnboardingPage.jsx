@@ -3,6 +3,7 @@ import { api } from "../services/api";
 import { useAppState } from "../hooks/useAppState";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
+import { motion, AnimatePresence } from "motion/react";
 import Stepper, { Step } from "../components/Stepper";
 import ElasticSlider from "../components/ElasticSlider";
 
@@ -52,7 +53,7 @@ function BodyfatSlider({ value, onChange }) {
   );
 }
 
-/* Goal selector — PillNav style (dark pills, inspired by reactbits.dev/components/pill-nav) */
+/* Goal selector — PillNav style with animated sliding indicator */
 function GoalPill({ value, onChange }) {
   const options = [
     { id: "cut", label: "CUT", desc: "Сушка" },
@@ -62,7 +63,7 @@ function GoalPill({ value, onChange }) {
 
   return (
     <div style={{
-      display: "flex", gap: 6, background: "#f0f0f0", borderRadius: 999, padding: 4,
+      display: "flex", gap: 4, background: "#f0f0f0", borderRadius: 999, padding: 4,
     }}>
       {options.map((opt) => {
         const active = value === opt.id;
@@ -73,22 +74,34 @@ function GoalPill({ value, onChange }) {
             style={{
               flex: 1, position: "relative", border: "none", cursor: "pointer",
               borderRadius: 999, padding: "14px 8px",
-              background: active ? "#111" : "transparent",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              overflow: "hidden",
+              background: "transparent",
+              zIndex: 1,
             }}
           >
+            {/* Animated pill background */}
+            {active && (
+              <motion.div
+                layoutId="goal-pill-bg"
+                style={{
+                  position: "absolute", inset: 0, borderRadius: 999,
+                  background: "#ff033e",
+                }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              />
+            )}
             <div style={{
+              position: "relative", zIndex: 2,
               fontSize: 14, fontWeight: 700, letterSpacing: 1,
               fontFamily: "'Aptos', Arial, sans-serif",
               color: active ? "#fff" : "rgba(0,0,0,0.35)",
-              transition: "color 0.3s ease",
+              transition: "color 0.2s ease",
               lineHeight: 1.2,
             }}>{opt.label}</div>
             <div style={{
+              position: "relative", zIndex: 2,
               fontSize: 10, marginTop: 3,
-              color: active ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.2)",
-              transition: "color 0.3s ease",
+              color: active ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.2)",
+              transition: "color 0.2s ease",
               lineHeight: 1,
             }}>{opt.desc}</div>
           </button>
