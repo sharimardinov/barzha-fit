@@ -76,22 +76,16 @@
 }
 
 .pill.is-active {
-  background: var(--accent, #ff033e);
   color: var(--hover-text, #ffffff);
 }
 
-.pill .hover-circle {
+.pill-active {
   position: absolute;
-  left: 50%;
-  bottom: 0;
-  border-radius: 50%;
+  inset: 0;
+  border-radius: inherit;
   background: var(--accent, #ff033e);
   z-index: 1;
-  display: block;
-  pointer-events: none;
-  transform: translateX(-50%) scale(0);
-  transform-origin: 50% var(--circle-origin, 50%);
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 10px 22px rgba(255, 3, 62, 0.35), 0 4px 10px rgba(255, 3, 62, 0.2);
 }
 
 .pill .pill-content {
@@ -110,58 +104,15 @@
   color: currentColor;
 }
 
-.pill .label-stack {
-  position: relative;
-  display: inline-block;
-  line-height: 1;
-  z-index: 2;
-  max-width: 100%;
-}
-
 .pill .pill-label {
   position: relative;
   z-index: 2;
   display: inline-block;
   line-height: 1;
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.pill .pill-label-hover {
-  position: absolute;
-  left: 0;
-  top: 0;
-  color: var(--hover-text, #ffffff);
-  z-index: 3;
-  display: inline-block;
-  line-height: 1;
-  transform: translateY(calc(var(--pill-h, 0px) + 12px));
-  opacity: 0;
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    opacity 0.2s ease;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pill:hover .hover-circle,
-.pill:focus-visible .hover-circle {
-  transform: translateX(-50%) scale(1.2);
-}
-
-.pill:hover .pill-label,
-.pill:focus-visible .pill-label {
-  transform: translateY(calc(var(--pill-h-neg, 0px) - 8px));
-}
-
-.pill:hover .pill-label-hover,
-.pill:focus-visible .pill-label-hover {
-  transform: translateY(0);
-  opacity: 1;
 }
 
 .pill.is-active::after {
@@ -174,7 +125,7 @@
   height: 10px;
   background: var(--accent, #ff033e);
   border-radius: 50px;
-  z-index: 4;
+  z-index: 2;
 }
 
 @media (max-width: 520px) {
