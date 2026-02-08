@@ -8,6 +8,32 @@ import StepsCard from "../components/StepsCard";
 import { AccordionItem } from "../components/Accordion";
 import ProgressBar from "../components/ProgressBar";
 
+function MacroIcon({ type }) {
+  if (type === "protein") {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <rect x="3" y="9" width="4" height="6" rx="1.2" />
+        <rect x="17" y="9" width="4" height="6" rx="1.2" />
+        <rect x="7" y="11" width="10" height="2" rx="1" />
+      </svg>
+    );
+  }
+  if (type === "carbs") {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <rect x="4" y="6" width="16" height="3" rx="1.5" />
+        <rect x="6" y="11" width="12" height="3" rx="1.5" />
+        <rect x="8" y="16" width="8" height="3" rx="1.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2c-2.8 3.8-6 7.2-6 11a6 6 0 0 0 12 0c0-3.8-3.2-7.2-6-11z" />
+    </svg>
+  );
+}
+
 export default function TodayPage() {
   const { state, dispatch } = useAppState();
   const toast = useToast();
@@ -57,36 +83,50 @@ export default function TodayPage() {
   if (loading) return <div className="screen-loader is-loading"><div className="screen-spinner" /></div>;
 
   const t = today?.targets || {};
-  const icons = today?.icons || {};
+  const formatNumber = (value) => (Number.isFinite(value) ? Math.round(value).toLocaleString("ru-RU") : "—");
 
-  const metrics = [
-    { label: "Ккал", value: today?.kcal || 0, target: t.kcal || 0, icon: icons.kcal, id: "kcal" },
-    { label: "Белки", value: today?.protein || 0, target: t.protein || 0, icon: icons.protein, id: "protein" },
-    { label: "Жиры", value: today?.fat || 0, target: t.fat || 0, icon: icons.fat, id: "fat" },
-    { label: "Углеводы", value: today?.carbs || 0, target: t.carbs || 0, icon: icons.carbs, id: "carbs" },
+  const macroMetrics = [
+    { id: "protein", label: "Белки", value: today?.protein || 0, target: t.protein || 0, unit: "г" },
+    { id: "carbs", label: "Углеводы", value: today?.carbs || 0, target: t.carbs || 0, unit: "г" },
+    { id: "fat", label: "Жиры", value: today?.fat || 0, target: t.fat || 0, unit: "г" },
   ];
 
   return (
     <div className="screen active">
       <StepsCard steps={steps.steps} target={steps.target} distance={steps.distance} kcal={steps.kcal} />
 
-      <div className="card">
-        <div className="card-title">Прогресс</div>
-        {metrics.map((m) => {
-          const status = m.icon === "green" ? "ok" : m.icon === "red" ? "bad" : "none";
-          return (
-            <div key={m.id} className="progress-item">
-              <div className="progress-head">
-                <span className="label">{m.label}</span>
-                <span className="value">
-                  {Math.round(m.value)} / {m.target}
-                  <span className={`indicator ${status}`} />
-                </span>
+      <div className="card macro-panel">
+        <div className="macro-header">
+          <div className="macro-title">Макронутриенты</div>
+          <button
+            type="button"
+            className="macro-link"
+            onClick={() => dispatch({ type: "SET_TAB", payload: "meals" })}
+          >
+            Детали
+          </button>
+        </div>
+        <div className="macro-grid">
+          {macroMetrics.map((m) => {
+            const targetText = m.target > 0 ? `${formatNumber(m.target)}${m.unit}` : "—";
+            return (
+              <div key={m.id} className="macro-card">
+                <div className="macro-card-head">
+                  <span className={`macro-icon macro-icon-${m.id}`} aria-hidden="true">
+                    <MacroIcon type={m.id} />
+                  </span>
+                  <span className="macro-label">{m.label}</span>
+                </div>
+                <div className="macro-value">
+                  <span className="macro-current">{formatNumber(m.value)}</span>
+                  <span className="macro-unit">{m.unit}</span>
+                  <span className="macro-target">/ {targetText}</span>
+                </div>
+                <ProgressBar current={m.value} target={m.target} className="macro-progress" />
               </div>
-              <ProgressBar current={m.value} target={m.target} />
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {today?.todayTraining && (

@@ -674,6 +674,139 @@ body {
   gap: var(--space-3);
 }
 
+.macro-panel {
+  padding: var(--space-4);
+}
+
+.macro-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.macro-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.macro-link {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 999px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.macro-link:hover {
+  background: rgba(255, 3, 62, 0.08);
+}
+
+.macro-link:active {
+  transform: translateY(1px);
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.macro-card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--white);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.macro-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.macro-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 3, 62, 0.12);
+  color: var(--accent);
+}
+
+.macro-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.macro-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.macro-value {
+  margin-top: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.macro-unit {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+.macro-target {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.macro-progress {
+  height: 6px;
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+
+.macro-progress .progress-fill {
+  box-shadow: none;
+}
+
+.macro-progress .progress-fill::after {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .macro-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .macro-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .progress-item {
   margin-bottom: 12px;
 }
