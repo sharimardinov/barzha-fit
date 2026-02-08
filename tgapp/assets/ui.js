@@ -108,12 +108,7 @@ export function setActiveTab(name) {
   });
   setActiveScreen(name);
   requestAnimationFrame(updateNavHighlight);
-  try {
-    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeNav) {
-      window.webkit.messageHandlers.nativeNav.postMessage({ tab: name });
-    }
-  } catch (_) {}
-}
+  
 
 export function setScreenLoading(name, loading) {
   const screen = document.getElementById(`screen-${name}`);

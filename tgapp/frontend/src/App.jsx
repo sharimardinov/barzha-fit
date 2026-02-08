@@ -83,24 +83,6 @@ function AppContent() {
 
   const tab = state.activeTab;
 
-  useEffect(() => {
-    const handler = (event) => {
-      const t = event?.detail?.tab;
-      if (t) {
-        dispatch({ type: "SET_TAB", payload: t });
-      }
-    };
-    window.addEventListener("nativeTab", handler);
-    return () => window.removeEventListener("nativeTab", handler);
-  }, [dispatch]);
-
-  useEffect(() => {
-    try {
-      if (window?.webkit?.messageHandlers?.nativeNav) {
-        window.webkit.messageHandlers.nativeNav.postMessage({ tab });
-      }
-    } catch (_) {}
-  }, [tab]);
 
   return (
     <>
