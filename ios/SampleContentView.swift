@@ -6,6 +6,7 @@ struct SampleContentView: View {
     @StateObject private var stepSync = StepSyncManager()
     @State private var profileJSON: String = ""
     @State private var errorText: String = ""
+    @State private var activeTab: String = "today"
 
     private let loginURL = URL(string: "https://barzhafit.ru/login")!
     private let miniappBaseURL = URL(string: "https://barzhafit.ru/miniapp")!
@@ -90,11 +91,22 @@ struct SampleContentView: View {
 
     @ViewBuilder
     private func workoutTab(token: String) -> some View {
-        WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate, onLogout: {
-            errorText = ""
-            auth.clear()
-        })
-            .ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack(alignment: .bottom) {
+                WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate, activeTab: $activeTab, onLogout: {
+                    errorText = ""
+                    auth.clear()
+                }, onTabChange: { tab in
+                    activeTab = tab
+                })
+                    .ignoresSafeArea()
+
+                NativeNavView(activeTab: $activeTab)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, max(12, proxy.safeAreaInsets.bottom + 8))
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
     }
 
     private func miniappURL(token: String) -> URL {

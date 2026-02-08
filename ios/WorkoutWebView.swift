@@ -1,26 +1,33 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 struct WorkoutWebView: UIViewRepresentable {
     let url: URL
     @ObservedObject var heartRate: HeartRateManager
+    @Binding var activeTab: String
     let onLogout: () -> Void
+    let onTabChange: (String) -> Void
 
-    init(url: URL, heartRate: HeartRateManager, onLogout: @escaping () -> Void = {}) {
+    init(url: URL, heartRate: HeartRateManager, activeTab: Binding<String>, onLogout: @escaping () -> Void = {}, onTabChange: @escaping (String) -> Void = { _ in }) {
         self.url = url
         self._heartRate = ObservedObject(wrappedValue: heartRate)
+        self._activeTab = activeTab
         self.onLogout = onLogout
+        self.onTabChange = onTabChange
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(heartRate: heartRate, onLogout: onLogout)
+        Coordinator(heartRate: heartRate, onLogout: onLogout, onTabChange: onTabChange)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(context.coordinator, name: "workoutTimer")
         config.userContentController.add(context.coordinator, name: "authState")
+        config.userContentController.add(context.coordinator, name: "nativeNav")
         config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.userContentController.addUserScript(makeHideNavScript())
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -32,18 +39,36 @@ struct WorkoutWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.update(webView: webView, targetURL: url)
+        context.coordinator.syncTab(activeTab)
+    }
+
+    private func makeHideNavScript() -> WKUserScript {
+        let source = """
+        (function() {
+          if (window.__nativeNavHidden) { return; }
+          window.__nativeNavHidden = true;
+          var style = document.createElement('style');
+          style.textContent = '.nav{display:none !important}';
+          document.head && document.head.appendChild(style);
+        })();
+        """
+        return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         private let heartRate: HeartRateManager
         private let onLogout: () -> Void
+        private let onTabChange: (String) -> Void
         private var lastRequestedURL: URL?
         private weak var webView: WKWebView?
         private var stepsObserver: NSObjectProtocol?
+        private var lastTabSent: String?
+        private var suppressNextTabSend = false
 
-        init(heartRate: HeartRateManager, onLogout: @escaping () -> Void) {
+        init(heartRate: HeartRateManager, onLogout: @escaping () -> Void, onTabChange: @escaping (String) -> Void) {
             self.heartRate = heartRate
             self.onLogout = onLogout
+            self.onTabChange = onTabChange
             super.init()
             stepsObserver = NotificationCenter.default.addObserver(forName: .stepsDidUpdate, object: nil, queue: .main) { [weak self] note in
                 self?.handleStepsUpdate(note)
@@ -125,6 +150,10 @@ struct WorkoutWebView: UIViewRepresentable {
                 handleAuthState(message)
                 return
             }
+            if message.name == "nativeNav" {
+                handleNativeNav(message)
+                return
+            }
             guard message.name == "workoutTimer" else { return }
             let action: String?
             if let dict = message.body as? [String: Any] {
@@ -159,6 +188,35 @@ struct WorkoutWebView: UIViewRepresentable {
             Task { @MainActor in
                 onLogout()
             }
+        }
+
+        private func handleNativeNav(_ message: WKScriptMessage) {
+            var tab: String?
+            if let dict = message.body as? [String: Any] {
+                tab = dict["tab"] as? String
+            } else if let text = message.body as? String {
+                tab = text
+            }
+            guard let tab, !tab.isEmpty else { return }
+            if tab == lastTabSent { return }
+            suppressNextTabSend = true
+            Task { @MainActor in
+                onTabChange(tab)
+            }
+        }
+
+        func syncTab(_ tab: String) {
+            guard let webView else { return }
+            if suppressNextTabSend {
+                suppressNextTabSend = false
+                lastTabSent = tab
+                return
+            }
+            if tab == lastTabSent { return }
+            lastTabSent = tab
+            let safeTab = tab.replacingOccurrences(of: "'", with: "\\'")
+            let js = "window.dispatchEvent(new CustomEvent('nativeTab', {detail: {tab: '\(safeTab)'}}));"
+            webView.evaluateJavaScript(js, completionHandler: nil)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

@@ -108,6 +108,11 @@ export function setActiveTab(name) {
   });
   setActiveScreen(name);
   requestAnimationFrame(updateNavHighlight);
+  try {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeNav) {
+      window.webkit.messageHandlers.nativeNav.postMessage({ tab: name });
+    }
+  } catch (_) {}
 }
 
 export function setScreenLoading(name, loading) {
@@ -133,6 +138,11 @@ export function updateNavHighlight() {
   highlight.style.transform = `translate(${left}px, -50%)`;
   highlight.style.opacity = "1";
 }
+
+window.addEventListener("nativeTab", (event) => {
+  const tab = event?.detail?.tab;
+  if (tab) setActiveTab(tab);
+});
 
 export function setProgress(id, current, target) {
   const el = $(id);
