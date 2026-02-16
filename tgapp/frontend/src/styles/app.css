@@ -1840,6 +1840,16 @@ button {
   align-content: center;
   gap: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  user-select: none;
+}
+
+.workout-focus-circle.is-adjustable {
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.workout-focus-circle.is-adjustable:active {
+  transform: scale(0.98);
 }
 
 .workout-focus-value {

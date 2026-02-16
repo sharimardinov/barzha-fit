@@ -272,6 +272,7 @@ export default function WorkoutPage() {
   const [editDays, setEditDays] = useState([]);
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
+  const [setsMetric, setSetsMetric] = useState("");
   const [timerDisplay, setTimerDisplay] = useState("00:00");
   const [timerProgress, setTimerProgress] = useState(0);
   const [totalTimeMs, setTotalTimeMs] = useState(0);
@@ -280,6 +281,7 @@ export default function WorkoutPage() {
   const lastTimerKeyRef = useRef(null);
   const lastTimerTotalRef = useRef(0);
   const lastSetKeyRef = useRef(null);
+  const metricTouchRef = useRef({});
   const wakeLockRef = useRef(null);
 
   // Wake lock
@@ -434,7 +436,7 @@ export default function WorkoutPage() {
     return () => releaseWakeLock();
   }, [session, requestWakeLock, releaseWakeLock]);
 
-  // Auto-fill weight/reps for new set
+  // Auto-fill metrics for current exercise/set
   useEffect(() => {
     if (!session || session.phase !== "set" || !plan) return;
     const ex = plan.exercises?.[session.exerciseIndex];
@@ -442,13 +444,9 @@ export default function WorkoutPage() {
     const key = `${session.exerciseIndex}:${session.setIndex}`;
     if (key !== lastSetKeyRef.current) {
       lastSetKeyRef.current = key;
-      if (session.setIndex > 0) {
-        setWeight(String(ex.weight || ""));
-        setReps(String(ex.reps || ""));
-      } else {
-        setWeight("");
-        setReps("");
-      }
+      setWeight(String(ex.weight ?? ""));
+      setReps(String(ex.reps ?? ""));
+      setSetsMetric(String(ex.sets ?? ""));
     }
   }, [session, plan]);
 
@@ -468,8 +466,10 @@ export default function WorkoutPage() {
   const endWarmup = () => doAction("/api/workout/session/warmup/end");
   const finishSet = () => {
     const isWarmup = session?.setIndex === 0;
-    const w = isWarmup ? 0 : Number(weight) || 0;
-    const r = isWarmup ? 0 : Math.round(Number(reps) || 0);
+    const plannedWeight = Number(ex?.weight) || 0;
+    const plannedReps = Number(ex?.reps) || 0;
+    const w = isWarmup ? 0 : Number(weight === "" ? plannedWeight : weight) || 0;
+    const r = isWarmup ? 0 : Math.round(Number(reps === "" ? plannedReps : reps) || 0);
     doAction("/api/workout/session/set/finish", {
       exerciseIndex: session.exerciseIndex,
       setIndex: session.setIndex,
@@ -490,26 +490,96 @@ export default function WorkoutPage() {
   const status = session?.status;
   const isActive = status === "in_progress";
   const hasValidPlan = exercises.length > 0 && planIssues.length === 0;
-  const metricWeight = ex?.type === "cardio" ? "—" : (ex?.weight ?? "—");
-  const metricReps = ex?.type === "cardio" ? "—" : (ex?.reps ?? "—");
-  const metricSets = ex?.type === "cardio" ? "—" : (ex?.sets ?? "—");
+  const canAdjustMetrics = phase === "set" && session?.setIndex > 0 && ex?.type !== "cardio";
+  const metricWeight = ex?.type === "cardio" ? "—" : (weight === "" ? (ex?.weight ?? "—") : weight);
+  const metricReps = ex?.type === "cardio" ? "—" : (reps === "" ? (ex?.reps ?? "—") : reps);
+  const metricSets = ex?.type === "cardio" ? "—" : (setsMetric === "" ? (ex?.sets ?? "—") : setsMetric);
+  const effectiveSets = ex?.type === "cardio"
+    ? 0
+    : Math.max(1, Math.round(Number(setsMetric === "" ? ex?.sets : setsMetric) || 1));
+
+  const adjustMetric = (kind, direction, multiplier = 1) => {
+    if (!canAdjustMetrics || !ex || direction === 0) return;
+    const step = kind === "weight" ? 2.5 : 1;
+    const delta = direction * step * multiplier;
+
+    if (kind === "weight") {
+      setWeight((prev) => {
+        const fallback = Number(ex.weight) || 0;
+        const base = prev === "" ? fallback : Number(prev);
+        const safeBase = Number.isFinite(base) ? base : fallback;
+        const next = Math.max(0, Math.round((safeBase + delta) * 10) / 10);
+        return String(next);
+      });
+      return;
+    }
+    if (kind === "reps") {
+      setReps((prev) => {
+        const fallback = Number(ex.reps) || 0;
+        const base = prev === "" ? fallback : Number(prev);
+        const safeBase = Number.isFinite(base) ? base : fallback;
+        return String(Math.max(0, Math.round(safeBase + delta)));
+      });
+      return;
+    }
+    if (kind === "sets") {
+      setSetsMetric((prev) => {
+        const fallback = Number(ex.sets) || 1;
+        const base = prev === "" ? fallback : Number(prev);
+        const safeBase = Number.isFinite(base) ? base : fallback;
+        return String(Math.max(1, Math.round(safeBase + delta)));
+      });
+    }
+  };
+
+  const handleMetricWheel = (event, kind) => {
+    if (!canAdjustMetrics) return;
+    event.preventDefault();
+    const direction = event.deltaY < 0 ? 1 : -1;
+    adjustMetric(kind, direction, event.shiftKey ? 5 : 1);
+  };
+
+  const handleMetricTouchStart = (event, kind) => {
+    if (!canAdjustMetrics) return;
+    const point = event.touches?.[0];
+    if (!point) return;
+    metricTouchRef.current[kind] = point.clientY;
+  };
+
+  const handleMetricTouchMove = (event, kind) => {
+    if (!canAdjustMetrics) return;
+    const point = event.touches?.[0];
+    if (!point) return;
+    const prevY = metricTouchRef.current[kind];
+    if (typeof prevY !== "number") {
+      metricTouchRef.current[kind] = point.clientY;
+      return;
+    }
+    const deltaY = prevY - point.clientY;
+    if (Math.abs(deltaY) < 14) return;
+    event.preventDefault();
+    adjustMetric(kind, deltaY > 0 ? 1 : -1);
+    metricTouchRef.current[kind] = point.clientY;
+  };
+
+  const handleMetricTouchEnd = (kind) => {
+    delete metricTouchRef.current[kind];
+  };
 
   // Set label text
   let setLabelText = "";
   if (ex && ex.type !== "cardio") {
     if (phase === "set") {
-      setLabelText = session.setIndex === 0 ? "Разминочный подход" : `Подход ${session.setIndex} из ${ex.sets}`;
+      setLabelText = session.setIndex === 0 ? "Разминочный подход" : `Подход ${session.setIndex} из ${effectiveSets}`;
     } else if (phase === "rest") {
       if (session.timerKind === "rest") {
         const finished = Math.max(0, session.setIndex - 1);
-        setLabelText = finished === 0 ? "Отдых после разминки" : `Отдых после подхода ${finished} из ${ex.sets}`;
+        setLabelText = finished === 0 ? "Отдых после разминки" : `Отдых после подхода ${finished} из ${effectiveSets}`;
       } else {
         setLabelText = "Отдых между упражнениями";
       }
     }
   }
-
-  const showInputs = phase === "set" && session?.setIndex > 0 && ex?.type !== "cardio";
 
   // Format total time as HH:MM:SS
   const formatTotal = (ms) => {
@@ -602,15 +672,39 @@ export default function WorkoutPage() {
                 <div className="workout-focus-block">
                   <div className="workout-focus-name">{ex.name || "—"}</div>
                   <div className="workout-focus-metrics">
-                    <div className="workout-focus-circle">
+                    <div
+                      className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
+                      onWheel={(event) => handleMetricWheel(event, "weight")}
+                      onTouchStart={(event) => handleMetricTouchStart(event, "weight")}
+                      onTouchMove={(event) => handleMetricTouchMove(event, "weight")}
+                      onTouchEnd={() => handleMetricTouchEnd("weight")}
+                      onTouchCancel={() => handleMetricTouchEnd("weight")}
+                      title={canAdjustMetrics ? "Прокрутите, чтобы изменить" : ""}
+                    >
                       <div className="workout-focus-value">{metricWeight}</div>
                       <div className="workout-focus-label">кг</div>
                     </div>
-                    <div className="workout-focus-circle">
+                    <div
+                      className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
+                      onWheel={(event) => handleMetricWheel(event, "reps")}
+                      onTouchStart={(event) => handleMetricTouchStart(event, "reps")}
+                      onTouchMove={(event) => handleMetricTouchMove(event, "reps")}
+                      onTouchEnd={() => handleMetricTouchEnd("reps")}
+                      onTouchCancel={() => handleMetricTouchEnd("reps")}
+                      title={canAdjustMetrics ? "Прокрутите, чтобы изменить" : ""}
+                    >
                       <div className="workout-focus-value">{metricReps}</div>
                       <div className="workout-focus-label">повт</div>
                     </div>
-                    <div className="workout-focus-circle">
+                    <div
+                      className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
+                      onWheel={(event) => handleMetricWheel(event, "sets")}
+                      onTouchStart={(event) => handleMetricTouchStart(event, "sets")}
+                      onTouchMove={(event) => handleMetricTouchMove(event, "sets")}
+                      onTouchEnd={() => handleMetricTouchEnd("sets")}
+                      onTouchCancel={() => handleMetricTouchEnd("sets")}
+                      title={canAdjustMetrics ? "Прокрутите, чтобы изменить" : ""}
+                    >
                       <div className="workout-focus-value">{metricSets}</div>
                       <div className="workout-focus-label">подх</div>
                     </div>
@@ -643,20 +737,6 @@ export default function WorkoutPage() {
                   {phase === "rest" || phase === "cardio" ? timerDisplay : "--:--"}
                 </div>
               </div>
-            </div>
-
-            {/* Input fields — fixed height */}
-            <div style={{ minHeight: showInputs ? 0 : 0, marginBottom: 8 }}>
-              {showInputs && (
-                <div className="workout-inputs" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <label>Вес (кг)
-                    <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder={String(ex?.weight || 0)} />
-                  </label>
-                  <label>Повторения
-                    <input type="number" value={reps} onChange={(e) => setReps(e.target.value)} placeholder={String(ex?.reps || 0)} />
-                  </label>
-                </div>
-              )}
             </div>
 
             {/* Actions — fixed at bottom */}
