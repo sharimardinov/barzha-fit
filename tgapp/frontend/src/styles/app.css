@@ -1827,6 +1827,7 @@ button {
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+  overscroll-behavior: contain;
 }
 
 .workout-focus-circle {
@@ -1841,6 +1842,8 @@ button {
   gap: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: contain;
 }
 
 .workout-focus-circle.is-adjustable {

@@ -436,6 +436,22 @@ export default function WorkoutPage() {
     return () => releaseWakeLock();
   }, [session, requestWakeLock, releaseWakeLock]);
 
+  // Keep page scroll locked while user adjusts metric circles.
+  useEffect(() => {
+    const blockIfMetricTarget = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest(".workout-focus-circle.is-adjustable")) return;
+      event.preventDefault();
+    };
+    window.addEventListener("wheel", blockIfMetricTarget, { passive: false, capture: true });
+    window.addEventListener("touchmove", blockIfMetricTarget, { passive: false, capture: true });
+    return () => {
+      window.removeEventListener("wheel", blockIfMetricTarget, true);
+      window.removeEventListener("touchmove", blockIfMetricTarget, true);
+    };
+  }, []);
+
   // Auto-fill metrics for current exercise/set
   useEffect(() => {
     if (!session || session.phase !== "set" || !plan) return;
@@ -535,6 +551,7 @@ export default function WorkoutPage() {
   const handleMetricWheel = (event, kind) => {
     if (!canAdjustMetrics) return;
     event.preventDefault();
+    event.stopPropagation();
     const direction = event.deltaY < 0 ? 1 : -1;
     adjustMetric(kind, direction, event.shiftKey ? 5 : 1);
   };
@@ -548,6 +565,8 @@ export default function WorkoutPage() {
 
   const handleMetricTouchMove = (event, kind) => {
     if (!canAdjustMetrics) return;
+    event.preventDefault();
+    event.stopPropagation();
     const point = event.touches?.[0];
     if (!point) return;
     const prevY = metricTouchRef.current[kind];
@@ -557,7 +576,6 @@ export default function WorkoutPage() {
     }
     const deltaY = prevY - point.clientY;
     if (Math.abs(deltaY) < 14) return;
-    event.preventDefault();
     adjustMetric(kind, deltaY > 0 ? 1 : -1);
     metricTouchRef.current[kind] = point.clientY;
   };
@@ -674,6 +692,7 @@ export default function WorkoutPage() {
                   <div className="workout-focus-metrics">
                     <div
                       className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
+                      onWheelCapture={(event) => handleMetricWheel(event, "weight")}
                       onWheel={(event) => handleMetricWheel(event, "weight")}
                       onTouchStart={(event) => handleMetricTouchStart(event, "weight")}
                       onTouchMove={(event) => handleMetricTouchMove(event, "weight")}
@@ -686,6 +705,7 @@ export default function WorkoutPage() {
                     </div>
                     <div
                       className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
+                      onWheelCapture={(event) => handleMetricWheel(event, "reps")}
                       onWheel={(event) => handleMetricWheel(event, "reps")}
                       onTouchStart={(event) => handleMetricTouchStart(event, "reps")}
                       onTouchMove={(event) => handleMetricTouchMove(event, "reps")}
@@ -698,6 +718,7 @@ export default function WorkoutPage() {
                     </div>
                     <div
                       className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
+                      onWheelCapture={(event) => handleMetricWheel(event, "sets")}
                       onWheel={(event) => handleMetricWheel(event, "sets")}
                       onTouchStart={(event) => handleMetricTouchStart(event, "sets")}
                       onTouchMove={(event) => handleMetricTouchMove(event, "sets")}
