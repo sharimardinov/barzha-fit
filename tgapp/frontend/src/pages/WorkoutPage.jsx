@@ -51,6 +51,51 @@ function formatRest(seconds) {
   return `${total} сек`;
 }
 
+function formatNum(value, digits = 1) {
+  if (!Number.isFinite(Number(value))) return "—";
+  return Number(value).toFixed(digits).replace(/\.0$/, "");
+}
+
+function formatStatDate(value) {
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return "—";
+  const d = String(dt.getDate()).padStart(2, "0");
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  return `${d}.${m}`;
+}
+
+function Sparkline({ points, color, valueKey }) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return <div className="insights-empty-chart">Недостаточно данных</div>;
+  }
+  const width = 320;
+  const height = 88;
+  const pad = 8;
+  const values = points.map((point) => Number(point[valueKey]) || 0);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const step = (width - pad * 2) / Math.max(points.length - 1, 1);
+
+  const path = points.map((point, i) => {
+    const x = pad + i * step;
+    const value = Number(point[valueKey]) || 0;
+    const y = pad + (height - pad * 2) * (1 - (value - min) / span);
+    return `${x},${y}`;
+  }).join(" ");
+
+  const last = points[points.length - 1];
+  const lastY = pad + (height - pad * 2) * (1 - ((Number(last[valueKey]) || 0) - min) / span);
+
+  return (
+    <svg className="insights-sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+      <polyline points={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1={pad} y1={lastY} x2={width - pad} y2={lastY} stroke={color} strokeOpacity="0.16" strokeDasharray="3 4" />
+      <circle cx={width - pad} cy={lastY} r="3.5" fill={color} />
+    </svg>
+  );
+}
+
 function ProgramEditor({ weekPlan, onSave, onCancel }) {
   const dayNames = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
   const [mode, setMode] = useState("text"); // "text" or "structured"
@@ -276,6 +321,12 @@ export default function WorkoutPage() {
   const [timerDisplay, setTimerDisplay] = useState("00:00");
   const [timerProgress, setTimerProgress] = useState(0);
   const [totalTimeMs, setTotalTimeMs] = useState(0);
+  const [insights, setInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+  const [insightsError, setInsightsError] = useState("");
+  const [statsExercise, setStatsExercise] = useState("");
+  const [statsPeriodDays, setStatsPeriodDays] = useState(90);
+  const [insightsAILoading, setInsightsAILoading] = useState(false);
   const tickRef = useRef(null);
   const totalTickRef = useRef(null);
   const lastTimerKeyRef = useRef(null);
@@ -346,7 +397,38 @@ export default function WorkoutPage() {
     }
   }, []);
 
+  const loadInsights = useCallback(async ({ includeAI = false, exerciseName, periodDays } = {}) => {
+    const selectedExercise = exerciseName !== undefined ? exerciseName : statsExercise;
+    const selectedPeriod = periodDays || statsPeriodDays;
+    if (includeAI) {
+      setInsightsAILoading(true);
+    } else {
+      setInsightsLoading(true);
+    }
+    try {
+      const data = await api("/api/workout/stats/get", {
+        exerciseName: selectedExercise || "",
+        periodDays: selectedPeriod,
+        includeAI,
+      });
+      setInsights(data || null);
+      setInsightsError("");
+      if (data?.selectedExercise && !statsExercise) {
+        setStatsExercise(data.selectedExercise);
+      }
+    } catch (err) {
+      setInsightsError(formatApiError(err));
+    } finally {
+      if (includeAI) {
+        setInsightsAILoading(false);
+      } else {
+        setInsightsLoading(false);
+      }
+    }
+  }, [statsExercise, statsPeriodDays]);
+
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadInsights(); }, [loadInsights]);
 
   // Apply session from action response
   const applySession = useCallback((data) => {
@@ -360,7 +442,8 @@ export default function WorkoutPage() {
       setSession(s);
       postNativeMessage("workoutTimer", { action: s ? "start" : "stop" });
     }
-  }, [toast]);
+    loadInsights();
+  }, [toast, loadInsights]);
 
   // Timer tick for rest/cardio
   useEffect(() => {
@@ -497,6 +580,8 @@ export default function WorkoutPage() {
   const pause = () => doAction("/api/workout/session/pause");
   const resume = () => doAction("/api/workout/session/resume");
   const stopWorkout = () => doAction("/api/workout/session/stop");
+  const refreshInsights = () => loadInsights();
+  const refreshAIAdvice = () => loadInsights({ includeAI: true });
 
   if (loading) return <div className="screen-loader is-loading"><div className="screen-spinner" /></div>;
 
@@ -513,6 +598,19 @@ export default function WorkoutPage() {
   const effectiveSets = ex?.type === "cardio"
     ? 0
     : Math.max(1, Math.round(Number(setsMetric === "" ? ex?.sets : setsMetric) || 1));
+  const statsPoints = insights?.points || [];
+  const statsMetrics = insights?.metrics || {};
+  const statsTrends = insights?.trends || {};
+  const statsDirection = statsTrends.direction === "up"
+    ? "Прогресс"
+    : statsTrends.direction === "down"
+      ? "Спад"
+      : "Плато";
+  const statsDirectionClass = statsTrends.direction === "up"
+    ? "is-up"
+    : statsTrends.direction === "down"
+      ? "is-down"
+      : "is-flat";
 
   const adjustMetric = (kind, direction, multiplier = 1) => {
     if (!canAdjustMetrics || !ex || direction === 0) return;
@@ -693,7 +791,6 @@ export default function WorkoutPage() {
                     <div
                       className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
                       onWheelCapture={(event) => handleMetricWheel(event, "weight")}
-                      onWheel={(event) => handleMetricWheel(event, "weight")}
                       onTouchStart={(event) => handleMetricTouchStart(event, "weight")}
                       onTouchMove={(event) => handleMetricTouchMove(event, "weight")}
                       onTouchEnd={() => handleMetricTouchEnd("weight")}
@@ -706,7 +803,6 @@ export default function WorkoutPage() {
                     <div
                       className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
                       onWheelCapture={(event) => handleMetricWheel(event, "reps")}
-                      onWheel={(event) => handleMetricWheel(event, "reps")}
                       onTouchStart={(event) => handleMetricTouchStart(event, "reps")}
                       onTouchMove={(event) => handleMetricTouchMove(event, "reps")}
                       onTouchEnd={() => handleMetricTouchEnd("reps")}
@@ -719,7 +815,6 @@ export default function WorkoutPage() {
                     <div
                       className={`workout-focus-circle${canAdjustMetrics ? " is-adjustable" : ""}`}
                       onWheelCapture={(event) => handleMetricWheel(event, "sets")}
-                      onWheel={(event) => handleMetricWheel(event, "sets")}
                       onTouchStart={(event) => handleMetricTouchStart(event, "sets")}
                       onTouchMove={(event) => handleMetricTouchMove(event, "sets")}
                       onTouchEnd={() => handleMetricTouchEnd("sets")}
@@ -821,6 +916,133 @@ export default function WorkoutPage() {
           </div>
         </div>
       )}
+
+      {/* Exercise analytics */}
+      <div className="card">
+        <div className="card-title">Аналитика упражнения</div>
+        <div className="insights-controls">
+          <select
+            value={statsExercise || insights?.selectedExercise || ""}
+            onChange={(event) => setStatsExercise(event.target.value)}
+            disabled={insightsLoading || (insights?.exercises || []).length === 0}
+          >
+            {(insights?.exercises || []).map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <div className="insights-periods">
+            {[30, 90, 180].map((days) => (
+              <button
+                key={days}
+                className={`btn btn-outline${statsPeriodDays === days ? " active" : ""}`}
+                onClick={() => setStatsPeriodDays(days)}
+                disabled={insightsLoading}
+                style={{ padding: "6px 10px", fontSize: 12 }}
+              >
+                {days}д
+              </button>
+            ))}
+          </div>
+          <button
+            className="btn btn-outline"
+            onClick={refreshInsights}
+            disabled={insightsLoading}
+            style={{ padding: "6px 10px", fontSize: 12 }}
+          >
+            Обновить
+          </button>
+          <button
+            className="btn btn-accent"
+            onClick={refreshAIAdvice}
+            disabled={insightsAILoading || insightsLoading || !(insights?.aiAvailable)}
+            style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }}
+          >
+            {insightsAILoading ? "AI..." : "AI совет"}
+          </button>
+        </div>
+
+        {insightsLoading ? (
+          <div className="muted" style={{ padding: "10px 0" }}>Загрузка аналитики...</div>
+        ) : insightsError ? (
+          <div style={{ color: "var(--accent)", fontSize: 13 }}>{insightsError}</div>
+        ) : (
+          <>
+            <div className="insights-status-row">
+              <span className={`insights-direction ${statsDirectionClass}`}>{statsDirection}</span>
+              <span className="insights-meta">
+                e1RM: {formatNum(statsTrends.e1rmDeltaPct)}% · Объем: {formatNum(statsTrends.volumeDeltaPct)}%
+              </span>
+            </div>
+
+            <div className="stats-overview">
+              <div className="stat-tile">
+                <div className="stat-label">Текущий e1RM</div>
+                <div className="stat-value">{formatNum(statsMetrics.currentE1RM)} кг</div>
+              </div>
+              <div className="stat-tile">
+                <div className="stat-label">Лучший e1RM</div>
+                <div className="stat-value">{formatNum(statsMetrics.bestE1RM)} кг</div>
+              </div>
+              <div className="stat-tile">
+                <div className="stat-label">Макс. вес</div>
+                <div className="stat-value">{formatNum(statsMetrics.maxWeight)} кг</div>
+              </div>
+              <div className="stat-tile">
+                <div className="stat-label">Объем</div>
+                <div className="stat-value">{formatNum(statsMetrics.totalVolume, 0)} кг</div>
+              </div>
+              <div className="stat-tile">
+                <div className="stat-label">Подходы / Сессии</div>
+                <div className="stat-value">{statsMetrics.sets || 0} / {statsMetrics.sessions || 0}</div>
+              </div>
+            </div>
+
+            <div className="insights-charts">
+              <div className="insights-chart-card">
+                <div className="insights-chart-title">e1RM</div>
+                <Sparkline points={statsPoints} valueKey="e1rm" color="#ff033e" />
+              </div>
+              <div className="insights-chart-card">
+                <div className="insights-chart-title">Объем подхода</div>
+                <Sparkline points={statsPoints} valueKey="volume" color="#111" />
+              </div>
+            </div>
+
+            {statsPoints.length > 0 && (
+              <div className="insights-range">
+                {formatStatDate(statsPoints[0]?.completedAt)} - {formatStatDate(statsPoints[statsPoints.length - 1]?.completedAt)}
+              </div>
+            )}
+
+            <div className="insights-advice-block">
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Рекомендация</div>
+              <div style={{ marginBottom: 8 }}>{insights?.recommendation || "—"}</div>
+              <div className="insights-actions">
+                {(insights?.actions || []).map((item, i) => (
+                  <div key={i} className="insights-action-item">• {item}</div>
+                ))}
+              </div>
+            </div>
+
+            {insights?.aiAdvice && (
+              <div className="insights-ai-block">
+                <div className="insights-ai-title">
+                  AI-разбор <span className="muted">({insights.aiAdvice.confidence || 0}%)</span>
+                </div>
+                <div className="insights-ai-text">{insights.aiAdvice.summary}</div>
+                <div className="insights-ai-text"><strong>Нагрузка:</strong> {insights.aiAdvice.loadAdvice}</div>
+                <div className="insights-ai-text"><strong>Восстановление:</strong> {insights.aiAdvice.recovery}</div>
+                <div className="insights-ai-text"><strong>Следующая:</strong> {insights.aiAdvice.nextSession}</div>
+              </div>
+            )}
+            {insights?.aiError && (
+              <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                AI временно недоступен: {insights.aiError}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Full training program - week view */}
       {weekPlan.length > 0 && (

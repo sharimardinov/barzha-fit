@@ -56,6 +56,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/workout/session/pause", s.withAuth(s.handleWorkoutSessionPause))
 	mux.HandleFunc("/api/workout/session/resume", s.withAuth(s.handleWorkoutSessionResume))
 	mux.HandleFunc("/api/workout/session/stop", s.withAuth(s.handleWorkoutSessionStop))
+	mux.HandleFunc("/api/workout/stats/get", s.withAuth(s.handleWorkoutStatsGet))
 }
 
 func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, authContext)) http.HandlerFunc {
@@ -543,6 +544,36 @@ func (s *Server) handleWorkoutSessionStop(w http.ResponseWriter, r *http.Request
 		"session": workoutSessionToDTO(session),
 		"plan":    plan,
 	}})
+}
+
+func (s *Server) handleWorkoutStatsGet(w http.ResponseWriter, r *http.Request, auth authContext) {
+	if s.workoutStats == nil {
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_stats_unavailable"})
+		return
+	}
+	var payload struct {
+		ExerciseName string `json:"exerciseName"`
+		PeriodDays   int    `json:"periodDays"`
+		IncludeAI    bool   `json:"includeAI"`
+	}
+	if err := decodeJSON(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+
+	stats, err := s.workoutStats.StrengthExerciseInsights(
+		r.Context(),
+		auth.User.ID,
+		trimLimit(payload.ExerciseName, 120),
+		payload.PeriodDays,
+		payload.IncludeAI,
+	)
+	if err != nil {
+		log.Printf("workout stats failed: chat_id=%d err=%v", auth.User.ID, err)
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_stats_failed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: stats})
 }
 
 func (s *Server) workoutPlanFromToday(ctx context.Context, chatID int64) (*domain.WorkoutPlan, error) {

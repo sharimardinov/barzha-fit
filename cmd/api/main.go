@@ -62,6 +62,7 @@ func main() {
 	workoutSessionRepo := db.NewWorkoutSessionRepo(pool)
 	workoutSetRepo := db.NewWorkoutSetRepo(pool)
 	workoutTimerSvc := service.NewWorkoutTimerService(workoutPlanRepo, workoutSessionRepo, workoutSetRepo)
+	workoutStatsSvc := service.NewWorkoutInsightsService(workoutSetRepo, aiClient)
 
 	googleAuthRepo := db.NewGoogleAuthRepo(pool)
 	googleAuthSvc := service.NewGoogleAuthService(googleAuthRepo)
@@ -80,6 +81,7 @@ func main() {
 		Profile:            profileSvc,
 		Training:           trainingProfileSvc,
 		WorkoutTimer:       workoutTimerSvc,
+		WorkoutStats:       workoutStatsSvc,
 		GoogleAuth:         googleAuthSvc,
 	})
 	go func() {

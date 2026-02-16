@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"barzhafit/backend/domain"
 
@@ -130,6 +131,63 @@ func (r *WorkoutSetRepo) StrengthTopByReps(ctx context.Context, chatID int64, li
 	for rows.Next() {
 		var item domain.StrengthExerciseStats
 		if err := rows.Scan(&item.Name, &item.Sets, &item.Reps, &item.Tonnage, &item.MaxWeight); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *WorkoutSetRepo) StrengthExerciseNames(ctx context.Context, chatID int64, limit int) ([]string, error) {
+	rows, err := r.db.Query(ctx, `
+		select ws.exercise_name
+		from workout_sets ws
+		join workout_sessions s on s.id = ws.session_id
+		where s.chat_id=$1
+		  and ws.exercise_type=$2
+		  and ws.is_warmup=false
+		group by ws.exercise_name
+		order by max(ws.completed_at) desc
+		limit $3
+	`, chatID, domain.WorkoutExerciseStrength, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]string, 0)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		out = append(out, name)
+	}
+	return out, rows.Err()
+}
+
+func (r *WorkoutSetRepo) StrengthEntriesByExerciseSince(ctx context.Context, chatID int64, exerciseName string, since time.Time, limit int) ([]domain.StrengthExerciseEntry, error) {
+	rows, err := r.db.Query(ctx, `
+		select actual_weight, actual_reps, completed_at
+		from workout_sets ws
+		join workout_sessions s on s.id = ws.session_id
+		where s.chat_id=$1
+		  and ws.exercise_type=$2
+		  and ws.is_warmup=false
+		  and ws.exercise_name=$3
+		  and ws.completed_at >= $4
+		order by ws.completed_at asc
+		limit $5
+	`, chatID, domain.WorkoutExerciseStrength, exerciseName, since, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]domain.StrengthExerciseEntry, 0)
+	for rows.Next() {
+		var item domain.StrengthExerciseEntry
+		if err := rows.Scan(&item.Weight, &item.Reps, &item.CompletedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)

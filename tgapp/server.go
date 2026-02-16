@@ -37,6 +37,7 @@ type Server struct {
 	profile      *service.ProfileService
 	training     *service.TrainingProfileService
 	workoutTimer *service.WorkoutTimerService
+	workoutStats *service.WorkoutInsightsService
 	googleAuth   *service.GoogleAuthService
 	sessions     *sessionStore
 }
@@ -55,6 +56,7 @@ type Deps struct {
 	Profile            *service.ProfileService
 	Training           *service.TrainingProfileService
 	WorkoutTimer       *service.WorkoutTimerService
+	WorkoutStats       *service.WorkoutInsightsService
 	GoogleAuth         *service.GoogleAuthService
 }
 
@@ -77,6 +79,7 @@ func NewServer(d Deps) *Server {
 		profile:            d.Profile,
 		training:           d.Training,
 		workoutTimer:       d.WorkoutTimer,
+		workoutStats:       d.WorkoutStats,
 		googleAuth:         d.GoogleAuth,
 		sessions:           newSessionStore(secret),
 	}
