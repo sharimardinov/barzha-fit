@@ -29,6 +29,9 @@ struct AuthWebView: UIViewRepresentable {
         config.userContentController.addUserScript(makeDebugScript())
 
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.scrollView.bounces = true
+        webView.scrollView.alwaysBounceVertical = true
+        webView.scrollView.alwaysBounceHorizontal = false
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))

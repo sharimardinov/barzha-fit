@@ -27,9 +27,11 @@ struct WorkoutWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "authState")
         config.userContentController.add(context.coordinator, name: "nativeNav")
         config.defaultWebpagePreferences.allowsContentJavaScript = true
-        config.userContentController.addUserScript(makeHideNavScript())
 
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.scrollView.bounces = true
+        webView.scrollView.alwaysBounceVertical = true
+        webView.scrollView.alwaysBounceHorizontal = false
         webView.navigationDelegate = context.coordinator
         context.coordinator.attach(webView: webView)
         context.coordinator.setInitialURL(url)
@@ -40,19 +42,6 @@ struct WorkoutWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.update(webView: webView, targetURL: url)
         context.coordinator.syncTab(activeTab)
-    }
-
-    private func makeHideNavScript() -> WKUserScript {
-        let source = """
-        (function() {
-          if (window.__nativeNavHidden) { return; }
-          window.__nativeNavHidden = true;
-          var style = document.createElement('style');
-          style.textContent = '.nav{display:none !important}';
-          document.head && document.head.appendChild(style);
-        })();
-        """
-        return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
