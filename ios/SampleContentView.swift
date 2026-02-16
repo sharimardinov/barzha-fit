@@ -91,22 +91,13 @@ struct SampleContentView: View {
 
     @ViewBuilder
     private func workoutTab(token: String) -> some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .bottom) {
-                WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate, activeTab: $activeTab, onLogout: {
-                    errorText = ""
-                    auth.clear()
-                }, onTabChange: { tab in
-                    activeTab = tab
-                })
-                    .ignoresSafeArea()
-
-                NativeNavView(activeTab: $activeTab)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, max(12, proxy.safeAreaInsets.bottom + 8))
-            }
-            .ignoresSafeArea(edges: .bottom)
-        }
+        WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate, activeTab: $activeTab, onLogout: {
+            errorText = ""
+            auth.clear()
+        }, onTabChange: { tab in
+            activeTab = tab
+        })
+            .ignoresSafeArea()
     }
 
     private func miniappURL(token: String) -> URL {
