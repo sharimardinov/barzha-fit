@@ -10,3 +10,4 @@ EOF
 # binaries
 bin/
 .cache/
+tgapp/frontend/dist/
