@@ -1803,6 +1803,59 @@ button {
   color: var(--muted);
 }
 
+.workout-focus-block {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.workout-focus-name {
+  width: 100%;
+  text-align: center;
+  font-size: clamp(26px, 5vw, 36px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  word-break: break-word;
+}
+
+.workout-focus-metrics {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.workout-focus-circle {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--white);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.workout-focus-value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.workout-focus-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
 .workout-timer-block {
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1892,6 +1945,15 @@ button {
 @media (max-width: 560px) {
   .workout-exercise-fields {
     grid-template-columns: 1fr;
+  }
+
+  .workout-focus-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  .workout-focus-value {
+    font-size: 24px;
   }
 }
 

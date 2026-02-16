@@ -490,6 +490,9 @@ export default function WorkoutPage() {
   const status = session?.status;
   const isActive = status === "in_progress";
   const hasValidPlan = exercises.length > 0 && planIssues.length === 0;
+  const metricWeight = ex?.type === "cardio" ? "—" : (ex?.weight ?? "—");
+  const metricReps = ex?.type === "cardio" ? "—" : (ex?.reps ?? "—");
+  const metricSets = ex?.type === "cardio" ? "—" : (ex?.sets ?? "—");
 
   // Set label text
   let setLabelText = "";
@@ -593,20 +596,36 @@ export default function WorkoutPage() {
               {phase === "finished" && "Готово"}
             </div>
 
-            {/* Exercise info — fixed height container */}
-            <div style={{ marginBottom: 8, minHeight: 60 }}>
+            {/* Exercise info */}
+            <div style={{ marginBottom: 8, minHeight: 170 }}>
               {ex && (
-                <>
-                  <div className="workout-exercise-name" style={{ fontWeight: 700 }}>{ex.name}</div>
-                  <div className="workout-exercise-target muted" style={{ fontSize: 13 }}>
-                    {ex.type === "cardio"
-                      ? `Длительность: ${formatMinutes(ex.durationSec)} мин`
-                      : `Вес: ${ex.weight || "—"} кг · Повторы: ${ex.reps} · Подходы: ${ex.sets}`}
+                <div className="workout-focus-block">
+                  <div className="workout-focus-name">{ex.name || "—"}</div>
+                  <div className="workout-focus-metrics">
+                    <div className="workout-focus-circle">
+                      <div className="workout-focus-value">{metricWeight}</div>
+                      <div className="workout-focus-label">кг</div>
+                    </div>
+                    <div className="workout-focus-circle">
+                      <div className="workout-focus-value">{metricReps}</div>
+                      <div className="workout-focus-label">повт</div>
+                    </div>
+                    <div className="workout-focus-circle">
+                      <div className="workout-focus-value">{metricSets}</div>
+                      <div className="workout-focus-label">подх</div>
+                    </div>
                   </div>
-                  {setLabelText && (
-                    <div className="workout-set-label muted" style={{ fontSize: 13 }}>{setLabelText}</div>
+                  {ex.type === "cardio" && (
+                    <div className="workout-set-label muted" style={{ fontSize: 13 }}>
+                      Длительность: {formatMinutes(ex.durationSec)} мин
+                    </div>
                   )}
-                </>
+                  {setLabelText && (
+                    <div className="workout-set-label muted" style={{ fontSize: 13 }}>
+                      {setLabelText}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
