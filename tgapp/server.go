@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"barzhafit/backend/service"
 )
@@ -29,19 +30,15 @@ type Server struct {
 	googleClientSecret string
 	tz                 string
 
-	plan          *service.PlanService
-	workout       *service.WorkoutService
-	targets       *service.TargetsService
-	nutrition     *service.NutritionService
-	steps         *service.StepsService
-	profile       *service.ProfileService
-	training      *service.TrainingProfileService
-	inputs        *service.TrainingInputService
-	injuries      *service.InjuryTypeService
-	activity      *service.ActivityAI
-	workoutTimer  *service.WorkoutTimerService
-	googleAuth    *service.GoogleAuthService
-	sessions      *sessionStore
+	plan         *service.PlanService
+	targets      *service.TargetsService
+	nutrition    *service.NutritionService
+	steps        *service.StepsService
+	profile      *service.ProfileService
+	training     *service.TrainingProfileService
+	workoutTimer *service.WorkoutTimerService
+	googleAuth   *service.GoogleAuthService
+	sessions     *sessionStore
 }
 
 type Deps struct {
@@ -52,15 +49,11 @@ type Deps struct {
 	GoogleClientSecret string
 	TZ                 string
 	Plan               *service.PlanService
-	Workout            *service.WorkoutService
 	Targets            *service.TargetsService
 	Nutrition          *service.NutritionService
 	Steps              *service.StepsService
 	Profile            *service.ProfileService
 	Training           *service.TrainingProfileService
-	Inputs             *service.TrainingInputService
-	Injuries           *service.InjuryTypeService
-	Activity           *service.ActivityAI
 	WorkoutTimer       *service.WorkoutTimerService
 	GoogleAuth         *service.GoogleAuthService
 }
@@ -78,15 +71,11 @@ func NewServer(d Deps) *Server {
 		googleClientSecret: d.GoogleClientSecret,
 		tz:                 d.TZ,
 		plan:               d.Plan,
-		workout:            d.Workout,
 		targets:            d.Targets,
 		nutrition:          d.Nutrition,
 		steps:              d.Steps,
 		profile:            d.Profile,
 		training:           d.Training,
-		inputs:             d.Inputs,
-		injuries:           d.Injuries,
-		activity:           d.Activity,
 		workoutTimer:       d.WorkoutTimer,
 		googleAuth:         d.GoogleAuth,
 		sessions:           newSessionStore(secret),
@@ -181,8 +170,12 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	s.registerAPI(mux)
 
 	server := &http.Server{
-		Addr:    s.addr,
-		Handler: mux,
+		Addr:              s.addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	go func() {

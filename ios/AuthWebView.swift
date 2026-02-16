@@ -285,8 +285,7 @@ struct AuthWebView: UIViewRepresentable {
         }
 
         private func submitTelegramAuth(_ user: [String: Any]) {
-            guard let url = URL(string: "https://barzhafit.ru/auth/telegram") else { return }
-            var request = URLRequest(url: url)
+            var request = URLRequest(url: AppConfig.telegramAuthURL)
             request.httpMethod = "POST"
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             guard let body = try? JSONSerialization.data(withJSONObject: user, options: []) else { return }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -36,31 +37,17 @@ const (
 
 func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/today", s.withAuth(s.handleToday))
-	mux.HandleFunc("/api/workout/set", s.withAuth(s.handleWorkoutSet))
 	mux.HandleFunc("/api/meals/today", s.withAuth(s.handleMealsToday))
-	mux.HandleFunc("/api/meals/recent", s.withAuth(s.handleMealsRecent))
 	mux.HandleFunc("/api/meal/add", s.withAuth(s.handleMealAdd))
 	mux.HandleFunc("/api/meal/delete", s.withAuth(s.handleMealDelete))
-	mux.HandleFunc("/api/meal/undo", s.withAuth(s.handleMealUndo))
-	mux.HandleFunc("/api/steps/set", s.withAuth(s.handleStepsSet))
-	mux.HandleFunc("/api/targets/get", s.withAuth(s.handleTargetsGet))
-	mux.HandleFunc("/api/targets/set", s.withAuth(s.handleTargetsSet))
 	mux.HandleFunc("/api/targets/refresh", s.withAuth(s.handleTargetsRefresh))
 	mux.HandleFunc("/api/plan/get", s.withAuth(s.handlePlanGet))
 	mux.HandleFunc("/api/plan/set", s.withAuth(s.handlePlanSet))
 	mux.HandleFunc("/api/profile/get", s.withAuth(s.handleProfileGet))
 	mux.HandleFunc("/api/profile/set", s.withAuth(s.handleProfileSet))
-	mux.HandleFunc("/api/stars/invoice", s.withAuth(s.handleStarsInvoice))
-	mux.HandleFunc("/api/activity/estimate", s.withAuth(s.handleActivityEstimate))
 	mux.HandleFunc("/api/training/profile/get", s.withAuth(s.handleTrainingProfileGet))
 	mux.HandleFunc("/api/training/profile/set", s.withAuth(s.handleTrainingProfileSet))
-	mux.HandleFunc("/api/training/injuries", s.withAuth(s.handleTrainingInjuries))
-	mux.HandleFunc("/api/weight/set", s.withAuth(s.handleWeightSet))
-	mux.HandleFunc("/api/stats/week", s.withAuth(s.handleStatsWeek))
-	mux.HandleFunc("/api/stats/month", s.withAuth(s.handleStatsMonth))
-	mux.HandleFunc("/api/streak", s.withAuth(s.handleStreak))
 	mux.HandleFunc("/api/workout/plan/get", s.withAuth(s.handleWorkoutPlanGet))
-	mux.HandleFunc("/api/workout/plan/save", s.withAuth(s.handleWorkoutPlanSave))
 	mux.HandleFunc("/api/workout/session/get", s.withAuth(s.handleWorkoutSessionGet))
 	mux.HandleFunc("/api/workout/session/start", s.withAuth(s.handleWorkoutSessionStart))
 	mux.HandleFunc("/api/workout/session/warmup/end", s.withAuth(s.handleWorkoutWarmupEnd))
@@ -119,16 +106,6 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, auth authCo
 		}
 	}
 
-	status, hasWorkout, _ := s.workout.GetStatusByDate(ctx, chatID, dayDate)
-	workoutIcon := "—"
-	if hasWorkout {
-		if status == "done" {
-			workoutIcon = "✅"
-		} else if status == "skip" {
-			workoutIcon = "❌"
-		}
-	}
-
 	kcal, p, f, c, _ := s.nutrition.SumToday(ctx, chatID, loc, now)
 	steps, hasSteps, _ := s.steps.GetByDate(ctx, chatID, dayDate)
 	if !hasSteps {
@@ -151,16 +128,14 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, auth authCo
 	}
 
 	resp := map[string]interface{}{
-		"date":        dayDate,
-		"cycleDay":    cycleDay,
-		"plan":        block,
-		"workout":     status,
-		"workoutIcon": workoutIcon,
-		"kcal":        kcal,
-		"protein":     p,
-		"fat":         f,
-		"carbs":       c,
-		"steps":       steps,
+		"date":     dayDate,
+		"cycleDay": cycleDay,
+		"plan":     block,
+		"kcal":     kcal,
+		"protein":  p,
+		"fat":      f,
+		"carbs":    c,
+		"steps":    steps,
 		"targets": map[string]int{
 			"kcal":    kcalTarget,
 			"protein": proteinTarget,
@@ -181,48 +156,10 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, auth authCo
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
 }
 
-func (s *Server) handleWorkoutSet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		Status string `json:"status"`
-	}
-	if err := decodeJSON(r, &payload); err != nil {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
-		return
-	}
-	if payload.Status != "done" && payload.Status != "skip" {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "invalid_status"})
-		return
-	}
-	loc := util.MustLocation(s.tz)
-	now := util.NowIn(loc)
-	dayDate := util.LocalDateStr(now, loc)
-	if _, err := s.workout.MarkAndAdvance(r.Context(), auth.User.ID, dayDate, payload.Status); err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "save_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true})
-}
-
 func (s *Server) handleMealsToday(w http.ResponseWriter, r *http.Request, auth authContext) {
 	loc := util.MustLocation(s.tz)
 	now := util.NowIn(loc)
 	items, err := s.nutrition.ListToday(r.Context(), auth.User.ID, loc, now)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meals_read_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: mealsToDTO(items)})
-}
-
-func (s *Server) handleMealsRecent(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		Limit int `json:"limit"`
-	}
-	_ = decodeJSON(r, &payload)
-	if payload.Limit <= 0 || payload.Limit > 20 {
-		payload.Limit = 10
-	}
-	items, err := s.nutrition.ListRecent(r.Context(), auth.User.ID, payload.Limit)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meals_read_failed"})
 		return
@@ -267,76 +204,6 @@ func (s *Server) handleMealDelete(w http.ResponseWriter, r *http.Request, auth a
 	}
 	if !ok {
 		writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "not_found"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true})
-}
-
-func (s *Server) handleMealUndo(w http.ResponseWriter, r *http.Request, auth authContext) {
-	ok, err := s.nutrition.UndoLast(r.Context(), auth.User.ID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "meal_delete_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]bool{"deleted": ok}})
-}
-
-func (s *Server) handleStepsSet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		Steps int `json:"steps"`
-	}
-	if err := decodeJSON(r, &payload); err != nil || payload.Steps < 0 {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_steps"})
-		return
-	}
-	loc := util.MustLocation(s.tz)
-	now := util.NowIn(loc)
-	dayDate := util.LocalDateStr(now, loc)
-	if err := s.steps.SetSteps(r.Context(), auth.User.ID, dayDate, payload.Steps); err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "steps_save_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true})
-}
-
-func (s *Server) handleTargetsGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	kcalTarget := DefaultKcal
-	proteinTarget := DefaultProtein
-	fatTarget := DefaultFat
-	carbsTarget := DefaultCarbs
-	stepsTarget := DefaultSteps
-	source := "default"
-	if tg, ok, _ := s.targets.Get(r.Context(), auth.User.ID); ok {
-		kcalTarget = tg.Kcal
-		proteinTarget = tg.ProteinG
-		fatTarget = tg.FatG
-		carbsTarget = tg.CarbsG
-		if tg.Steps > 0 {
-			stepsTarget = tg.Steps
-		}
-		source = tg.Source
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"kcal":    kcalTarget,
-		"protein": proteinTarget,
-		"fat":     fatTarget,
-		"carbs":   carbsTarget,
-		"steps":   stepsTarget,
-		"source":  source,
-	}})
-}
-
-func (s *Server) handleTargetsSet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		Field string `json:"field"`
-		Value int    `json:"value"`
-	}
-	if err := decodeJSON(r, &payload); err != nil || payload.Value < 0 {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
-		return
-	}
-	if err := s.targets.SetManual(r.Context(), auth.User.ID, payload.Field, payload.Value); err != nil {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "targets_update_failed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true})
@@ -525,225 +392,6 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: trainingProfileToDTO(p)})
 }
 
-func (s *Server) handleTrainingInjuries(w http.ResponseWriter, r *http.Request, _ authContext) {
-	if s.injuries == nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "injury_types_unavailable"})
-		return
-	}
-	items, err := s.injuries.List(r.Context())
-	if err != nil {
-		log.Printf("injury types list failed: %v", err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "injury_types_read_failed"})
-		return
-	}
-	type injuryDTO struct {
-		Code  string `json:"code"`
-		Label string `json:"label"`
-	}
-	resp := make([]injuryDTO, 0, len(items))
-	for _, item := range items {
-		resp = append(resp, injuryDTO{Code: item.Code, Label: item.Label})
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: resp})
-}
-
-func (s *Server) handleWeightSet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		WeightKG float64 `json:"weight_kg"`
-	}
-	if err := decodeJSON(r, &payload); err != nil || payload.WeightKG <= 0 {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_weight"})
-		return
-	}
-	p, ok, err := s.profile.UpdateWeight(r.Context(), auth.User.ID, payload.WeightKG)
-	if err != nil || !ok {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "weight_update_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: profileToDTO(p)})
-}
-
-func (s *Server) handleActivityEstimate(w http.ResponseWriter, r *http.Request, auth authContext) {
-	if s.activity == nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "activity_ai_unavailable"})
-		return
-	}
-	ctx := r.Context()
-	p, ok, err := s.profile.Get(ctx, auth.User.ID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_read_failed"})
-		return
-	}
-	if !ok {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "profile_not_found"})
-		return
-	}
-	planText, err := s.plan.Get(ctx, auth.User.ID)
-	if err != nil || strings.TrimSpace(planText) == "" {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "plan_not_found"})
-		return
-	}
-	mult, raw, err := s.activity.EstimateActivityMultiplierWithProfile(ctx, planText, p)
-	if err != nil {
-		log.Printf("activity estimate failed: chat_id=%d err=%v", auth.User.ID, err)
-		writeJSON(w, http.StatusInternalServerError, apiResponse{
-			OK:    false,
-			Error: "activity_estimate_failed",
-			Data:  raw,
-		})
-		return
-	}
-	p.Activity = fmt.Sprintf("ai:%.2f", mult)
-	if err := s.profile.Save(ctx, p); err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "profile_save_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: profileToDTO(p)})
-}
-
-func (s *Server) handleStatsWeek(w http.ResponseWriter, r *http.Request, auth authContext) {
-	ctx := r.Context()
-	loc := util.MustLocation(s.tz)
-	now := util.NowIn(loc)
-	weekday := util.Weekday1to7(now)
-	weekStart := util.DayStart(now.AddDate(0, 0, -(weekday-1)), loc)
-	weekDays := weekday
-	weekEnd := weekStart.AddDate(0, 0, weekDays-1)
-
-	foodMap, _ := s.nutrition.SumByRangeDaily(ctx, auth.User.ID, weekStart, weekEnd.Add(24*time.Hour), s.tz)
-	stepsMap, _ := s.steps.ListByRange(ctx, auth.User.ID, util.LocalDateStr(weekStart, loc), util.LocalDateStr(weekEnd, loc))
-
-	kcalTarget := DefaultKcal
-	stepsTarget := DefaultSteps
-	if tg, ok, _ := s.targets.Get(ctx, auth.User.ID); ok {
-		kcalTarget = tg.Kcal
-		if tg.Steps > 0 {
-			stepsTarget = tg.Steps
-		}
-	}
-
-	days := make([]map[string]interface{}, 0, weekDays)
-	for i := 0; i < weekDays; i++ {
-		dayStart := util.DayStart(weekStart.AddDate(0, 0, i), loc)
-		dayDate := util.LocalDateStr(dayStart, loc)
-		kcal := 0
-		if dn, ok := foodMap[dayDate]; ok {
-			kcal = dn.Kcal
-		}
-		steps := 0
-		if v, ok := stepsMap[dayDate]; ok {
-			steps = v
-		}
-		days = append(days, map[string]interface{}{
-			"day":     dayStart.Day(),
-			"date":    dayDate,
-			"foodOk":  foodInRange(kcal, kcalTarget),
-			"stepsOk": steps >= stepsTarget,
-		})
-	}
-
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"days": days,
-	}})
-}
-
-func (s *Server) handleStatsMonth(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		Offset int `json:"offset"`
-	}
-	_ = decodeJSON(r, &payload)
-	if payload.Offset > 0 {
-		payload.Offset = 0
-	}
-
-	ctx := r.Context()
-	loc := util.MustLocation(s.tz)
-	now := util.NowIn(loc)
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc).AddDate(0, payload.Offset, 0)
-	monthDays := daysInMonth(monthStart)
-	monthEnd := monthStart.AddDate(0, 0, monthDays-1)
-	offset := util.Weekday1to7(monthStart) - 1
-
-	foodMap, _ := s.nutrition.SumByRangeDaily(ctx, auth.User.ID, monthStart, monthEnd.Add(24*time.Hour), s.tz)
-	stepsMap, _ := s.steps.ListByRange(ctx, auth.User.ID, util.LocalDateStr(monthStart, loc), util.LocalDateStr(monthEnd, loc))
-
-	kcalTarget := DefaultKcal
-	stepsTarget := DefaultSteps
-	if tg, ok, _ := s.targets.Get(ctx, auth.User.ID); ok {
-		kcalTarget = tg.Kcal
-		if tg.Steps > 0 {
-			stepsTarget = tg.Steps
-		}
-	}
-
-	days := make([]map[string]interface{}, 0, monthDays)
-	for i := 0; i < monthDays; i++ {
-		dayStart := monthStart.AddDate(0, 0, i)
-		dayDate := util.LocalDateStr(dayStart, loc)
-		kcal := 0
-		if dn, ok := foodMap[dayDate]; ok {
-			kcal = dn.Kcal
-		}
-		steps := 0
-		if v, ok := stepsMap[dayDate]; ok {
-			steps = v
-		}
-		days = append(days, map[string]interface{}{
-			"day":     dayStart.Day(),
-			"date":    dayDate,
-			"foodOk":  foodInRange(kcal, kcalTarget),
-			"stepsOk": steps >= stepsTarget,
-		})
-	}
-
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"offset":     offset,
-		"days":       days,
-		"monthStart": monthStart.Format("2006-01-02"),
-	}})
-}
-
-func (s *Server) handleStreak(w http.ResponseWriter, r *http.Request, auth authContext) {
-	loc := util.MustLocation(s.tz)
-	now := util.NowIn(loc)
-	from := util.DayStart(now.AddDate(0, 0, -60), loc)
-	to := util.DayStart(now, loc)
-
-	workoutMap, _ := s.workout.ListByRange(r.Context(), auth.User.ID, util.LocalDateStr(from, loc), util.LocalDateStr(to, loc))
-	mealMap, _ := s.nutrition.SumByRangeDaily(r.Context(), auth.User.ID, from, to.Add(24*time.Hour), s.tz)
-
-	workoutStreak := 0
-	for i := 0; i <= 60; i++ {
-		d := util.DayStart(now.AddDate(0, 0, -i), loc)
-		key := util.LocalDateStr(d, loc)
-		status, ok := workoutMap[key]
-		if !ok || status != "done" {
-			break
-		}
-		workoutStreak++
-	}
-
-	noMealStreak := 0
-	for i := 0; i <= 60; i++ {
-		d := util.DayStart(now.AddDate(0, 0, -i), loc)
-		key := util.LocalDateStr(d, loc)
-		kcal := 0
-		if dn, ok := mealMap[key]; ok {
-			kcal = dn.Kcal
-		}
-		if kcal > 0 {
-			break
-		}
-		noMealStreak++
-	}
-
-	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
-		"workoutStreak": workoutStreak,
-		"mealStreak":    noMealStreak,
-		"mealBar":       streakBar(noMealStreak, 7),
-	}})
-}
-
 func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
 	plan, err := s.workoutPlanFromToday(r.Context(), auth.User.ID)
 	if err != nil {
@@ -756,24 +404,6 @@ func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, au
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
 		"plan": plan,
 	}})
-}
-
-func (s *Server) handleWorkoutPlanSave(w http.ResponseWriter, r *http.Request, auth authContext) {
-	var payload struct {
-		Plan domain.WorkoutPlan `json:"plan"`
-	}
-	if err := decodeJSON(r, &payload); err != nil {
-		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
-		return
-	}
-	if _, err := s.workoutTimer.SavePlan(r.Context(), auth.User.ID, &payload.Plan); err != nil {
-		if writeWorkoutError(w, err) {
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_save_failed"})
-		return
-	}
-	writeJSON(w, http.StatusOK, apiResponse{OK: true})
 }
 
 func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request, auth authContext) {
@@ -1010,7 +640,16 @@ func writeJSON(w http.ResponseWriter, status int, resp apiResponse) {
 func decodeJSON(r *http.Request, out interface{}) error {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	return dec.Decode(out)
+	if err := dec.Decode(out); err != nil {
+		return err
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return errors.New("invalid_json")
+		}
+		return err
+	}
+	return nil
 }
 
 func ratioIcon(val, target float64) string {
@@ -1033,39 +672,6 @@ func proteinRatioIcon(val, target float64) string {
 		return "🟢"
 	}
 	return "🔴"
-}
-
-func streakBar(val, max int) string {
-	if max <= 0 {
-		return ""
-	}
-	if val > max {
-		val = max
-	}
-	var b strings.Builder
-	b.WriteString("[")
-	for i := 0; i < max; i++ {
-		if i < val {
-			b.WriteString("■")
-		} else {
-			b.WriteString("—")
-		}
-	}
-	b.WriteString("]")
-	return b.String()
-}
-
-func daysInMonth(start time.Time) int {
-	return time.Date(start.Year(), start.Month()+1, 0, 0, 0, 0, 0, start.Location()).Day()
-}
-
-func foodInRange(kcal int, target int) bool {
-	if kcal == 0 {
-		return false
-	}
-	min := int(float64(target) * 0.9)
-	max := int(float64(target) * 1.1)
-	return kcal >= min && kcal <= max
 }
 
 type mealDTO struct {

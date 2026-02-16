@@ -42,9 +42,6 @@ func main() {
 	planRepo := db.NewPlanRepo(pool)
 	planSvc := service.NewPlanService(planRepo)
 
-	workoutRepo := db.NewWorkoutRepo(pool)
-	workoutSvc := service.NewWorkoutService(workoutRepo)
-
 	profileRepo := db.NewProfileRepo(pool)
 	profileSvc := service.NewProfileService(profileRepo)
 
@@ -54,13 +51,6 @@ func main() {
 	trainingProfileRepo := db.NewTrainingProfileRepo(pool)
 	trainingProfileSvc := service.NewTrainingProfileService(trainingProfileRepo)
 
-	appUserRepo := db.NewAppUserRepo(pool)
-	trainingInputRepo := db.NewTrainingInputRepo(pool)
-	trainingInputSvc := service.NewTrainingInputService(trainingInputRepo, appUserRepo)
-
-	injuryTypeRepo := db.NewInjuryTypeRepo(pool)
-	injuryTypeSvc := service.NewInjuryTypeService(injuryTypeRepo)
-
 	mealRepo := db.NewMealRepo(pool)
 	nutAI := service.NewNutritionAI(aiClient)
 	nutSvc := service.NewNutritionService(mealRepo, nutAI)
@@ -68,7 +58,6 @@ func main() {
 	stepsRepo := db.NewStepsRepo(pool)
 	stepsSvc := service.NewStepsService(stepsRepo)
 
-	activityAI := service.NewActivityAI(aiClient)
 	workoutPlanRepo := db.NewWorkoutPlanRepo(pool)
 	workoutSessionRepo := db.NewWorkoutSessionRepo(pool)
 	workoutSetRepo := db.NewWorkoutSetRepo(pool)
@@ -85,15 +74,11 @@ func main() {
 		GoogleClientSecret: cfg.GoogleClientSecret,
 		TZ:                 cfg.TZ,
 		Plan:               planSvc,
-		Workout:            workoutSvc,
 		Targets:            targetsSvc,
 		Nutrition:          nutSvc,
 		Steps:              stepsSvc,
 		Profile:            profileSvc,
 		Training:           trainingProfileSvc,
-		Inputs:             trainingInputSvc,
-		Injuries:           injuryTypeSvc,
-		Activity:           activityAI,
 		WorkoutTimer:       workoutTimerSvc,
 		GoogleAuth:         googleAuthSvc,
 	})

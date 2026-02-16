@@ -115,8 +115,7 @@ final class StepSyncManager: NSObject, ObservableObject {
     }
 
     private func sendSteps(_ steps: Int, token: String) {
-        guard let url = URL(string: "https://barzhafit.ru/api/steps/set") else { return }
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: AppConfig.stepsSetURL)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

@@ -8,8 +8,8 @@ struct SampleContentView: View {
     @State private var errorText: String = ""
     @State private var activeTab: String = "today"
 
-    private let loginURL = URL(string: "https://barzhafit.ru/login")!
-    private let miniappBaseURL = URL(string: "https://barzhafit.ru/miniapp")!
+    private let loginURL = AppConfig.loginURL
+    private let miniappBaseURL = AppConfig.miniAppURL
 
     var body: some View {
         Group {
@@ -110,7 +110,7 @@ struct SampleContentView: View {
         errorText = ""
         Task {
             do {
-                var request = URLRequest(url: URL(string: "https://barzhafit.ru/api/profile/get")!)
+                var request = URLRequest(url: AppConfig.profileGetURL)
                 request.httpMethod = "POST"
                 request.addValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

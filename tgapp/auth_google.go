@@ -21,6 +21,8 @@ import (
 
 const googleStateTTL = 10 * time.Minute
 
+var googleHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
 type googleState struct {
 	Mode   string `json:"mode"`
 	ChatID int64  `json:"chat_id,omitempty"`
@@ -239,7 +241,7 @@ func (s *Server) exchangeGoogleCode(ctx context.Context, code, redirectURI strin
 		return googleTokenResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := googleHTTPClient.Do(req)
 	if err != nil {
 		return googleTokenResponse{}, err
 	}
@@ -271,7 +273,7 @@ func (s *Server) verifyGoogleIDToken(ctx context.Context, idToken string) (googl
 	if err != nil {
 		return googleTokenInfo{}, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := googleHTTPClient.Do(req)
 	if err != nil {
 		return googleTokenInfo{}, err
 	}
