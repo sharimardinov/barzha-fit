@@ -3,7 +3,7 @@
  * Rolling digit animation for workout timer in HH:MM:SS format.
  * No external deps besides motion/react.
  */
-import { motion, useSpring, useTransform } from "motion/react";
+import { motion as Motion, useSpring, useTransform } from "motion/react";
 import { useEffect, useMemo } from "react";
 
 function RollingDigit({ value, fontSize, color }) {
@@ -33,7 +33,7 @@ function DigitSlot({ mv, number, height, color }) {
   });
 
   return (
-    <motion.span
+    <Motion.span
       style={{
         y,
         position: "absolute", inset: 0,
@@ -42,7 +42,7 @@ function DigitSlot({ mv, number, height, color }) {
       }}
     >
       {number}
-    </motion.span>
+    </Motion.span>
   );
 }
 

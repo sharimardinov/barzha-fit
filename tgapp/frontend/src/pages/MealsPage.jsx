@@ -36,7 +36,9 @@ export default function MealsPage() {
           fat: t.fat || 0,
           carbs: t.carbs || 0,
         });
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to load nutrition targets", err);
+      }
     };
     loadTargets();
   }, []);

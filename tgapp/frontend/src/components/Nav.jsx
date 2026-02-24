@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, createElement } from "react";
 import { Home, Timer, Utensils, User } from "lucide-react";
 import { useAppState } from "../hooks/useAppState";
 
@@ -45,14 +45,14 @@ export default function Nav() {
     <nav className="nav" ref={navRef}>
       <div className="nav-glass" />
       <div className="nav-highlight" ref={highlightRef} />
-      {tabs.map(({ id, label, icon: Icon }) => (
+      {tabs.map((tab) => (
         <button
-          key={id}
-          className={`nav-btn${state.activeTab === id ? " active" : ""}`}
-          onClick={() => dispatch({ type: "SET_TAB", payload: id })}
+          key={tab.id}
+          className={`nav-btn${state.activeTab === tab.id ? " active" : ""}`}
+          onClick={() => dispatch({ type: "SET_TAB", payload: tab.id })}
         >
-          <Icon size={22} strokeWidth={2} />
-          <span>{label}</span>
+          {createElement(tab.icon, { size: 22, strokeWidth: 2 })}
+          <span>{tab.label}</span>
         </button>
       ))}
     </nav>

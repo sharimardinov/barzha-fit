@@ -3,7 +3,7 @@ import { api } from "../services/api";
 import { useAppState } from "../hooks/useAppState";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
-import { motion, AnimatePresence } from "motion/react";
+import { motion as Motion } from "motion/react";
 import Stepper, { Step } from "../components/Stepper";
 import ElasticSlider from "../components/ElasticSlider";
 
@@ -80,7 +80,7 @@ function GoalPill({ value, onChange }) {
           >
             {/* Animated pill background */}
             {active && (
-              <motion.div
+              <Motion.div
                 layoutId="goal-pill-bg"
                 style={{
                   position: "absolute", inset: 0, borderRadius: 999,

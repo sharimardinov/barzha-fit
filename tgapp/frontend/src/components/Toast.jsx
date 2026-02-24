@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 
 const ToastContext = createContext(null);
 
@@ -6,6 +7,10 @@ export function ToastProvider({ children }) {
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
   const timer = useRef(null);
+
+  useEffect(() => () => {
+    clearTimeout(timer.current);
+  }, []);
 
   const toast = useCallback((msg) => {
     setMessage(msg);

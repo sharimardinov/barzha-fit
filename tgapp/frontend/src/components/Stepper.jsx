@@ -3,7 +3,7 @@
  * Adapted for BarzhaFit onboarding with accent color and no external CSS deps.
  */
 import { useState, Children, useRef, useLayoutEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion as Motion, AnimatePresence } from "motion/react";
 
 const stepVariants = {
   enter: (dir) => ({ x: dir >= 0 ? 80 : -80, opacity: 0 }),
@@ -18,7 +18,7 @@ function SlideTransition({ children, direction, onHeightReady }) {
   }, [children, onHeightReady]);
 
   return (
-    <motion.div
+    <Motion.div
       ref={ref}
       custom={direction}
       variants={stepVariants}
@@ -28,7 +28,7 @@ function SlideTransition({ children, direction, onHeightReady }) {
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -36,7 +36,7 @@ function StepContent({ isCompleted, currentStep, direction, children }) {
   const [height, setHeight] = useState("auto");
 
   return (
-    <motion.div
+    <Motion.div
       style={{ position: "relative", overflow: "visible", minHeight: 0 }}
       animate={{ height: height || "auto" }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
@@ -48,7 +48,7 @@ function StepContent({ isCompleted, currentStep, direction, children }) {
           </SlideTransition>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -56,7 +56,7 @@ function StepIndicator({ step, currentStep, onClick }) {
   const status = currentStep === step ? "active" : currentStep > step ? "complete" : "inactive";
 
   return (
-    <motion.button
+    <Motion.button
       onClick={() => onClick(step)}
       style={{
         position: "relative", border: "none", background: "transparent",
@@ -64,7 +64,7 @@ function StepIndicator({ step, currentStep, onClick }) {
       }}
       whileTap={{ scale: 0.9 }}
     >
-      <motion.div
+      <Motion.div
         style={{
           width: 28, height: 28, borderRadius: "50%", display: "flex",
           alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 12,
@@ -81,22 +81,22 @@ function StepIndicator({ step, currentStep, onClick }) {
             <polyline points="20 6 9 17 4 12" />
           </svg>
         ) : status === "active" ? (
-          <motion.div
+          <Motion.div
             style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }}
             layoutId="active-dot"
           />
         ) : (
           <span>{step}</span>
         )}
-      </motion.div>
-    </motion.button>
+      </Motion.div>
+    </Motion.button>
   );
 }
 
 function StepConnector({ isComplete }) {
   return (
     <div style={{ flex: 1, height: 2, margin: "0 6px", borderRadius: 2, background: "rgba(0,0,0,0.08)", position: "relative", overflow: "hidden" }}>
-      <motion.div
+      <Motion.div
         style={{ position: "absolute", left: 0, top: 0, height: "100%" }}
         animate={{ width: isComplete ? "100%" : 0, backgroundColor: isComplete ? "#ff033e" : "transparent" }}
         transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}

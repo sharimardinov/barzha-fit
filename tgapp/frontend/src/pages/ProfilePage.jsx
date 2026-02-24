@@ -8,7 +8,7 @@ import { Settings } from "lucide-react";
 import { postNativeMessage } from "../services/telegram";
 
 export default function ProfilePage() {
-  const { state, dispatch } = useAppState();
+  const { dispatch } = useAppState();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);

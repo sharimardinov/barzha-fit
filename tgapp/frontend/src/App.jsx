@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { AppProvider, useAppState } from "./hooks/useAppState";
 import { ToastProvider } from "./components/Toast";
 import Nav from "./components/Nav";
@@ -14,22 +14,21 @@ import "./styles/app.css";
 
 function AppContent() {
   const { state, dispatch } = useAppState();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
-
-  const checkAuth = useCallback(async () => {
+  const authBootstrap = useMemo(() => {
     const token = getAuthToken();
     const initData = getInitData();
-    if (!token && !initData) {
-      setAuthFailed(true);
-      setAuthChecked(true);
-      return;
-    }
-    if (token) {
+    return { token, hasAuthSource: Boolean(token || initData) };
+  }, []);
+  const [authChecked, setAuthChecked] = useState(!authBootstrap.hasAuthSource);
+  const [authFailed, setAuthFailed] = useState(!authBootstrap.hasAuthSource);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  const checkAuth = useCallback(async (isCancelled) => {
+    if (authBootstrap.token) {
       try {
         await api("/auth/verify");
       } catch {
+        if (isCancelled()) return;
         localStorage.removeItem("auth_token");
         setAuthFailed(true);
         setAuthChecked(true);
@@ -39,24 +38,36 @@ function AppContent() {
     // Check if onboarding is needed
     try {
       const profile = await api("/api/profile/get");
+      if (isCancelled()) return;
       if (!profile || !profile.sex || !profile.age) {
         setNeedsOnboarding(true);
       }
     } catch (err) {
-      if (err.message === "profile_not_found") {
+      if (isCancelled()) return;
+      if (err?.message === "profile_not_found") {
         setNeedsOnboarding(true);
       }
     }
+    if (isCancelled()) return;
     setAuthChecked(true);
-  }, []);
+  }, [authBootstrap.token]);
 
   useEffect(() => {
     if (!isTelegram()) {
       document.documentElement.classList.add("no-telegram");
     }
     expandTg();
-    checkAuth();
-  }, [checkAuth]);
+    if (!authBootstrap.hasAuthSource) return;
+    let cancelled = false;
+    const isCancelled = () => cancelled;
+    const timer = setTimeout(() => {
+      void checkAuth(isCancelled);
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [authBootstrap.hasAuthSource, checkAuth]);
 
   const handleOnboardingComplete = useCallback(() => {
     setNeedsOnboarding(false);

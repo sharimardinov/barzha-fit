@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -90,8 +91,14 @@ type respOut struct {
 }
 
 func (c *AIClient) postResponses(ctx context.Context, req respReq) (respOut, []byte, int, error) {
-	body, _ := json.Marshal(req)
-	httpReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/responses", bytes.NewReader(body))
+	body, err := json.Marshal(req)
+	if err != nil {
+		return respOut{}, nil, 0, fmt.Errorf("marshal responses request: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/responses", bytes.NewReader(body))
+	if err != nil {
+		return respOut{}, nil, 0, fmt.Errorf("build responses request: %w", err)
+	}
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
@@ -119,4 +126,3 @@ func extractOutputText(out respOut) string {
 	}
 	return strings.TrimSpace(rawText)
 }
-

@@ -2,12 +2,13 @@
 .idea/
 .DS_Store
 *.log
-EOF
 /routine.txt
-.env
-
 
 # binaries
 bin/
 .cache/
+/.gocache/
+/api
+/barzhafit
+/main
 tgapp/frontend/dist/

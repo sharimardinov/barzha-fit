@@ -314,7 +314,6 @@ export default function WorkoutPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [editingProgram, setEditingProgram] = useState(false);
-  const [editDays, setEditDays] = useState([]);
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
   const [setsMetric, setSetsMetric] = useState("");
@@ -346,7 +345,11 @@ export default function WorkoutPage() {
 
   const releaseWakeLock = useCallback(async () => {
     if (!wakeLockRef.current) return;
-    try { await wakeLockRef.current.release(); } catch {}
+    try {
+      await wakeLockRef.current.release();
+    } catch (err) {
+      console.warn("Wake lock release failed", err);
+    }
     wakeLockRef.current = null;
   }, []);
 

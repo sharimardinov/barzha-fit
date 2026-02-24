@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion as Motion } from "motion/react";
 
 export default function GoalSelector({ value, onChange, disabled = false }) {
   const options = [
@@ -29,7 +29,7 @@ export default function GoalSelector({ value, onChange, disabled = false }) {
           >
             {/* Animated pill background */}
             {active && (
-              <motion.div
+              <Motion.div
                 layoutId="goal-pill-bg-profile"
                 style={{
                   position: "absolute", inset: 0, borderRadius: 999,

@@ -5,6 +5,9 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"barzhafit/backend/config"
 	"barzhafit/backend/service"
@@ -26,7 +29,8 @@ func main() {
 	}
 	api.Debug = cfg.Debug
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -106,7 +110,10 @@ func runLinkBot(ctx context.Context, api *tgbotapi.BotAPI) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case upd := <-updates:
+		case upd, ok := <-updates:
+			if !ok {
+				return errors.New("telegram updates channel closed")
+			}
 			if upd.PreCheckoutQuery != nil {
 				cfg := tgbotapi.PreCheckoutConfig{
 					PreCheckoutQueryID: upd.PreCheckoutQuery.ID,

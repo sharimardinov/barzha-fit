@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useCallback } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useReducer } from "react";
 
 const AppContext = createContext(null);
 

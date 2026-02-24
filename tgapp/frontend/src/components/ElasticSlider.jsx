@@ -2,7 +2,7 @@
  * ElasticSlider — inspired by reactbits.dev/components/elastic-slider
  * Optimized: no state-driven re-renders during drag, cached rects, narrower track.
  */
-import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
+import { animate, motion as Motion, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { useRef, useCallback } from "react";
 
 const MAX_OVERFLOW = 50;
@@ -19,7 +19,6 @@ function SliderCore({ value, startingValue, maxValue, stepSize, onChange, color,
   const regionRef = useRef("middle");
   const clientX = useMotionValue(0);
   const overflow = useMotionValue(0);
-  const scale = useMotionValue(1);
 
   const cacheRect = useCallback(() => {
     if (sliderRef.current) rectRef.current = sliderRef.current.getBoundingClientRect();
@@ -82,9 +81,9 @@ function SliderCore({ value, startingValue, maxValue, stepSize, onChange, color,
       }}
     >
       {/* Left icon */}
-      <motion.div style={{ x: leftX, flexShrink: 0, display: "flex", alignItems: "center" }}>
+      <Motion.div style={{ x: leftX, flexShrink: 0, display: "flex", alignItems: "center" }}>
         {leftIcon}
-      </motion.div>
+      </Motion.div>
 
       {/* Track — narrower with maxWidth for visible elastic */}
       <div
@@ -99,7 +98,7 @@ function SliderCore({ value, startingValue, maxValue, stepSize, onChange, color,
           maxWidth: "75%", margin: "0 auto",
         }}
       >
-        <motion.div
+        <Motion.div
           style={{
             display: "flex", flexGrow: 1,
             scaleX: trackScaleX,
@@ -117,13 +116,13 @@ function SliderCore({ value, startingValue, maxValue, stepSize, onChange, color,
               background: color, borderRadius: 999,
             }} />
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
 
       {/* Right icon */}
-      <motion.div style={{ x: rightX, flexShrink: 0, display: "flex", alignItems: "center" }}>
+      <Motion.div style={{ x: rightX, flexShrink: 0, display: "flex", alignItems: "center" }}>
         {rightIcon}
-      </motion.div>
+      </Motion.div>
     </div>
   );
 }

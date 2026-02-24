@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion as Motion, AnimatePresence } from "motion/react";
 import "./PillNav.css";
 
 const PillNav = ({
@@ -53,7 +53,7 @@ const PillNav = ({
           <ul className="pill-list" role="menubar">
             {items.map((item, i) => (
               <li key={item.id || item.label || i} role="none">
-                <motion.button
+                <Motion.button
                   type="button"
                   role="menuitem"
                   className={`pill${activeId === item.id ? " is-active" : ""}`}
@@ -68,7 +68,7 @@ const PillNav = ({
                 >
                   <AnimatePresence>
                     {activeId === item.id && (
-                      <motion.span
+                      <Motion.span
                         className="pill-active"
                         layoutId="pill-active"
                         transition={{ type: "spring", stiffness: 600, damping: 36 }}
@@ -83,7 +83,7 @@ const PillNav = ({
                     )}
                     <span className="pill-label">{item.label}</span>
                   </span>
-                </motion.button>
+                </Motion.button>
               </li>
             ))}
           </ul>
