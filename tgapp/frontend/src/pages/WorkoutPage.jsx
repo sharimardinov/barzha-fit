@@ -65,17 +65,12 @@ function formatTotal(ms) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function currentCycleDay() {
-  const day = new Date().getDay();
-  return day === 0 ? 7 : day;
-}
-
 function loadStoredWorkoutDay() {
   const raw = Number(localStorage.getItem(workoutDayStorageKey) || "");
   if (Number.isInteger(raw) && raw > 0) {
     return raw;
   }
-  return currentCycleDay();
+  return 1;
 }
 
 function extractPlanDays(parsedPlan, rawPlanText) {
@@ -158,8 +153,6 @@ export default function WorkoutPage() {
         if (days.includes(current)) return current;
         const stored = loadStoredWorkoutDay();
         if (days.includes(stored)) return stored;
-        const today = currentCycleDay();
-        if (days.includes(today)) return today;
         return days[0];
       });
       if (parsedPlan.structured && Array.isArray(parsedPlan.items) && parsedPlan.items.length > 0) {
@@ -197,6 +190,9 @@ export default function WorkoutPage() {
         if (sessionResp?.plan) {
           planData = sessionResp.plan;
           issues = [];
+        }
+        if (sessionData?.workoutDay > 0) {
+          setSelectedDay(sessionData.workoutDay);
         }
         if (sessionData?.status === "completed") {
           void sendWorkoutReport(sessionData);
@@ -244,7 +240,7 @@ export default function WorkoutPage() {
     try {
       await api("/api/workout/session/report", {
         sessionID: sessionData.id,
-        day: selectedDay,
+        day: sessionData.workoutDay || selectedDay,
         heartRate: {
           avgBpm: stats.samples ? Math.round((stats.sum || 0) / stats.samples) : 0,
           maxBpm: stats.max || 0,

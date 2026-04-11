@@ -113,7 +113,7 @@ func (s *WorkoutTimerService) SavePlan(ctx context.Context, chatID int64, plan *
 	return s.plans.Upsert(ctx, chatID, payload)
 }
 
-func (s *WorkoutTimerService) StartSessionWithPlan(ctx context.Context, chatID int64, plan *domain.WorkoutPlan) (domain.WorkoutSession, bool, error) {
+func (s *WorkoutTimerService) StartSessionWithPlan(ctx context.Context, chatID int64, workoutDay int, plan *domain.WorkoutPlan) (domain.WorkoutSession, bool, error) {
 	session, ok, err := s.sessions.GetActive(ctx, chatID)
 	if err != nil {
 		return domain.WorkoutSession{}, false, err
@@ -148,6 +148,7 @@ func (s *WorkoutTimerService) StartSessionWithPlan(ctx context.Context, chatID i
 	now := s.now()
 	session = domain.WorkoutSession{
 		ChatID:        chatID,
+		WorkoutDay:    workoutDay,
 		PlanSnapshot:  payload,
 		Status:        domain.WorkoutSessionStatusInProgress,
 		Phase:         domain.WorkoutSessionPhaseWarmup,
@@ -161,7 +162,7 @@ func (s *WorkoutTimerService) StartSessionWithPlan(ctx context.Context, chatID i
 	return session, false, nil
 }
 
-func (s *WorkoutTimerService) StartSession(ctx context.Context, chatID int64) (domain.WorkoutSession, *domain.WorkoutPlan, bool, error) {
+func (s *WorkoutTimerService) StartSession(ctx context.Context, chatID int64, workoutDay int) (domain.WorkoutSession, *domain.WorkoutPlan, bool, error) {
 	session, ok, err := s.sessions.GetActive(ctx, chatID)
 	if err != nil {
 		return domain.WorkoutSession{}, nil, false, err
@@ -194,6 +195,7 @@ func (s *WorkoutTimerService) StartSession(ctx context.Context, chatID int64) (d
 	now := s.now()
 	session = domain.WorkoutSession{
 		ChatID:        chatID,
+		WorkoutDay:    workoutDay,
 		PlanID:        &planID,
 		PlanSnapshot:  payload,
 		Status:        domain.WorkoutSessionStatusInProgress,

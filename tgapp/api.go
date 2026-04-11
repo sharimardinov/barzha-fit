@@ -438,6 +438,18 @@ func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
 		return
 	}
+	if payload.Day <= 0 {
+		resolvedDay, err := s.defaultWorkoutDay(r.Context(), auth.User.ID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				writeJSON(w, http.StatusNotFound, apiResponse{OK: false, Error: "workout_plan_not_found"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_read_failed"})
+			return
+		}
+		payload.Day = resolvedDay
+	}
 	plan, err := s.workoutPlanFromDay(r.Context(), auth.User.ID, payload.Day)
 	if err != nil {
 		if writeWorkoutError(w, err) {
@@ -446,7 +458,7 @@ func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_plan_read_failed"})
 		return
 	}
-	session, existing, err := s.workoutTimer.StartSessionWithPlan(r.Context(), auth.User.ID, plan)
+	session, existing, err := s.workoutTimer.StartSessionWithPlan(r.Context(), auth.User.ID, payload.Day, plan)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -509,6 +521,11 @@ func (s *Server) handleWorkoutSetFinish(w http.ResponseWriter, r *http.Request, 
 		}
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_set_finish_failed"})
 		return
+	}
+	if payload.SetIndex > 0 && payload.ActualWeight > 0 {
+		if err := s.persistWorkoutWeight(r.Context(), auth.User.ID, session.WorkoutDay, payload.ExerciseIndex, payload.ActualWeight); err != nil {
+			log.Printf("workout plan weight update failed: chat_id=%d day=%d exercise=%d err=%v", auth.User.ID, session.WorkoutDay, payload.ExerciseIndex, err)
+		}
 	}
 	writeJSON(w, http.StatusOK, apiResponse{OK: true, Data: map[string]interface{}{
 		"session": workoutSessionToDTO(session),
@@ -587,7 +604,11 @@ func (s *Server) handleWorkoutSessionReport(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	text := buildTelegramWorkoutReport(report, payload.Day, payload.HeartRate.AvgBPM, payload.HeartRate.MaxBPM, payload.HeartRate.MinBPM, payload.HeartRate.LastBPM, payload.HeartRate.Samples)
+	reportDay := report.Session.WorkoutDay
+	if reportDay <= 0 {
+		reportDay = payload.Day
+	}
+	text := buildTelegramWorkoutReport(report, reportDay, payload.HeartRate.AvgBPM, payload.HeartRate.MaxBPM, payload.HeartRate.MinBPM, payload.HeartRate.LastBPM, payload.HeartRate.Samples)
 	if s.telegram != nil {
 		if err := s.telegram.SendText(auth.User.ID, text); err != nil {
 			log.Printf("workout report telegram send failed: chat_id=%d session_id=%d err=%v", auth.User.ID, payload.SessionID, err)
@@ -641,10 +662,8 @@ func (s *Server) workoutPlanFromDay(ctx context.Context, chatID int64, day int) 
 		}
 		return nil, err
 	}
-	loc := util.MustLocation(s.tz)
 	if day <= 0 {
-		now := util.NowIn(loc)
-		day = util.Weekday1to7(now)
+		day = firstWorkoutDay(planText)
 	}
 	days := service.SplitPlanByDays(planText)
 	block := strings.TrimSpace(days[day])
@@ -662,6 +681,92 @@ func (s *Server) workoutPlanFromDay(ctx context.Context, chatID int64, day int) 
 		return nil, service.WorkoutPlanValidationError{Issues: issues}
 	}
 	return &plan, nil
+}
+
+func firstWorkoutDay(planText string) int {
+	days := service.SplitPlanByDays(planText)
+	for day := 1; day <= 31; day++ {
+		if strings.TrimSpace(days[day]) != "" {
+			return day
+		}
+	}
+	return 1
+}
+
+func (s *Server) defaultWorkoutDay(ctx context.Context, chatID int64) (int, error) {
+	planText, err := s.plan.Get(ctx, chatID)
+	if err != nil {
+		return 0, err
+	}
+	return firstWorkoutDay(planText), nil
+}
+
+func (s *Server) persistWorkoutWeight(ctx context.Context, chatID int64, workoutDay, exerciseIndex int, actualWeight float64) error {
+	if workoutDay <= 0 || exerciseIndex < 0 || actualWeight <= 0 {
+		return nil
+	}
+
+	planText, err := s.plan.Get(ctx, chatID)
+	if err != nil {
+		return err
+	}
+	raw := strings.TrimSpace(planText)
+	if raw == "" || !strings.HasPrefix(raw, "{") {
+		return nil
+	}
+
+	var payload trainingPlanPayload
+	if err := json.Unmarshal([]byte(service.SanitizeJSON(raw)), &payload); err != nil {
+		return nil
+	}
+	if len(payload.Week) == 0 {
+		return nil
+	}
+
+	dayIndex := -1
+	for i, day := range payload.Week {
+		currentDay := day.Day
+		if currentDay == 0 {
+			currentDay = i + 1
+		}
+		if currentDay == workoutDay {
+			dayIndex = i
+			break
+		}
+	}
+	if dayIndex < 0 || exerciseIndex >= len(payload.Week[dayIndex].Items) {
+		return nil
+	}
+
+	updatedLine, changed := updateTrainingPlanWeight(payload.Week[dayIndex].Items[exerciseIndex], actualWeight)
+	if !changed {
+		return nil
+	}
+	payload.Week[dayIndex].Items[exerciseIndex] = updatedLine
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	return s.plan.Save(ctx, chatID, normalizeTrainingPlanTypes(string(data)))
+}
+
+func updateTrainingPlanWeight(line string, weight float64) (string, bool) {
+	raw := strings.TrimSpace(line)
+	if raw == "" || !strings.Contains(raw, "|") {
+		return line, false
+	}
+	parts := strings.Split(raw, "|")
+	if len(parts) < 3 {
+		return line, false
+	}
+
+	formatted := fmt.Sprintf("%.1f", weight)
+	if strings.HasSuffix(formatted, ".0") {
+		formatted = strings.TrimSuffix(formatted, ".0")
+	}
+	parts[2] = " " + formatted + " "
+	return strings.TrimSpace(strings.Join(parts, "|")), true
 }
 
 func buildTelegramWorkoutReport(report service.WorkoutSessionReport, day int, avgBPM, maxBPM, minBPM, lastBPM, samples int) string {
@@ -722,6 +827,7 @@ func formatWorkoutDuration(totalSec int) string {
 
 type workoutSessionDTO struct {
 	ID               int64      `json:"id"`
+	WorkoutDay       int        `json:"workoutDay"`
 	Status           string     `json:"status"`
 	Phase            string     `json:"phase"`
 	ExerciseIndex    int        `json:"exerciseIndex"`
@@ -738,6 +844,7 @@ type workoutSessionDTO struct {
 func workoutSessionToDTO(s domain.WorkoutSession) workoutSessionDTO {
 	return workoutSessionDTO{
 		ID:               s.ID,
+		WorkoutDay:       s.WorkoutDay,
 		Status:           string(s.Status),
 		Phase:            string(s.Phase),
 		ExerciseIndex:    s.ExerciseIndex,

@@ -57,6 +57,7 @@ const (
 type WorkoutSession struct {
 	ID               int64
 	ChatID           int64
+	WorkoutDay       int
 	PlanID           *int64
 	PlanSnapshot     []byte
 	Status           WorkoutSessionStatus

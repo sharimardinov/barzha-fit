@@ -18,7 +18,7 @@ func NewWorkoutSessionRepo(db *pgxpool.Pool) *WorkoutSessionRepo { return &Worko
 
 func (r *WorkoutSessionRepo) GetActive(ctx context.Context, chatID int64) (domain.WorkoutSession, bool, error) {
 	return r.getOne(ctx, `
-		select id, chat_id, plan_id, plan_snapshot, status, phase,
+		select id, chat_id, workout_day, plan_id, plan_snapshot, status, phase,
 		       exercise_index, set_index, timer_kind, timer_started_at,
 		       timer_duration_sec, warmup_ended_at, paused_at,
 		       paused_total_sec, started_at, updated_at
@@ -31,7 +31,7 @@ func (r *WorkoutSessionRepo) GetActive(ctx context.Context, chatID int64) (domai
 
 func (r *WorkoutSessionRepo) GetByID(ctx context.Context, chatID, sessionID int64) (domain.WorkoutSession, bool, error) {
 	return r.getOne(ctx, `
-		select id, chat_id, plan_id, plan_snapshot, status, phase,
+		select id, chat_id, workout_day, plan_id, plan_snapshot, status, phase,
 		       exercise_index, set_index, timer_kind, timer_started_at,
 		       timer_duration_sec, warmup_ended_at, paused_at,
 		       paused_total_sec, started_at, updated_at
@@ -53,6 +53,7 @@ func (r *WorkoutSessionRepo) getOne(ctx context.Context, query string, args ...i
 	err := r.db.QueryRow(ctx, query, args...).Scan(
 		&s.ID,
 		&s.ChatID,
+		&s.WorkoutDay,
 		&planID,
 		&s.PlanSnapshot,
 		&s.Status,
@@ -136,15 +137,16 @@ func (r *WorkoutSessionRepo) Create(ctx context.Context, s *domain.WorkoutSessio
 
 	err := r.db.QueryRow(ctx, `
 		insert into workout_sessions(
-			chat_id, plan_id, plan_snapshot, status, phase,
+			chat_id, workout_day, plan_id, plan_snapshot, status, phase,
 			exercise_index, set_index, timer_kind, timer_started_at,
 			timer_duration_sec, warmup_ended_at, paused_at,
 			paused_total_sec
 		)
-		values ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		values ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		returning id, started_at, updated_at
 	`,
 		s.ChatID,
+		s.WorkoutDay,
 		planID,
 		string(s.PlanSnapshot),
 		s.Status,
@@ -206,23 +208,25 @@ func (r *WorkoutSessionRepo) Update(ctx context.Context, s *domain.WorkoutSessio
 	_, err := r.db.Exec(ctx, `
 		update workout_sessions
 		set chat_id=$2,
-			plan_id=$3,
-			plan_snapshot=$4::jsonb,
-			status=$5,
-			phase=$6,
-			exercise_index=$7,
-			set_index=$8,
-			timer_kind=$9,
-			timer_started_at=$10,
-			timer_duration_sec=$11,
-			warmup_ended_at=$12,
-			paused_at=$13,
-			paused_total_sec=$14,
+			workout_day=$3,
+			plan_id=$4,
+			plan_snapshot=$5::jsonb,
+			status=$6,
+			phase=$7,
+			exercise_index=$8,
+			set_index=$9,
+			timer_kind=$10,
+			timer_started_at=$11,
+			timer_duration_sec=$12,
+			warmup_ended_at=$13,
+			paused_at=$14,
+			paused_total_sec=$15,
 			updated_at=now()
 		where id=$1
 	`,
 		s.ID,
 		s.ChatID,
+		s.WorkoutDay,
 		planID,
 		string(s.PlanSnapshot),
 		s.Status,
