@@ -3,6 +3,7 @@ import { api } from "../services/api";
 import { useToast } from "../components/Toast";
 import { formatApiError } from "../services/errors";
 import { postNativeMessage } from "../services/telegram";
+import { formatWeekPlanForEditor, parsePastedWeekPlan, parsePlan } from "../services/planUtils";
 
 function useHeartRate() {
   const [bpm, setBpm] = useState(null);
@@ -70,6 +71,8 @@ export default function WorkoutPage() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [planEditorText, setPlanEditorText] = useState("");
+  const [planSaving, setPlanSaving] = useState(false);
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
   const [setsMetric, setSetsMetric] = useState("");
@@ -104,6 +107,21 @@ export default function WorkoutPage() {
       console.warn("Wake lock release failed", err);
     }
     wakeLockRef.current = null;
+  }, []);
+
+  const loadPlanEditor = useCallback(async () => {
+    try {
+      const fullPlanResp = await api("/api/plan/get");
+      const rawPlanText = String(fullPlanResp?.text || "");
+      const parsedPlan = parsePlan(rawPlanText);
+      if (parsedPlan.structured && Array.isArray(parsedPlan.items) && parsedPlan.items.length > 0) {
+        setPlanEditorText(formatWeekPlanForEditor(parsedPlan.items));
+      } else {
+        setPlanEditorText(rawPlanText);
+      }
+    } catch {
+      setPlanEditorText("");
+    }
   }, []);
 
   const loadData = useCallback(async () => {
@@ -148,6 +166,10 @@ export default function WorkoutPage() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    void loadPlanEditor();
+  }, [loadPlanEditor]);
 
   useEffect(() => {
     const status = session?.status;
@@ -293,6 +315,35 @@ export default function WorkoutPage() {
   const pause = () => doAction("/api/workout/session/pause");
   const resume = () => doAction("/api/workout/session/resume");
   const stopWorkout = () => doAction("/api/workout/session/stop");
+  const savePlan = async () => {
+    const raw = String(planEditorText || "").trim();
+    if (!raw) {
+      toast("Вставь план");
+      return;
+    }
+
+    let textToSave = raw;
+    if (!raw.startsWith("{")) {
+      const weekPlan = parsePastedWeekPlan(raw);
+      if (weekPlan.length === 0) {
+        toast("Не удалось распознать дни плана");
+        return;
+      }
+      textToSave = JSON.stringify({ week_plan: weekPlan });
+    }
+
+    setPlanSaving(true);
+    try {
+      await api("/api/plan/set", { text: textToSave });
+      await loadData();
+      await loadPlanEditor();
+      toast("План обновлён");
+    } catch (err) {
+      toast(formatApiError(err));
+    } finally {
+      setPlanSaving(false);
+    }
+  };
 
   const exercises = plan?.exercises || [];
   const exercise = exercises[session?.exerciseIndex];
@@ -646,6 +697,22 @@ export default function WorkoutPage() {
           </div>
         </div>
       )}
+
+      <div className="card">
+        <div className="card-title">Редактор плана</div>
+        <textarea
+          value={planEditorText}
+          onChange={(event) => setPlanEditorText(event.target.value)}
+          placeholder={"1\nПодтягивания с весом | 4х6 | — | 180\n\n2\nОтдых"}
+          style={{ minHeight: 260, fontSize: 14, lineHeight: 1.45, marginBottom: 12 }}
+        />
+        <div className="muted" style={{ marginBottom: 12, fontSize: 12 }}>
+          Вставляй дни блоками: номер дня, затем упражнения по строкам. Кардио вроде `Единоборства 60 мин` тоже нормализуется.
+        </div>
+        <button className="btn btn-accent" onClick={savePlan} disabled={planSaving} style={{ width: "100%" }}>
+          {planSaving ? "Сохраняю..." : "Сохранить план"}
+        </button>
+      </div>
     </div>
   );
 }
