@@ -1,19 +1,11 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { AppProvider, useAppState } from "./hooks/useAppState";
+import { useEffect, useMemo, useState } from "react";
 import { ToastProvider } from "./components/Toast";
-import Nav from "./components/Nav";
-import GradualBlur from "./components/GradualBlur";
-import TodayPage from "./pages/TodayPage";
 import WorkoutPage from "./pages/WorkoutPage";
-import MealsPage from "./pages/MealsPage";
-import ProfilePage from "./pages/ProfilePage";
-import OnboardingPage from "./pages/OnboardingPage";
 import { api, getAuthToken, getInitData } from "./services/api";
 import { expandTg, isTelegram } from "./services/telegram";
 import "./styles/app.css";
 
 function AppContent() {
-  const { state, dispatch } = useAppState();
   const authBootstrap = useMemo(() => {
     const token = getAuthToken();
     const initData = getInitData();
@@ -21,36 +13,6 @@ function AppContent() {
   }, []);
   const [authChecked, setAuthChecked] = useState(!authBootstrap.hasAuthSource);
   const [authFailed, setAuthFailed] = useState(!authBootstrap.hasAuthSource);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
-
-  const checkAuth = useCallback(async (isCancelled) => {
-    if (authBootstrap.token) {
-      try {
-        await api("/auth/verify");
-      } catch {
-        if (isCancelled()) return;
-        localStorage.removeItem("auth_token");
-        setAuthFailed(true);
-        setAuthChecked(true);
-        return;
-      }
-    }
-    // Check if onboarding is needed
-    try {
-      const profile = await api("/api/profile/get");
-      if (isCancelled()) return;
-      if (!profile || !profile.sex || !profile.age) {
-        setNeedsOnboarding(true);
-      }
-    } catch (err) {
-      if (isCancelled()) return;
-      if (err?.message === "profile_not_found") {
-        setNeedsOnboarding(true);
-      }
-    }
-    if (isCancelled()) return;
-    setAuthChecked(true);
-  }, [authBootstrap.token]);
 
   useEffect(() => {
     if (!isTelegram()) {
@@ -58,21 +20,30 @@ function AppContent() {
     }
     expandTg();
     if (!authBootstrap.hasAuthSource) return;
+
     let cancelled = false;
-    const isCancelled = () => cancelled;
-    const timer = setTimeout(() => {
-      void checkAuth(isCancelled);
-    }, 0);
+    const run = async () => {
+      if (authBootstrap.token) {
+        try {
+          await api("/auth/verify");
+        } catch {
+          if (cancelled) return;
+          localStorage.removeItem("auth_token");
+          setAuthFailed(true);
+          setAuthChecked(true);
+          return;
+        }
+      }
+      if (!cancelled) {
+        setAuthChecked(true);
+      }
+    };
+
+    void run();
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
-  }, [authBootstrap.hasAuthSource, checkAuth]);
-
-  const handleOnboardingComplete = useCallback(() => {
-    setNeedsOnboarding(false);
-    dispatch({ type: "SET_TAB", payload: "today" });
-  }, [dispatch]);
+  }, [authBootstrap]);
 
   if (!authChecked) {
     return <div className="screen-loader is-loading"><div className="screen-spinner" /></div>;
@@ -88,44 +59,25 @@ function AppContent() {
     );
   }
 
-  if (needsOnboarding) {
-    return <OnboardingPage onComplete={handleOnboardingComplete} />;
-  }
-
-  const tab = state.activeTab;
-
-
   return (
     <>
       <header className="app-header" style={{ padding: "8px 16px 12px" }}>
         <div className="brand">
           <img className="brand-logo" src="/app/bott.png" alt="BarzhaFit" />
         </div>
-        <div className="screen-label">{
-          tab === "today" ? "Сегодня" :
-          tab === "workout" ? "Тренировка" :
-          tab === "meals" ? "Еда" :
-          tab === "profile" ? "Профиль" : ""
-        }</div>
+        <div className="screen-label">Тренировка</div>
       </header>
       <main className="app">
-        <div style={{ display: tab === "today" ? "block" : "none" }}><TodayPage /></div>
-        <div style={{ display: tab === "workout" ? "block" : "none" }}><WorkoutPage /></div>
-        <div style={{ display: tab === "meals" ? "block" : "none" }}><MealsPage /></div>
-        <div style={{ display: tab === "profile" ? "block" : "none" }}><ProfilePage /></div>
+        <WorkoutPage />
       </main>
-      <GradualBlur position="bottom" height="8rem" strength={1.5} layers={5} />
-      <Nav />
     </>
   );
 }
 
 export default function App() {
   return (
-    <AppProvider>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
-    </AppProvider>
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }

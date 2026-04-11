@@ -3,10 +3,7 @@ import SwiftUI
 struct SampleContentView: View {
     @StateObject private var auth = AuthState()
     @StateObject private var heartRate = HeartRateManager()
-    @StateObject private var stepSync = StepSyncManager()
-    @State private var profileJSON: String = ""
     @State private var errorText: String = ""
-    @State private var activeTab: String = "today"
 
     private let loginURL = AppConfig.loginURL
     private let miniappBaseURL = AppConfig.miniAppURL
@@ -14,7 +11,12 @@ struct SampleContentView: View {
     var body: some View {
         Group {
             if let token = auth.token {
-                workoutTab(token: token)
+                WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate) {
+                    errorText = ""
+                    auth.clear()
+                    heartRate.stop()
+                }
+                .ignoresSafeArea()
             } else {
                 ZStack(alignment: .bottom) {
                     AuthWebView(url: loginURL) { payload in
@@ -38,89 +40,15 @@ struct SampleContentView: View {
             }
         }
         .onChange(of: auth.token) { newValue in
-            if let token = newValue, !token.isEmpty {
-                stepSync.start(token: token)
-            } else {
-                stepSync.stop()
+            if newValue?.isEmpty != false {
                 heartRate.stop()
             }
         }
-        .task {
-            if let token = auth.token, !token.isEmpty {
-                stepSync.start(token: token)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func profileTab(token: String) -> some View {
-        VStack(spacing: 12) {
-            if let username = auth.username, !username.isEmpty {
-                Text("Hi, @\(username)")
-                    .font(.headline)
-            } else {
-                Text("Signed in")
-                    .font(.headline)
-            }
-
-            if !profileJSON.isEmpty {
-                Text(profileJSON)
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-            }
-
-            if !errorText.isEmpty {
-                Text(errorText)
-                    .font(.footnote)
-                    .foregroundColor(.red)
-            }
-
-            Button("Load profile") {
-                loadProfile(token: token)
-            }
-
-            Button("Log out") {
-                auth.clear()
-                profileJSON = ""
-                heartRate.stop()
-            }
-        }
-        .padding()
-    }
-
-    @ViewBuilder
-    private func workoutTab(token: String) -> some View {
-        WorkoutWebView(url: miniappURL(token: token), heartRate: heartRate, activeTab: $activeTab, onLogout: {
-            errorText = ""
-            auth.clear()
-        }, onTabChange: { tab in
-            activeTab = tab
-        })
-            .ignoresSafeArea()
     }
 
     private func miniappURL(token: String) -> URL {
         var components = URLComponents(url: miniappBaseURL, resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "token", value: token)]
         return components?.url ?? miniappBaseURL
-    }
-
-    private func loadProfile(token: String) {
-        errorText = ""
-        Task {
-            do {
-                var request = URLRequest(url: AppConfig.profileGetURL)
-                request.httpMethod = "POST"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                request.httpBody = Data("{}".utf8)
-
-                let (data, _) = try await URLSession.shared.data(for: request)
-                profileJSON = String(data: data, encoding: .utf8) ?? ""
-            } catch {
-                errorText = error.localizedDescription
-            }
-        }
     }
 }

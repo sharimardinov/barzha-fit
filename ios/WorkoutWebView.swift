@@ -5,27 +5,23 @@ import WebKit
 struct WorkoutWebView: UIViewRepresentable {
     let url: URL
     @ObservedObject var heartRate: HeartRateManager
-    @Binding var activeTab: String
     let onLogout: () -> Void
-    let onTabChange: (String) -> Void
 
-    init(url: URL, heartRate: HeartRateManager, activeTab: Binding<String>, onLogout: @escaping () -> Void = {}, onTabChange: @escaping (String) -> Void = { _ in }) {
+    init(url: URL, heartRate: HeartRateManager, onLogout: @escaping () -> Void = {}) {
         self.url = url
         self._heartRate = ObservedObject(wrappedValue: heartRate)
-        self._activeTab = activeTab
         self.onLogout = onLogout
-        self.onTabChange = onTabChange
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(heartRate: heartRate, onLogout: onLogout, onTabChange: onTabChange)
+        Coordinator(heartRate: heartRate, onLogout: onLogout)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(context.coordinator, name: "workoutTimer")
         config.userContentController.add(context.coordinator, name: "authState")
-        config.userContentController.add(context.coordinator, name: "nativeNav")
+        config.userContentController.add(context.coordinator, name: "requestHeartRate")
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -41,33 +37,17 @@ struct WorkoutWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.update(webView: webView, targetURL: url)
-        context.coordinator.syncTab(activeTab)
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         private let heartRate: HeartRateManager
         private let onLogout: () -> Void
-        private let onTabChange: (String) -> Void
         private var lastRequestedURL: URL?
         private weak var webView: WKWebView?
-        private var stepsObserver: NSObjectProtocol?
-        private var lastTabSent: String?
-        private var suppressNextTabSend = false
 
-        init(heartRate: HeartRateManager, onLogout: @escaping () -> Void, onTabChange: @escaping (String) -> Void) {
+        init(heartRate: HeartRateManager, onLogout: @escaping () -> Void) {
             self.heartRate = heartRate
             self.onLogout = onLogout
-            self.onTabChange = onTabChange
-            super.init()
-            stepsObserver = NotificationCenter.default.addObserver(forName: .stepsDidUpdate, object: nil, queue: .main) { [weak self] note in
-                self?.handleStepsUpdate(note)
-            }
-        }
-
-        deinit {
-            if let stepsObserver {
-                NotificationCenter.default.removeObserver(stepsObserver)
-            }
         }
 
         func attach(webView: WKWebView) {
@@ -87,7 +67,6 @@ struct WorkoutWebView: UIViewRepresentable {
                 let currentBase = urlKey(current, includeQuery: false)
                 let targetBase = urlKey(targetURL, includeQuery: false)
                 if currentBase != targetBase {
-                    // Don't interrupt external navigation.
                     return
                 }
                 if urlKey(current, includeQuery: true) == targetKey {
@@ -97,22 +76,6 @@ struct WorkoutWebView: UIViewRepresentable {
             }
             lastRequestedURL = targetURL
             webView.load(URLRequest(url: targetURL))
-        }
-
-        private func handleStepsUpdate(_ notification: Notification) {
-            guard let webView else { return }
-            guard let info = notification.userInfo else { return }
-            let steps = info["steps"] as? Int ?? 0
-            let distance = info["distance"] as? Double ?? 0
-            let kcal = info["kcal"] as? Double ?? 0
-            guard let payload = try? JSONSerialization.data(withJSONObject: [
-                "steps": steps,
-                "distance": distance,
-                "kcal": kcal,
-            ]) else { return }
-            guard let json = String(data: payload, encoding: .utf8) else { return }
-            let js = "window.dispatchEvent(new CustomEvent('nativeSteps', {detail: \(json)}));"
-            webView.evaluateJavaScript(js, completionHandler: nil)
         }
 
         private func urlKey(_ url: URL, includeQuery: Bool) -> String {
@@ -135,15 +98,19 @@ struct WorkoutWebView: UIViewRepresentable {
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            if message.name == "authState" {
+            switch message.name {
+            case "authState":
                 handleAuthState(message)
-                return
+            case "requestHeartRate":
+                handleHeartRateRequest()
+            case "workoutTimer":
+                handleWorkoutTimer(message)
+            default:
+                break
             }
-            if message.name == "nativeNav" {
-                handleNativeNav(message)
-                return
-            }
-            guard message.name == "workoutTimer" else { return }
+        }
+
+        private func handleWorkoutTimer(_ message: WKScriptMessage) {
             let action: String?
             if let dict = message.body as? [String: Any] {
                 action = dict["action"] as? String
@@ -179,37 +146,13 @@ struct WorkoutWebView: UIViewRepresentable {
             }
         }
 
-        private func handleNativeNav(_ message: WKScriptMessage) {
-            var tab: String?
-            if let dict = message.body as? [String: Any] {
-                tab = dict["tab"] as? String
-            } else if let text = message.body as? String {
-                tab = text
-            }
-            guard let tab, !tab.isEmpty else { return }
-            if tab == lastTabSent { return }
-            suppressNextTabSend = true
-            Task { @MainActor in
-                onTabChange(tab)
-            }
-        }
-
-        func syncTab(_ tab: String) {
+        private func handleHeartRateRequest() {
             guard let webView else { return }
-            if suppressNextTabSend {
-                suppressNextTabSend = false
-                lastTabSent = tab
-                return
-            }
-            if tab == lastTabSent { return }
-            lastTabSent = tab
-            let safeTab = tab.replacingOccurrences(of: "'", with: "\\'")
-            let js = "window.dispatchEvent(new CustomEvent('nativeTab', {detail: {tab: '\(safeTab)'}}));"
-            webView.evaluateJavaScript(js, completionHandler: nil)
+            let value = heartRate.bpm.map(String.init) ?? "null"
+            webView.evaluateJavaScript("window.onHeartRateUpdate?.(\(value));", completionHandler: nil)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            // Keep web view errors local; heart rate manager should be independent.
         }
     }
 }
