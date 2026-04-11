@@ -14,6 +14,7 @@ const messages = {
   workout_plan_not_found: "План тренировки не найден",
   workout_plan_invalid: "Некорректный план тренировки",
   workout_session_not_found: "Сессия не найдена",
+  workout_session_start_failed: "Не удалось начать тренировку. Проверь, что миграции БД применены",
   plan_invalid: "Некорректный план",
   plan_not_found: "План не найден",
 };
