@@ -56,6 +56,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("/api/workout/session/pause", s.withAuth(s.handleWorkoutSessionPause))
 	mux.HandleFunc("/api/workout/session/resume", s.withAuth(s.handleWorkoutSessionResume))
 	mux.HandleFunc("/api/workout/session/stop", s.withAuth(s.handleWorkoutSessionStop))
+	mux.HandleFunc("/api/workout/session/report", s.withAuth(s.handleWorkoutSessionReport))
 	mux.HandleFunc("/api/workout/stats/get", s.withAuth(s.handleWorkoutStatsGet))
 }
 
@@ -394,7 +395,14 @@ func (s *Server) handleTrainingProfileSet(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleWorkoutPlanGet(w http.ResponseWriter, r *http.Request, auth authContext) {
-	plan, err := s.workoutPlanFromToday(r.Context(), auth.User.ID)
+	var payload struct {
+		Day int `json:"day"`
+	}
+	if err := decodeJSONOptional(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+	plan, err := s.workoutPlanFromDay(r.Context(), auth.User.ID, payload.Day)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -423,7 +431,14 @@ func (s *Server) handleWorkoutSessionGet(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) handleWorkoutSessionStart(w http.ResponseWriter, r *http.Request, auth authContext) {
-	plan, err := s.workoutPlanFromToday(r.Context(), auth.User.ID)
+	var payload struct {
+		Day int `json:"day"`
+	}
+	if err := decodeJSONOptional(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+	plan, err := s.workoutPlanFromDay(r.Context(), auth.User.ID, payload.Day)
 	if err != nil {
 		if writeWorkoutError(w, err) {
 			return
@@ -546,6 +561,44 @@ func (s *Server) handleWorkoutSessionStop(w http.ResponseWriter, r *http.Request
 	}})
 }
 
+func (s *Server) handleWorkoutSessionReport(w http.ResponseWriter, r *http.Request, auth authContext) {
+	var payload struct {
+		SessionID int64 `json:"sessionID"`
+		Day       int   `json:"day"`
+		HeartRate struct {
+			AvgBPM  int `json:"avgBpm"`
+			MaxBPM  int `json:"maxBpm"`
+			MinBPM  int `json:"minBpm"`
+			LastBPM int `json:"lastBpm"`
+			Samples int `json:"samples"`
+		} `json:"heartRate"`
+	}
+	if err := decodeJSON(r, &payload); err != nil || payload.SessionID <= 0 {
+		writeJSON(w, http.StatusBadRequest, apiResponse{OK: false, Error: "bad_request"})
+		return
+	}
+
+	report, err := s.workoutTimer.BuildSessionReport(r.Context(), auth.User.ID, payload.SessionID)
+	if err != nil {
+		if writeWorkoutError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_session_report_failed"})
+		return
+	}
+
+	text := buildTelegramWorkoutReport(report, payload.Day, payload.HeartRate.AvgBPM, payload.HeartRate.MaxBPM, payload.HeartRate.MinBPM, payload.HeartRate.LastBPM, payload.HeartRate.Samples)
+	if s.telegram != nil {
+		if err := s.telegram.SendText(auth.User.ID, text); err != nil {
+			log.Printf("workout report telegram send failed: chat_id=%d session_id=%d err=%v", auth.User.ID, payload.SessionID, err)
+			writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_report_send_failed"})
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, apiResponse{OK: true})
+}
+
 func (s *Server) handleWorkoutStatsGet(w http.ResponseWriter, r *http.Request, auth authContext) {
 	if s.workoutStats == nil {
 		writeJSON(w, http.StatusInternalServerError, apiResponse{OK: false, Error: "workout_stats_unavailable"})
@@ -577,6 +630,10 @@ func (s *Server) handleWorkoutStatsGet(w http.ResponseWriter, r *http.Request, a
 }
 
 func (s *Server) workoutPlanFromToday(ctx context.Context, chatID int64) (*domain.WorkoutPlan, error) {
+	return s.workoutPlanFromDay(ctx, chatID, 0)
+}
+
+func (s *Server) workoutPlanFromDay(ctx context.Context, chatID int64, day int) (*domain.WorkoutPlan, error) {
 	planText, err := s.plan.Get(ctx, chatID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -585,8 +642,10 @@ func (s *Server) workoutPlanFromToday(ctx context.Context, chatID int64) (*domai
 		return nil, err
 	}
 	loc := util.MustLocation(s.tz)
-	now := util.NowIn(loc)
-	day := util.Weekday1to7(now)
+	if day <= 0 {
+		now := util.NowIn(loc)
+		day = util.Weekday1to7(now)
+	}
 	days := service.SplitPlanByDays(planText)
 	block := strings.TrimSpace(days[day])
 	if block == "" {
@@ -596,13 +655,69 @@ func (s *Server) workoutPlanFromToday(ctx context.Context, chatID int64) (*domai
 		}
 	}
 	if block == "" {
-		return nil, service.WorkoutPlanValidationError{Issues: []string{"Сегодня нет тренировки"}}
+		return nil, service.WorkoutPlanValidationError{Issues: []string{"В этот день нет тренировки"}}
 	}
 	plan, issues := service.BuildWorkoutPlanFromText(block)
 	if len(issues) > 0 {
 		return nil, service.WorkoutPlanValidationError{Issues: issues}
 	}
 	return &plan, nil
+}
+
+func buildTelegramWorkoutReport(report service.WorkoutSessionReport, day int, avgBPM, maxBPM, minBPM, lastBPM, samples int) string {
+	lines := []string{"Тренировка завершена"}
+	if day > 0 {
+		lines[0] = fmt.Sprintf("Тренировка завершена, день %d", day)
+	}
+	lines = append(lines, fmt.Sprintf("Время: %s", formatWorkoutDuration(report.TotalDurationSec)))
+
+	if len(report.Exercises) == 0 {
+		lines = append(lines, "Упражнения: без зафиксированных подходов")
+	} else {
+		lines = append(lines, "Что сделал:")
+		for _, exercise := range report.Exercises {
+			switch exercise.Type {
+			case domain.WorkoutExerciseCardio:
+				lines = append(lines, fmt.Sprintf("• %s: %s", exercise.Name, formatWorkoutDuration(exercise.TotalDurationSec)))
+			default:
+				line := fmt.Sprintf("• %s: %d подх, %d повт", exercise.Name, exercise.Sets, exercise.TotalReps)
+				if exercise.MaxWeight > 0 {
+					line += fmt.Sprintf(", до %.1f кг", exercise.MaxWeight)
+				}
+				line = strings.Replace(line, ".0 кг", " кг", 1)
+				lines = append(lines, line)
+			}
+		}
+	}
+
+	if samples > 0 {
+		pulse := fmt.Sprintf("Пульс: ср. %d", avgBPM)
+		if maxBPM > 0 {
+			pulse += fmt.Sprintf(", макс. %d", maxBPM)
+		}
+		if minBPM > 0 {
+			pulse += fmt.Sprintf(", мин. %d", minBPM)
+		}
+		if lastBPM > 0 {
+			pulse += fmt.Sprintf(", посл. %d", lastBPM)
+		}
+		lines = append(lines, pulse)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func formatWorkoutDuration(totalSec int) string {
+	if totalSec < 0 {
+		totalSec = 0
+	}
+	h := totalSec / 3600
+	m := (totalSec % 3600) / 60
+	s := totalSec % 60
+	if h > 0 {
+		return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%02d:%02d", m, s)
 }
 
 type workoutSessionDTO struct {
@@ -681,6 +796,13 @@ func decodeJSON(r *http.Request, out interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func decodeJSONOptional(r *http.Request, out interface{}) error {
+	if r.ContentLength == 0 {
+		return nil
+	}
+	return decodeJSON(r, out)
 }
 
 func ratioIcon(val, target float64) string {

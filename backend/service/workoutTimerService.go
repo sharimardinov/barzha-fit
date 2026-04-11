@@ -41,12 +41,29 @@ type WorkoutPlanStorage interface {
 
 type WorkoutSessionStorage interface {
 	GetActive(ctx context.Context, chatID int64) (domain.WorkoutSession, bool, error)
+	GetByID(ctx context.Context, chatID, sessionID int64) (domain.WorkoutSession, bool, error)
 	Create(ctx context.Context, s *domain.WorkoutSession) error
 	Update(ctx context.Context, s *domain.WorkoutSession) error
 }
 
 type WorkoutSetStorage interface {
 	Add(ctx context.Context, s *domain.WorkoutSet) error
+	ListBySession(ctx context.Context, sessionID int64) ([]domain.WorkoutSet, error)
+}
+
+type WorkoutSessionExerciseReport struct {
+	Name           string
+	Type           domain.WorkoutExerciseType
+	Sets           int
+	TotalReps      int
+	MaxWeight      float64
+	TotalDurationSec int
+}
+
+type WorkoutSessionReport struct {
+	Session          domain.WorkoutSession
+	TotalDurationSec int
+	Exercises        []WorkoutSessionExerciseReport
 }
 
 type WorkoutTimerService struct {
@@ -227,6 +244,83 @@ func (s *WorkoutTimerService) StopSession(ctx context.Context, chatID int64) (do
 		return domain.WorkoutSession{}, nil, err
 	}
 	return session, plan, nil
+}
+
+func (s *WorkoutTimerService) BuildSessionReport(ctx context.Context, chatID, sessionID int64) (WorkoutSessionReport, error) {
+	session, ok, err := s.sessions.GetByID(ctx, chatID, sessionID)
+	if err != nil {
+		return WorkoutSessionReport{}, err
+	}
+	if !ok {
+		return WorkoutSessionReport{}, ErrWorkoutSessionNotFound
+	}
+
+	sets, err := s.sets.ListBySession(ctx, sessionID)
+	if err != nil {
+		return WorkoutSessionReport{}, err
+	}
+
+	type aggregate struct {
+		name             string
+		kind             domain.WorkoutExerciseType
+		sets             int
+		totalReps        int
+		maxWeight        float64
+		totalDurationSec int
+	}
+
+	order := make([]int, 0)
+	byExercise := make(map[int]*aggregate)
+	for _, set := range sets {
+		if set.IsWarmup {
+			continue
+		}
+		item, exists := byExercise[set.ExerciseIndex]
+		if !exists {
+			item = &aggregate{
+				name: set.ExerciseName,
+				kind: set.ExerciseType,
+			}
+			byExercise[set.ExerciseIndex] = item
+			order = append(order, set.ExerciseIndex)
+		}
+		item.sets++
+		item.totalReps += set.ActualReps
+		if set.ActualWeight > item.maxWeight {
+			item.maxWeight = set.ActualWeight
+		}
+		if set.TargetWeight > item.maxWeight {
+			item.maxWeight = set.TargetWeight
+		}
+		item.totalDurationSec += set.ActualDurationSec
+		if set.ActualDurationSec <= 0 {
+			item.totalDurationSec += set.TargetDurationSec
+		}
+	}
+
+	exercises := make([]WorkoutSessionExerciseReport, 0, len(order))
+	for _, exerciseIndex := range order {
+		item := byExercise[exerciseIndex]
+		exercises = append(exercises, WorkoutSessionExerciseReport{
+			Name:             item.name,
+			Type:             item.kind,
+			Sets:             item.sets,
+			TotalReps:        item.totalReps,
+			MaxWeight:        item.maxWeight,
+			TotalDurationSec: item.totalDurationSec,
+		})
+	}
+
+	totalDurationSec := int(session.UpdatedAt.Sub(session.StartedAt).Seconds()) - session.PausedTotalSec
+	if totalDurationSec < 0 {
+		totalDurationSec = 0
+	}
+
+	return WorkoutSessionReport{
+		Session:          session,
+		TotalDurationSec: totalDurationSec,
+		Exercises:        exercises,
+	}, nil
 }
 
 func (s *WorkoutTimerService) FinishWarmup(ctx context.Context, chatID int64) (domain.WorkoutSession, *domain.WorkoutPlan, error) {

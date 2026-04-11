@@ -5,6 +5,8 @@ import { formatApiError } from "../services/errors";
 import { postNativeMessage } from "../services/telegram";
 import { formatWeekPlanForEditor, parsePastedWeekPlan, parsePlan } from "../services/planUtils";
 
+const workoutDayStorageKey = "workout.selected_day";
+
 function useHeartRate() {
   const [bpm, setBpm] = useState(null);
 
@@ -63,6 +65,37 @@ function formatTotal(ms) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function currentCycleDay() {
+  const day = new Date().getDay();
+  return day === 0 ? 7 : day;
+}
+
+function loadStoredWorkoutDay() {
+  const raw = Number(localStorage.getItem(workoutDayStorageKey) || "");
+  if (Number.isInteger(raw) && raw > 0) {
+    return raw;
+  }
+  return currentCycleDay();
+}
+
+function extractPlanDays(parsedPlan, rawPlanText) {
+  if (parsedPlan?.structured && Array.isArray(parsedPlan.items) && parsedPlan.items.length > 0) {
+    return parsedPlan.items
+      .map((item, index) => {
+        if (typeof item === "string") return index + 1;
+        return Number(item?.day) || index + 1;
+      })
+      .filter((day, index, array) => day > 0 && array.indexOf(day) === index)
+      .sort((a, b) => a - b);
+  }
+
+  const pasted = parsePastedWeekPlan(rawPlanText);
+  return pasted
+    .map((item) => Number(item.day) || 0)
+    .filter((day, index, array) => day > 0 && array.indexOf(day) === index)
+    .sort((a, b) => a - b);
+}
+
 export default function WorkoutPage() {
   const toast = useToast();
   const heartRate = useHeartRate();
@@ -71,6 +104,8 @@ export default function WorkoutPage() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [availablePlanDays, setAvailablePlanDays] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(loadStoredWorkoutDay);
   const [planEditorText, setPlanEditorText] = useState("");
   const [planSaving, setPlanSaving] = useState(false);
   const [weight, setWeight] = useState("");
@@ -86,6 +121,8 @@ export default function WorkoutPage() {
   const lastSetKeyRef = useRef(null);
   const metricTouchRef = useRef({});
   const wakeLockRef = useRef(null);
+  const heartRateStatsRef = useRef({});
+  const reportedSessionsRef = useRef(new Set());
 
   const requestWakeLock = useCallback(async () => {
     if (!("wakeLock" in navigator) || wakeLockRef.current) return;
@@ -114,12 +151,24 @@ export default function WorkoutPage() {
       const fullPlanResp = await api("/api/plan/get");
       const rawPlanText = String(fullPlanResp?.text || "");
       const parsedPlan = parsePlan(rawPlanText);
+      const days = extractPlanDays(parsedPlan, rawPlanText);
+      setAvailablePlanDays(days);
+      setSelectedDay((current) => {
+        if (days.length === 0) return current;
+        if (days.includes(current)) return current;
+        const stored = loadStoredWorkoutDay();
+        if (days.includes(stored)) return stored;
+        const today = currentCycleDay();
+        if (days.includes(today)) return today;
+        return days[0];
+      });
       if (parsedPlan.structured && Array.isArray(parsedPlan.items) && parsedPlan.items.length > 0) {
         setPlanEditorText(formatWeekPlanForEditor(parsedPlan.items));
       } else {
         setPlanEditorText(rawPlanText);
       }
     } catch {
+      setAvailablePlanDays([]);
       setPlanEditorText("");
     }
   }, []);
@@ -131,7 +180,7 @@ export default function WorkoutPage() {
       let issues = [];
 
       try {
-        const planResp = await api("/api/workout/plan/get");
+        const planResp = await api("/api/workout/plan/get", { day: selectedDay });
         planData = planResp?.plan || null;
       } catch (err) {
         if (err.message === "workout_plan_invalid") {
@@ -149,6 +198,9 @@ export default function WorkoutPage() {
           planData = sessionResp.plan;
           issues = [];
         }
+        if (sessionData?.status === "completed") {
+          void sendWorkoutReport(sessionData);
+        }
       } catch (err) {
         if (err.message !== "workout_session_not_found") {
           toast(formatApiError(err));
@@ -161,7 +213,7 @@ export default function WorkoutPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [selectedDay, toast]);
 
   useEffect(() => {
     void loadData();
@@ -172,23 +224,54 @@ export default function WorkoutPage() {
   }, [loadPlanEditor]);
 
   useEffect(() => {
+    localStorage.setItem(workoutDayStorageKey, String(selectedDay));
+  }, [selectedDay]);
+
+  useEffect(() => {
     const status = session?.status;
     const isLiveSession = Boolean(session && status !== "finished" && status !== "stopped" && status !== "completed");
     postNativeMessage("workoutTimer", { action: isLiveSession ? "start" : "stop" });
   }, [session]);
+
+  const sendWorkoutReport = useCallback(async (sessionData) => {
+    if (!sessionData?.id || reportedSessionsRef.current.has(sessionData.id)) {
+      return;
+    }
+
+    const stats = heartRateStatsRef.current[sessionData.id] || {};
+    reportedSessionsRef.current.add(sessionData.id);
+
+    try {
+      await api("/api/workout/session/report", {
+        sessionID: sessionData.id,
+        day: selectedDay,
+        heartRate: {
+          avgBpm: stats.samples ? Math.round((stats.sum || 0) / stats.samples) : 0,
+          maxBpm: stats.max || 0,
+          minBpm: stats.min || 0,
+          lastBpm: stats.last || 0,
+          samples: stats.samples || 0,
+        },
+      });
+    } catch (err) {
+      reportedSessionsRef.current.delete(sessionData.id);
+      toast(formatApiError(err));
+    }
+  }, [selectedDay, toast]);
 
   const applySession = useCallback((data) => {
     if (data?.plan) setPlan(data.plan);
 
     const nextSession = data?.session || null;
     if (nextSession?.status === "completed") {
-      setSession(null);
+      void sendWorkoutReport(nextSession);
+      setSession(nextSession);
       toast("Тренировка завершена");
       return;
     }
 
     setSession(nextSession);
-  }, [toast]);
+  }, [sendWorkoutReport, toast]);
 
   useEffect(() => {
     if (!session || (session.phase !== "rest" && session.phase !== "cardio")) {
@@ -294,6 +377,40 @@ export default function WorkoutPage() {
     }
   }, [session, plan]);
 
+  useEffect(() => {
+    const sessionID = session?.id;
+    if (!sessionID) return;
+    if (!heartRateStatsRef.current[sessionID]) {
+      heartRateStatsRef.current[sessionID] = {
+        sum: 0,
+        samples: 0,
+        min: 0,
+        max: 0,
+        last: 0,
+      };
+    }
+  }, [session?.id]);
+
+  useEffect(() => {
+    const sessionID = session?.id;
+    if (!sessionID || !session || session.status !== "in_progress" || !Number.isFinite(heartRate) || heartRate <= 0) {
+      return;
+    }
+    const current = heartRateStatsRef.current[sessionID] || {
+      sum: 0,
+      samples: 0,
+      min: 0,
+      max: 0,
+      last: 0,
+    };
+    current.sum += heartRate;
+    current.samples += 1;
+    current.last = heartRate;
+    current.min = current.min > 0 ? Math.min(current.min, heartRate) : heartRate;
+    current.max = Math.max(current.max, heartRate);
+    heartRateStatsRef.current[sessionID] = current;
+  }, [heartRate, session]);
+
   const doAction = async (path, body) => {
     setActionLoading(true);
     try {
@@ -309,7 +426,7 @@ export default function WorkoutPage() {
     }
   };
 
-  const startWorkout = () => doAction("/api/workout/session/start");
+  const startWorkout = () => doAction("/api/workout/session/start", { day: selectedDay });
   const endWarmup = () => doAction("/api/workout/session/warmup/end");
   const endRest = () => doAction("/api/workout/session/rest/end");
   const pause = () => doAction("/api/workout/session/pause");
@@ -483,6 +600,28 @@ export default function WorkoutPage() {
 
   return (
     <div className="screen active">
+      {availablePlanDays.length > 0 && (
+        <div className="card">
+          <div className="card-title">День тренировки</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {availablePlanDays.map((day) => (
+              <button
+                key={day}
+                className={selectedDay === day ? "btn btn-accent" : "btn btn-outline"}
+                onClick={() => setSelectedDay(day)}
+                disabled={sessionActive}
+                style={{ minWidth: 58, padding: "10px 14px" }}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+          <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+            {sessionActive ? "День нельзя менять во время активной тренировки." : `Выбран день ${selectedDay}.`}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-title">Таймер</div>
 

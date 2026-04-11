@@ -17,6 +17,16 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+type telegramSender struct {
+	api *tgbotapi.BotAPI
+}
+
+func (t telegramSender) SendText(chatID int64, text string) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	_, err := t.api.Send(msg)
+	return err
+}
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -78,6 +88,7 @@ func main() {
 		GoogleClientID:     cfg.GoogleClientID,
 		GoogleClientSecret: cfg.GoogleClientSecret,
 		TZ:                 cfg.TZ,
+		Telegram:           telegramSender{api: api},
 		Plan:               planSvc,
 		Targets:            targetsSvc,
 		Nutrition:          nutSvc,

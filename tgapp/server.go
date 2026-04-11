@@ -29,6 +29,7 @@ type Server struct {
 	googleClientID     string
 	googleClientSecret string
 	tz                 string
+	telegram           TelegramSender
 
 	plan         *service.PlanService
 	targets      *service.TargetsService
@@ -42,6 +43,10 @@ type Server struct {
 	sessions     *sessionStore
 }
 
+type TelegramSender interface {
+	SendText(chatID int64, text string) error
+}
+
 type Deps struct {
 	Addr               string
 	BotToken           string
@@ -49,6 +54,7 @@ type Deps struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	TZ                 string
+	Telegram           TelegramSender
 	Plan               *service.PlanService
 	Targets            *service.TargetsService
 	Nutrition          *service.NutritionService
@@ -72,6 +78,7 @@ func NewServer(d Deps) *Server {
 		googleClientID:     d.GoogleClientID,
 		googleClientSecret: d.GoogleClientSecret,
 		tz:                 d.TZ,
+		telegram:           d.Telegram,
 		plan:               d.Plan,
 		targets:            d.Targets,
 		nutrition:          d.Nutrition,

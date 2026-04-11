@@ -43,6 +43,48 @@ func (r *WorkoutSetRepo) Add(ctx context.Context, s *domain.WorkoutSet) error {
 	).Scan(&s.ID)
 }
 
+func (r *WorkoutSetRepo) ListBySession(ctx context.Context, sessionID int64) ([]domain.WorkoutSet, error) {
+	rows, err := r.db.Query(ctx, `
+		select id, session_id, exercise_index, set_index, is_warmup,
+		       exercise_name, exercise_type,
+		       target_weight, target_reps, target_duration_sec,
+		       actual_weight, actual_reps, actual_duration_sec,
+		       completed_at
+		from workout_sets
+		where session_id=$1
+		order by exercise_index asc, set_index asc, id asc
+	`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]domain.WorkoutSet, 0)
+	for rows.Next() {
+		var item domain.WorkoutSet
+		if err := rows.Scan(
+			&item.ID,
+			&item.SessionID,
+			&item.ExerciseIndex,
+			&item.SetIndex,
+			&item.IsWarmup,
+			&item.ExerciseName,
+			&item.ExerciseType,
+			&item.TargetWeight,
+			&item.TargetReps,
+			&item.TargetDurationSec,
+			&item.ActualWeight,
+			&item.ActualReps,
+			&item.ActualDurationSec,
+			&item.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (r *WorkoutSetRepo) StrengthTotals(ctx context.Context, chatID int64) (domain.StrengthTotals, error) {
 	var out domain.StrengthTotals
 	err := r.db.QueryRow(ctx, `

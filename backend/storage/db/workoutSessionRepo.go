@@ -17,15 +17,7 @@ type WorkoutSessionRepo struct {
 func NewWorkoutSessionRepo(db *pgxpool.Pool) *WorkoutSessionRepo { return &WorkoutSessionRepo{db: db} }
 
 func (r *WorkoutSessionRepo) GetActive(ctx context.Context, chatID int64) (domain.WorkoutSession, bool, error) {
-	var s domain.WorkoutSession
-	var planID sql.NullInt64
-	var timerKind sql.NullString
-	var timerStarted sql.NullTime
-	var warmupEnded sql.NullTime
-	var pausedAt sql.NullTime
-	var timerDuration sql.NullInt64
-
-	err := r.db.QueryRow(ctx, `
+	return r.getOne(ctx, `
 		select id, chat_id, plan_id, plan_snapshot, status, phase,
 		       exercise_index, set_index, timer_kind, timer_started_at,
 		       timer_duration_sec, warmup_ended_at, paused_at,
@@ -34,7 +26,31 @@ func (r *WorkoutSessionRepo) GetActive(ctx context.Context, chatID int64) (domai
 		where chat_id=$1 and status in ($2, $3)
 		order by id desc
 		limit 1
-	`, chatID, domain.WorkoutSessionStatusInProgress, domain.WorkoutSessionStatusPaused).Scan(
+	`, chatID, domain.WorkoutSessionStatusInProgress, domain.WorkoutSessionStatusPaused)
+}
+
+func (r *WorkoutSessionRepo) GetByID(ctx context.Context, chatID, sessionID int64) (domain.WorkoutSession, bool, error) {
+	return r.getOne(ctx, `
+		select id, chat_id, plan_id, plan_snapshot, status, phase,
+		       exercise_index, set_index, timer_kind, timer_started_at,
+		       timer_duration_sec, warmup_ended_at, paused_at,
+		       paused_total_sec, started_at, updated_at
+		from workout_sessions
+		where chat_id=$1 and id=$2
+		limit 1
+	`, chatID, sessionID)
+}
+
+func (r *WorkoutSessionRepo) getOne(ctx context.Context, query string, args ...interface{}) (domain.WorkoutSession, bool, error) {
+	var s domain.WorkoutSession
+	var planID sql.NullInt64
+	var timerKind sql.NullString
+	var timerStarted sql.NullTime
+	var warmupEnded sql.NullTime
+	var pausedAt sql.NullTime
+	var timerDuration sql.NullInt64
+
+	err := r.db.QueryRow(ctx, query, args...).Scan(
 		&s.ID,
 		&s.ChatID,
 		&planID,
